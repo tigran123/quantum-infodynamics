@@ -32,7 +32,7 @@ def psi(x,t,n):
     ret = a*hermval(x*B,c,tensor=False)
     return ret
 
-# map the plot number (0..5) to the quantum energy level n
+# map the plot number to the quantum energy level n
 nmap = [0, 3, 20, 60, 100]
 nmap_len = len(nmap)
 
