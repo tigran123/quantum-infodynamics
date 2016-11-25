@@ -39,13 +39,16 @@ nmap_len = len(nmap)
 data = np.zeros((Nx,Nt,nmap_len))
 maxv = np.zeros(nmap_len)
 
-print("Calculating data...")
+print("Calculating data:", end=" ", flush=True)
+from time import time,clock
+t_start,c_start = time(),clock()
 for m in range(nmap_len):
     d = np.abs(psi(xx, tt, nmap[m]))**2
     norm = np.sum(d)*dx
     data[...,m] = d/norm
     maxv[m] = np.amax(data[...,m])
-
+t_end,c_end = time() - t_start,clock() - c_start
+print("%3.1fs/%3.1fs" % (t_end, c_end))
 
 print("Plotting frames...")
 for k in range(Nt):
