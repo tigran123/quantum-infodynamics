@@ -16,7 +16,7 @@ pyfftw.interfaces.cache.set_keepalive_time(10)
 
 omega  = 1.0 # cyclic frequency (radian/s)
 
-(Nx,Np,Nt) = (128,128,20)
+(Nx,Np,Nt) = (64,64,10)
 
 (x1,x2,p1,p2) = (-3.0, 3.0, -3.0, 3.0)
 (t1,t2) = (0.0, 2.0*pi/omega) # simulate one period
@@ -77,6 +77,7 @@ def H(x,p):
 
 xv,dx = linspace(x1, x2, Nx, endpoint=False, retstep=True)
 pv,dp = linspace(p1, p2, Np, endpoint=False, retstep=True)
+#dmu = dx*dp
 t,dt  = linspace(t1, t2, Nt, endpoint=False, retstep=True)
 xx,pp = mgrid[x1:x2-dx:Nx*1j, p1:p2-dp:Np*1j]
 xxx,ppp,ttt = mgrid[x1:x2-dx:Nx*1j, p1:p2-dp:Np*1j, t1:t2-dt:Nt*1j]
@@ -105,19 +106,32 @@ h_levels = linspace(E_min, E_max, 10) # the number of contour levels of H(x,p) t
 def fmt(x, pos):
     return "%3.2f" % x
 
-import pdb
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 def draw_frame(i, fname):
-    global f_numeric_spectral, f_numeric_spectral_v1, f_numeric_fd, f_analytic
+    global f_numeric_spectral, f_numeric_spectral_v1, f_numeric_fd, f_analytic, dmu
 
     fig,((ax1,ax2,ax3,ax4),(ax5,ax6,ax7,ax8)) = plt.subplots(2, 4, figsize=(19.2,10.8), dpi=100)
 
     rho_a = f_analytic[...,i]
+
     rho1 = f_numeric_spectral[...,i]
+    #xav = sum(xx*rho1)*dmu
+    #pav = sum(pp*rho1)*dmu
+    #r_limit = (xx-xav)**2 + (pp-pav)**2 > 1.0
+    #rho1[r_limit] = 0.0
+
     rho2 = f_numeric_spectral_v1[...,i]
+    #xav = sum(xx*rho2)*dmu
+    #pav = sum(pp*rho2)*dmu
+    #r_limit = (xx-xav)**2 + (pp-pav)**2 > 1.0
+    #rho2[r_limit] = 0.0
+
     rho3 = f_numeric_spectral_v2[...,i]
-    #if i==1: pdb.set_trace()
+    #xav = sum(xx*rho3)*dmu
+    #pav = sum(pp*rho3)*dmu
+    #r_limit = (xx-xav)**2 + (pp-pav)**2 > 1.0
+    #rho3[r_limit] = 0.0
 
     ax1.contour(xx, pp, Hmatrix, h_levels, linewidths=0.25, colors='k')
     im1 = ax1.contourf(xx, pp, rho_a, levels=Wlevels_a, norm=norm, cmap=cm.bwr)
@@ -223,7 +237,6 @@ def F_λtox(W):
 f_init = f0(xx,pp)
 #r_limit = (xx-x0)**2 + (pp-p0)**2 > 1.0
 #f_init[r_limit] = 0.0
-#exit()
 f_init = fftshift(f_init)
 
 # first order spectral split operator
