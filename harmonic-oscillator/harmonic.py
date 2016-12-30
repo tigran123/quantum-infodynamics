@@ -36,12 +36,17 @@ class MidpointNormalize(Normalize):
         return ma.masked_array(interp(value, x, y))
 
 norm = MidpointNormalize(midpoint=0.0)
-
-#hbar = 1.0545718e-34 # Planck's constant in J*s (SI)
-hbar = 1.0 # Planck's constant in 'natural units'
+norm1 = MidpointNormalize(midpoint=0.0)
+norm2 = MidpointNormalize(midpoint=0.0)
+norm3 = MidpointNormalize(midpoint=0.0)
+norm4 = MidpointNormalize(midpoint=0.0)
+norm5 = MidpointNormalize(midpoint=0.0)
+norm6 = MidpointNormalize(midpoint=0.0)
+norm7 = MidpointNormalize(midpoint=0.0)
+norm8 = MidpointNormalize(midpoint=0.0)
 
 def qd(f, x, dx):
-    global hbar
+    hbar = 1.0 # Planck's constant  1.0545718e-34 J*s in 'natural units'
     return (f(x+1j*hbar*dx/2.) - f(x-1j*hbar*dx/2.))/(1j*hbar)
 
 (x0,p0,sigmax,sigmap) = (0.0, 1.0, 0.2, 0.1)
@@ -61,17 +66,18 @@ def f(x,p,t):
     global m, omega
     return f0(x*cos(omega*t) - (p/(m*omega))*sin(omega*t), p*cos(omega*t) + m*omega*x*sin(omega*t))
 
-# potential energy U(x)
 def U(x):
+    """Potential energy U(x)"""
     global m, omega
     return m*omega**2*x**2/2.
 
 def dUdx(x):
+    """Derivative of potential energy dU(x)/dx"""
     global m, omega
     return m*omega**2*x
 
-# non-relativistic Hamiltonian
 def H(x,p):
+    """Non-relativistic Hamiltonian"""
     global m
     return p**2/(2.*m) + U(x)
 
@@ -109,7 +115,8 @@ def fmt(x, pos):
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 def draw_frame(i, fname):
-    global f_numeric_spectral, f_numeric_spectral_v1, f_numeric_fd, f_analytic, dmu
+    global f_numeric_spectral, f_numeric_spectral_v1, f_numeric_spectral_v2, f_analytic, Wmin, Wmax, Wmin_v1, Wmax_v1, Wmin_v2, Wmax_v2
+    global Wlevels1, Wticks1, Wlevels2, Wticks2, Wlevels3, Wticks3
 
     fig,((ax1,ax2,ax3,ax4),(ax5,ax6,ax7,ax8)) = plt.subplots(2, 4, figsize=(19.2,10.8), dpi=100)
 
@@ -134,10 +141,10 @@ def draw_frame(i, fname):
     #rho3[r_limit] = 0.0
 
     ax1.contour(xx, pp, Hmatrix, h_levels, linewidths=0.25, colors='k')
-    im1 = ax1.contourf(xx, pp, rho_a, levels=Wlevels_a, norm=norm, cmap=cm.bwr)
+    im1 = ax1.contourf(xx, pp, rho_a, levels=Wlevels1, norm=norm1, cmap=cm.bwr)
     divider = make_axes_locatable(ax1)
     cax = divider.append_axes("right", "2%", pad="1%")
-    plt.colorbar(im1, cax = cax, ticks = Wticks_a, format=mplt.ticker.FuncFormatter(fmt))
+    plt.colorbar(im1, cax = cax, ticks = Wticks1, format=mplt.ticker.FuncFormatter(fmt))
     E_sum = sum(H(xx,pp)*rho_a)*dx*dp
     E_dblq = dblquad(lambda x, p: H(x,p)*f(x,p,t[i]), x1, x2-dx, lambda p: p1, lambda p: p2-dp)[0]
     title = 'AN, E_sum=% 6.4f, E_dblq= %6.4f' % (E_sum, E_dblq)
@@ -146,10 +153,10 @@ def draw_frame(i, fname):
 
     ax2.contour(xx, pp, Hmatrix, h_levels, linewidths=0.25, colors='k')
     err = amax(abs(rho1 - rho_a))
-    im2 = ax2.contourf(xx, pp, rho1, levels=Wlevels, norm=norm, cmap=cm.bwr)
+    im2 = ax2.contourf(xx, pp, rho1, levels=Wlevels2, norm=norm2, cmap=cm.bwr)
     divider = make_axes_locatable(ax2)
     cax = divider.append_axes("right", "2%", pad="1%")
-    plt.colorbar(im2, cax = cax, ticks = Wticks, format=mplt.ticker.FuncFormatter(fmt))
+    plt.colorbar(im2, cax = cax, ticks = Wticks2, format=mplt.ticker.FuncFormatter(fmt))
     E_num = sum(H(xx,pp)*rho1)*dx*dp
     E_num_simps = simps(simps(H(xx,pp)*rho1,pv),xv)
     title = 'SS1, E_num=% 6.4f, E_num_simps= %6.4f\nError=% 6.4f' % (E_num, E_num_simps, err)
@@ -158,10 +165,10 @@ def draw_frame(i, fname):
 
     ax3.contour(xx, pp, Hmatrix, h_levels, linewidths=0.25, colors='k')
     err = amax(abs(rho2 - rho_a))
-    im3 = ax3.contourf(xx, pp, rho2, levels=Wlevels_v1, norm=norm, cmap=cm.bwr)
+    im3 = ax3.contourf(xx, pp, rho2, levels=Wlevels3, norm=norm3, cmap=cm.bwr)
     divider = make_axes_locatable(ax3)
     cax = divider.append_axes("right", "2%", pad="1%")
-    plt.colorbar(im3, cax = cax, ticks = Wticks_v1, format=mplt.ticker.FuncFormatter(fmt))
+    plt.colorbar(im3, cax = cax, ticks = Wticks3, format=mplt.ticker.FuncFormatter(fmt))
     E_num = sum(H(xx,pp)*rho2)*dx*dp
     E_num_simps = simps(simps(H(xx,pp)*rho2,pv),xv)
     title = 'SS2v1, E_num=% 6.4f, E_num_simps= %6.4f\nError=% 6.4f' % (E_num, E_num_simps, err)
@@ -170,10 +177,10 @@ def draw_frame(i, fname):
 
     ax4.contour(xx, pp, Hmatrix, h_levels, linewidths=0.25, colors='k')
     err = amax(abs(rho3 - rho_a))
-    im4 = ax4.contourf(xx, pp, rho3, levels=Wlevels_v2, norm=norm, cmap=cm.bwr)
+    im4 = ax4.contourf(xx, pp, rho3, levels = Wlevels4, norm=norm4, cmap=cm.bwr)
     divider = make_axes_locatable(ax4)
     cax = divider.append_axes("right", "2%", pad="1%")
-    plt.colorbar(im4, cax = cax, ticks = Wticks_v2, format=mplt.ticker.FuncFormatter(fmt))
+    plt.colorbar(im4, cax = cax, ticks = Wticks4, format=mplt.ticker.FuncFormatter(fmt))
     E_num = sum(H(xx,pp)*rho3)*dx*dp
     E_num_simps = simps(simps(H(xx,pp)*rho3,pv),xv)
     title = 'SS2v2, E_num=% 6.4f, E_num_simps= %6.4f\nError=% 6.4f' % (E_num, E_num_simps, err)
@@ -182,34 +189,39 @@ def draw_frame(i, fname):
 
     ax5.set_title('Wmin=%8.6f, Wmax=%8.6f' % (Wmin_a, Wmax_a))
     ax5.contour(xx, pp, Hmatrix, h_levels, linewidths=0.25, colors='k')
-    im5 = ax5.imshow(rho_a.T, origin='lower', interpolation='none', extent=[x1,x2-dx,p1,p2-dp], norm=norm, cmap=cm.bwr)
+    im5 = ax5.imshow(rho_a.T, origin='lower', interpolation='none',
+              extent=[x1,x2-dx,p1,p2-dp], vmin=Wmin_a, vmax=Wmax_a, norm=norm5, cmap=cm.bwr)
     divider = make_axes_locatable(ax5)
     cax = divider.append_axes("right", "2%", pad="1%")
-    plt.colorbar(im5, cax = cax, ticks = Wticks_a, format=mplt.ticker.FuncFormatter(fmt))
+    plt.colorbar(im5, cax = cax, ticks = Wticks1, format=mplt.ticker.FuncFormatter(fmt))
     ax5.grid()
 
     ax6.set_title('Wmin=%8.6f, Wmax=%8.6f' % (Wmin, Wmax))
     ax6.contour(xx, pp, Hmatrix, h_levels, linewidths=0.25, colors='k')
-    im6 = ax6.imshow(rho1.T, origin='lower', interpolation='none', extent=[x1,x2-dx,p1,p2-dp], norm=norm, cmap=cm.bwr)
+    im6 = ax6.imshow(rho1.T, origin='lower', interpolation='none',
+              extent=[x1,x2-dx,p1,p2-dp], vmin=Wmin, vmax=Wmax, norm=norm6, cmap=cm.bwr)
     divider = make_axes_locatable(ax6)
     cax = divider.append_axes("right", "2%", pad="1%")
-    plt.colorbar(im6, cax = cax, ticks = Wticks, format=mplt.ticker.FuncFormatter(fmt))
+    plt.colorbar(im6, cax = cax, ticks = Wticks2, format=mplt.ticker.FuncFormatter(fmt))
+    plt.colorbar(im6, cax = cax, format=mplt.ticker.FuncFormatter(fmt))
     ax6.grid()
 
     ax7.set_title('Wmin=%8.6f, Wmax=%8.6f' % (Wmin_v1, Wmax_v1))
     ax7.contour(xx, pp, Hmatrix, h_levels, linewidths=0.25, colors='k')
-    im7 = ax7.imshow(rho2.T, origin='lower', interpolation='none', extent=[x1,x2-dx,p1,p2-dp], norm=norm, cmap=cm.bwr)
+    im7 = ax7.imshow(rho2.T, origin='lower', interpolation='none',
+              extent=[x1,x2-dx,p1,p2-dp], vmin=Wmin_v1, vmax=Wmax_v1, norm=norm7, cmap=cm.bwr)
     divider = make_axes_locatable(ax7)
     cax = divider.append_axes("right", "2%", pad="1%")
-    plt.colorbar(im7, cax = cax, ticks = Wticks_v1, format=mplt.ticker.FuncFormatter(fmt))
+    plt.colorbar(im7, cax = cax, ticks = Wticks3, format=mplt.ticker.FuncFormatter(fmt))
     ax7.grid()
 
     ax8.set_title('Wmin=%8.6f, Wmax=%8.6f' % (Wmin_v2, Wmax_v2))
     ax8.contour(xx, pp, Hmatrix, h_levels, linewidths=0.25, colors='k')
-    im8 = ax8.imshow(rho3.T, origin='lower', interpolation='none', extent=[x1,x2-dx,p1,p2-dp], norm=norm, cmap=cm.bwr)
+    im8 = ax8.imshow(rho3.T, origin='lower', interpolation='none',
+              extent=[x1,x2-dx,p1,p2-dp], vmin=Wmin_v2, vmax=Wmax_v2, norm=norm8, cmap=cm.bwr)
     divider = make_axes_locatable(ax8)
     cax = divider.append_axes("right", "2%", pad="1%")
-    plt.colorbar(im8, cax = cax, ticks = Wticks_v2, format=mplt.ticker.FuncFormatter(fmt))
+    plt.colorbar(im8, cax = cax, ticks = Wticks4, format=mplt.ticker.FuncFormatter(fmt))
     ax8.grid()
 
     plt.tight_layout()
@@ -319,22 +331,25 @@ print("SS2 v2: (%3.1fs/%3.1fs): (%dx%dx%d) Error=%07.6f" % (t_end, c_end, Nx, Np
 #print("%d\t\t%d\t\t%d\t\t%07.6f\t\t%07.6f\t\t%07.6f" % (Nx, Np, Nt, err1, err2, err3))
 #exit()
 
-
 (Wmin_a,Wmax_a) = (amin(f_analytic), amax(f_analytic))
-Wlevels_a = linspace(Wmin_a, Wmax_a, 100)
-Wticks_a = linspace(Wmin_a, Wmax_a, 10)
+Wlevels1 = linspace(Wmin_a, Wmax_a, 100)
+Wticks1 = linspace(Wmin_a, Wmax_a, 10)
+print("Wmin_a=", Wmin_a, "Wmax_a=", Wmax_a)
 
 (Wmin,Wmax) = (amin(f_numeric_spectral), amax(f_numeric_spectral))
-Wlevels = linspace(Wmin, Wmax, 100)
-Wticks = linspace(Wmin, Wmax, 10)
+Wlevels2 = linspace(Wmin, Wmax, 100)
+Wticks2 = linspace(Wmin, Wmax, 10)
+print("Wmin=", Wmin, "Wmax=", Wmax)
 
 (Wmin_v1,Wmax_v1) = (amin(f_numeric_spectral_v1), amax(f_numeric_spectral_v1))
-Wlevels_v1 = linspace(Wmin_v1, Wmax_v1, 100)
-Wticks_v1 = linspace(Wmin_v1, Wmax_v1, 10)
+Wlevels3 = linspace(Wmin_v1, Wmax_v1, 100)
+Wticks3 = linspace(Wmin_v1, Wmax_v1, 10)
+print("Wmin_v1=", Wmin_v1, "Wmax_v1=", Wmax_v1)
 
 (Wmin_v2,Wmax_v2) = (amin(f_numeric_spectral_v2), amax(f_numeric_spectral_v2))
-Wlevels_v2 = linspace(Wmin_v2, Wmax_v2, 100)
-Wticks_v2 = linspace(Wmin_v2, Wmax_v2, 10)
+Wlevels4 = linspace(Wmin_v2, Wmax_v2, 100)
+Wticks4 = linspace(Wmin_v2, Wmax_v2, 10)
+print("Wmin_v2=", Wmin_v2, "Wmax_v2=", Wmax_v2)
 
 for i in range(Nt):
     draw_frame(i, 'frames/%04d.png' % i)
