@@ -1,3 +1,8 @@
+"""
+ Author: Tigran Aivazian <aivazian.tigran@gmail.com>
+ License: GPL
+"""
+
 import numpy as np
 import matplotlib as mplt
 mplt.use('Agg')

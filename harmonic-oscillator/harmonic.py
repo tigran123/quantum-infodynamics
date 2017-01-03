@@ -1,3 +1,8 @@
+"""
+ Author: Tigran Aivazian <aivazian.tigran@gmail.com>
+ License: GPL
+"""
+
 from numpy import pi, exp, cos, sin, linspace, mgrid, amax, amin, newaxis, sum, abs, zeros, sqrt, real, ma, interp
 import matplotlib as mplt
 mplt.use('Agg')
