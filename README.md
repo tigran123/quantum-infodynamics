@@ -3,4 +3,6 @@
 
 This repository contains the programs and any other materials related to Quantum Infodynamics.
 
-* harmonic-oscillator --- Programs simulating the ubiquitous harmonic oscillator
+* dynamics --- Tools for simulating any [info]dynamical system on both the quantum and classical level
+
+* harmonic-oscillator --- Sample programs simulating the ubiquitous harmonic oscillator
