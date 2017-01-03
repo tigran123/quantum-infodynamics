@@ -42,7 +42,7 @@ if p2 <= p1: pr_exit("p2 must be greater than p1, but %f <= %f" %(p2,p1))
 if t2 <= t1: pr_exit("t2 must be greater than t1, but %f <= %f" %(t2,t1))
 if Nx <= 0: pr_exit("Nx must be positive, but %d <= 0" %(Nx))
 if Np <= 0: pr_exit("Np must be positive, but %d <= 0" %(Np))
-if tol <= 0: pr_exit("Tolerance must be positive, but %d <= 0" %(tol))
+if tol <= 0: pr_exit("Tolerance must be positive, but %f <= 0" %(tol))
 
 # construct the mesh grid for evaluating f0(x,p), U(x), dUdx(x), T(p), dTdp(p)
 xv,dx = linspace(x1, x2, Nx, endpoint=False, retstep=True)
