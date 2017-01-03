@@ -1,5 +1,7 @@
 """
- prinit.py --- Print initial data (init.npz)
+  prinit.py --- Print initial data (init.npz)
+  Author: Tigran Aivazian <aivazian.tigran@gmail.com>
+  License: GPL
 """
 from numpy import load, sum, set_printoptions, nan
 import argparse as arg

@@ -1,6 +1,7 @@
 """
- mkinit.py --- Generate compressed initial data (init.npz)
- Author: Tigran Aivazian <aivazian.tigran@gmail.com>
+  mkinit.py --- Generate compressed initial data (init.npz)
+  Author: Tigran Aivazian <aivazian.tigran@gmail.com>
+  License: GPL
 """
 import argparse as arg
 from numpy import savez_compressed, mgrid, linspace, pi, newaxis, amin, amax

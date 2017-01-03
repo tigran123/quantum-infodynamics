@@ -1,5 +1,7 @@
 """
   solanim.py --- Solution Animator
+  Author: Tigran Aivazian <aivazian.tigran@gmail.com>
+  License: GPL
 """
 
 import matplotlib as mplt
