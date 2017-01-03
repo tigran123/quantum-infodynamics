@@ -6,6 +6,8 @@ from matplotlib import cm
 from scipy.integrate import dblquad, simps
 import time
 
+mplt.rc('font', family='serif', size=12)
+
 # select FFT implementation
 #from numpy.fft import ifftshift, fftshift, fft, ifft
 #from scipy.fftpack import fftshift, ifftshift, fft, ifft
@@ -149,7 +151,7 @@ def draw_frame(i, fname):
     E_dblq = dblquad(lambda x, p: H(x,p)*f(x,p,t[i]), x1, x2-dx, lambda p: p1, lambda p: p2-dp)[0]
     title = 'AN, E_sum=% 6.4f, E_dblq= %6.4f' % (E_sum, E_dblq)
     ax1.set_title(title)
-    ax1.grid()
+    ax1.grid(True)
 
     ax2.contour(xx, pp, Hmatrix, h_levels, linewidths=0.25, colors='k')
     err = amax(abs(rho1 - rho_a))
@@ -161,7 +163,7 @@ def draw_frame(i, fname):
     E_num_simps = simps(simps(H(xx,pp)*rho1,pv),xv)
     title = 'SS1, E_num=% 6.4f, E_num_simps= %6.4f\nError=% 6.4f' % (E_num, E_num_simps, err)
     ax2.set_title(title)
-    ax2.grid()
+    ax2.grid(True)
 
     ax3.contour(xx, pp, Hmatrix, h_levels, linewidths=0.25, colors='k')
     err = amax(abs(rho2 - rho_a))
@@ -173,7 +175,7 @@ def draw_frame(i, fname):
     E_num_simps = simps(simps(H(xx,pp)*rho2,pv),xv)
     title = 'SS2v1, E_num=% 6.4f, E_num_simps= %6.4f\nError=% 6.4f' % (E_num, E_num_simps, err)
     ax3.set_title(title)
-    ax3.grid()
+    ax3.grid(True)
 
     ax4.contour(xx, pp, Hmatrix, h_levels, linewidths=0.25, colors='k')
     err = amax(abs(rho3 - rho_a))
@@ -185,7 +187,7 @@ def draw_frame(i, fname):
     E_num_simps = simps(simps(H(xx,pp)*rho3,pv),xv)
     title = 'SS2v2, E_num=% 6.4f, E_num_simps= %6.4f\nError=% 6.4f' % (E_num, E_num_simps, err)
     ax4.set_title(title)
-    ax4.grid()
+    ax4.grid(True)
 
     ax5.set_title('Wmin=%8.6f, Wmax=%8.6f' % (Wmin_a, Wmax_a))
     ax5.contour(xx, pp, Hmatrix, h_levels, linewidths=0.25, colors='k')
@@ -194,7 +196,7 @@ def draw_frame(i, fname):
     divider = make_axes_locatable(ax5)
     cax = divider.append_axes("right", "2%", pad="1%")
     plt.colorbar(im5, cax = cax, ticks = Wticks1, format=mplt.ticker.FuncFormatter(fmt))
-    ax5.grid()
+    ax5.grid(True)
 
     ax6.set_title('Wmin=%8.6f, Wmax=%8.6f' % (Wmin, Wmax))
     ax6.contour(xx, pp, Hmatrix, h_levels, linewidths=0.25, colors='k')
@@ -204,7 +206,7 @@ def draw_frame(i, fname):
     cax = divider.append_axes("right", "2%", pad="1%")
     plt.colorbar(im6, cax = cax, ticks = Wticks2, format=mplt.ticker.FuncFormatter(fmt))
     plt.colorbar(im6, cax = cax, format=mplt.ticker.FuncFormatter(fmt))
-    ax6.grid()
+    ax6.grid(True)
 
     ax7.set_title('Wmin=%8.6f, Wmax=%8.6f' % (Wmin_v1, Wmax_v1))
     ax7.contour(xx, pp, Hmatrix, h_levels, linewidths=0.25, colors='k')
@@ -213,7 +215,7 @@ def draw_frame(i, fname):
     divider = make_axes_locatable(ax7)
     cax = divider.append_axes("right", "2%", pad="1%")
     plt.colorbar(im7, cax = cax, ticks = Wticks3, format=mplt.ticker.FuncFormatter(fmt))
-    ax7.grid()
+    ax7.grid(True)
 
     ax8.set_title('Wmin=%8.6f, Wmax=%8.6f' % (Wmin_v2, Wmax_v2))
     ax8.contour(xx, pp, Hmatrix, h_levels, linewidths=0.25, colors='k')
@@ -222,7 +224,7 @@ def draw_frame(i, fname):
     divider = make_axes_locatable(ax8)
     cax = divider.append_axes("right", "2%", pad="1%")
     plt.colorbar(im8, cax = cax, ticks = Wticks4, format=mplt.ticker.FuncFormatter(fmt))
-    ax8.grid()
+    ax8.grid(True)
 
     plt.tight_layout()
     fig.savefig(fname)
