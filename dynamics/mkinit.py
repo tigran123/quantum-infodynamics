@@ -30,6 +30,10 @@ srcU = args.srcU
 (x1,x2,Nx,p1,p2,Np) = (args.x1,args.x2,args.Nx,args.p1,args.p2,args.Np)
 (t1,t2,tol) = (args.t1,args.t2,args.tol)
 
+def is_power2(num):
+    """Check if the number is a power of 2"""
+    return num and not num & (num-1)
+
 def pr_exit(str):
     print("ERROR:" + str)
     exit()
@@ -43,6 +47,8 @@ if t2 <= t1: pr_exit("t2 must be greater than t1, but %f <= %f" %(t2,t1))
 if Nx <= 0: pr_exit("Nx must be positive, but %d <= 0" %(Nx))
 if Np <= 0: pr_exit("Np must be positive, but %d <= 0" %(Np))
 if tol <= 0: pr_exit("Tolerance must be positive, but %f <= 0" %(tol))
+if not is_power2(Nx): print("WARNING: Nx=%d is not a power 2, FFT may be slowed down" % Nx)
+if not is_power2(Np): print("WARNING: Np=%d is not a power 2, FFT may be slowed down" % Np)
 
 # construct the mesh grid for evaluating f0(x,p), U(x), dUdx(x), T(p), dTdp(p)
 xv,dx = linspace(x1, x2, Nx, endpoint=False, retstep=True)
