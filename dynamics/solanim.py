@@ -15,7 +15,7 @@ mplt.rc('font', family='serif', size=12)
 
 p = arg.ArgumentParser(description="Solution Animator")
 p.add_argument("-i", action="store", help="Initial data filename", dest="ifilename", required=True)
-p.add_argument("-s", action="store", help="Solution data file ame", dest="sfilename")
+p.add_argument("-s", action="store", help="Solution data filename", dest="sfilename")
 p.add_argument("-a", action="store", help="Save animation to filename", dest="sfilename")
 args = p.parse_args()
 
