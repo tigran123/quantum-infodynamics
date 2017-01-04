@@ -23,12 +23,12 @@ with load(args.ifilename) as idata:
     U = idata['U']; H = idata['H']; Hmin = idata['Hmin']; Hmax = idata['Hmax']
 
 with load(args.sfilename) as data:
-    x1 = data['x1']; x2 = data['x2']; Nx = data['Nx']
-    p1 = data['p1']; p2 = data['p2']; Np = data['Np']
-    t1 = data['t1']; t2 = data['t2']; Nt = data['Nt']
+    x1 = float(data['x1']); x2 = float(data['x2']); Nx = int(data['Nx'])
+    p1 = float(data['p1']); p2 = float(data['p2']); Np = int(data['Np'])
+    t = data['t']
     W = data['W']; Wmin = data['Wmin']; Wmax = data['Wmax']
-    rho = data['rho']; rho_min = data['rho_min']; rho_max = data['rho_max']
-    phi = data['phi']; phi_min = data['phi_min']; phi_max = data['phi_max']
+    rho = data['rho']; rho_min = float(data['rho_min']); rho_max = float(data['rho_max'])
+    phi = data['phi']; phi_min = float(data['phi_min']); phi_max = float(data['phi_max'])
 
 xv,dx = linspace(x1, x2, Nx, endpoint=False, retstep=True)
 pv,dp = linspace(p1, p2, Np, endpoint=False, retstep=True)
@@ -59,13 +59,13 @@ class MidpointNormalize(Normalize):
 
 norm = MidpointNormalize(midpoint=0.0)
 
-for k in range(Nt):
+for k in range(len(t)):
     fig, (ax1,ax2,ax3) = plt.subplots(1, 3, figsize=(19.2,10.8), dpi=100)
     
     ax1.contour(xx, pp, H, levels=Hlevels, linewidths=0.5, colors='k')
     ax1.set_title("Information field $W(x,p,t)$")
     ax1.grid(True)
-    im1 = ax1.contourf(xx, pp, W[...,k], levels=Wlevels, norm=norm, cmap=cm.bwr)
+    im1 = ax1.contourf(xx, pp, W[k], levels=Wlevels, norm=norm, cmap=cm.bwr)
     divider = make_axes_locatable(ax1)
     cax = divider.append_axes("right", "2%", pad="1%")
     plt.colorbar(im1, cax = cax, ticks=Wticks, format=mplt.ticker.FuncFormatter(fmt))
@@ -76,24 +76,25 @@ for k in range(Nt):
 
     ax2.set_title(r"Spatial density $\rho(x,t)$")
     ax2.grid(True)
-    rho_now = rho[...,k]
+    rho_now = rho[k]
     ax2.plot(xv, rho_now, color='black')
     ax2.fill_between(xv, 0, rho_now, where=rho_now>0, color='red', interpolate=True)
     ax2.fill_between(xv, 0, rho_now, where=rho_now<0, color='blue', interpolate=True)
     ax2.set_ylabel(r'$\rho$')
     ax2.set_xlabel(r'$x$')
     ax2.set_xlim([x1,x2-dx])
+    ax2.text(3.0, 3.2, "t=% 6.3f" % t[k])
     ax2.set_ylim([1.03*rho_min,1.03*rho_max])
 
     ax3.set_title(r"Momentum density $\varphi(p,t)$")
     ax3.grid(True)
-    phi_now = phi[...,k]
+    phi_now = phi[k]
     ax3.plot(pv, phi_now, color='black')
     ax3.fill_between(pv, 0, phi_now, where=phi_now>0, color='red', interpolate=True)
     ax3.fill_between(pv, 0, phi_now, where=phi_now<0, color='blue', interpolate=True)
     ax3.set_ylabel(r'$\varphi$')
     ax3.set_xlabel(r'$p$')
-    ax3.set_xlim([p1,p2-dx])
+    ax3.set_xlim([p1,p2-dp])
     ax3.set_ylim([1.03*phi_min,1.03*phi_max])
 
     plt.tight_layout()
