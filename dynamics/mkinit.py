@@ -24,7 +24,6 @@ p.add_argument("-u",  action="store", help="Python source of U(x), T(p), U'(x) a
 args = p.parse_args() # parse command-line arguments into args
 
 # initialise our variables with the values passed via command-line
-ofilename = args.ofilename
 srcf0 = args.srcf0
 srcU = args.srcU
 (x1,x2,Nx,p1,p2,Np) = (args.x1,args.x2,args.Nx,args.p1,args.p2,args.Np)
@@ -83,6 +82,4 @@ cdT = -Umod.dTdp(P)*1j*Lam/2.
 
 Hm = Umod.T(pp)+Umod.U(xx)
 params = (x1,x2,Nx,p1,p2,Np,t1,t2,tol,amin(Hm),amax(Hm))
-
-if isfile(ofilename): print("WARNING: Overwriting file '%s'..." % (ofilename))
-savez_compressed(ofilename, params=params, f0=f0mod.f0(xx,pp), U=Umod.U(xv), H=Hm, qdU=qdU, qdT=qdT, cdU=cdU, cdT=cdT)
+savez_compressed(args.ofilename, params=params, f0=f0mod.f0(xx,pp), U=Umod.U(xv), H=Hm, qdU=qdU, qdT=qdT, cdU=cdU, cdT=cdT)

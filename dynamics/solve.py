@@ -6,7 +6,6 @@
 
 from numpy import load, exp, zeros, real, savez, amin, amax, sum, abs
 import argparse as arg
-from os.path import isfile
 from time import time
 
 # select FFT implementation
@@ -83,15 +82,9 @@ while t <= t2:
     tv.append(t)
 
 W = ifftshift(W, axes=(1,2))
-(Wmin,Wmax) = (amin(W),amax(W))
 rho = sum(W, axis=2)*dp
-(rho_min,rho_max) = (amin(rho),amax(rho))
 phi = sum(W, axis=1)*dx
-(phi_min,phi_max) = (amin(phi), amax(phi))
-params = (Wmin,Wmax,rho_min,rho_max,phi_min,phi_max)
+params = (amin(W),amax(W),amin(rho),amax(rho),amin(phi),amax(phi))
 
 print("Solved in %8.3f seconds, %d steps" % (time() - t_start, len(tv)))
-
-ofilename = args.ofilename
-if isfile(ofilename): print("WARNING: Overwriting file '%s'..." % (ofilename))
-savez(ofilename, t=tv, W=W, rho=rho, phi=phi, params=params)
+savez(args.ofilename, t=tv, W=W, rho=rho, phi=phi, params=params)
