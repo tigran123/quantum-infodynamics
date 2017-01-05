@@ -26,8 +26,10 @@ with load(args.ifilename) as data:
     (x1,x2,Nx,p1,p2,Np,t1,t2,tol) = data['params'][:9]
     W0 = fftshift(data['f0'])
     if args.classical:
+        method = "Classical"
         dU = data['cdU']; dT = data['cdT']
     else:
+        method = "Quantum"
         dU = data['qdU']; dT = data['qdT']
 
 def solve_spectral(Winit, expU, expT):
@@ -86,5 +88,5 @@ rho = sum(W, axis=2)*dp
 phi = sum(W, axis=1)*dx
 params = (amin(W),amax(W),amin(rho),amax(rho),amin(phi),amax(phi))
 
-print("Solved in %8.3f seconds, %d steps" % (time() - t_start, len(tv)))
+print("%s: solved in %8.3f seconds, %d steps" % (method, time() - t_start, len(tv)))
 savez(args.ofilename, t=tv, W=W, rho=rho, phi=phi, params=params)
