@@ -10,14 +10,18 @@ import matplotlib.pyplot as plt
 from matplotlib import cm
 from numpy import load, linspace, mgrid, amin, amax, ma, interp
 import argparse as arg
+from os import mkdir
 
 mplt.rc('font', family='serif', size=12)
 
 p = arg.ArgumentParser(description="Solution Animator")
 p.add_argument("-i", action="store", help="Initial data filename", dest="ifilename", required=True)
-p.add_argument("-s", action="store", help="Solution data filename", dest="sfilename")
-p.add_argument("-a", action="store", help="Save animation to filename", dest="sfilename")
+p.add_argument("-s", action="store", help="Solution data filename", dest="sfilename", required=True)
+p.add_argument("-d", action="store", help="Frames directory", dest="framedir", required=True)
 args = p.parse_args()
+
+framedir = args.framedir
+mkdir(framedir)
 
 with load(args.ifilename) as idata:
     U = idata['U']; H = idata['H']; Hmin = idata['Hmin']; Hmax = idata['Hmax']
@@ -98,6 +102,6 @@ for k in range(len(t)):
     ax3.set_ylim([1.03*phi_min,1.03*phi_max])
 
     plt.tight_layout()
-    fig.savefig("frames/%05d.png" % k)
+    fig.savefig(framedir + '/%05d.png' % k)
     fig.clf()
     plt.close('all')
