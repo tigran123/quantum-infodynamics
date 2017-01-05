@@ -24,15 +24,14 @@ framedir = args.framedir
 mkdir(framedir)
 
 with load(args.ifilename) as idata:
-    U = idata['U']; H = idata['H']; Hmin = idata['Hmin']; Hmax = idata['Hmax']
+    params = idata['params']
+    (x1,x2,Nx,p1,p2,Np) = params[:6]
+    (Hmin,Hmax) = params[-2:]
+    U = idata['U']; H = idata['H']
 
 with load(args.sfilename) as data:
-    x1 = float(data['x1']); x2 = float(data['x2']); Nx = int(data['Nx'])
-    p1 = float(data['p1']); p2 = float(data['p2']); Np = int(data['Np'])
-    t = data['t']
-    W = data['W']; Wmin = data['Wmin']; Wmax = data['Wmax']
-    rho = data['rho']; rho_min = float(data['rho_min']); rho_max = float(data['rho_max'])
-    phi = data['phi']; phi_min = float(data['phi_min']); phi_max = float(data['phi_max'])
+    t = data['t']; W = data['W']; rho = data['rho']; phi = data['phi']
+    (Wmin,Wmax,rho_min,rho_max,phi_min,phi_max) = data['params']
 
 xv,dx = linspace(x1, x2, Nx, endpoint=False, retstep=True)
 pv,dp = linspace(p1, p2, Np, endpoint=False, retstep=True)

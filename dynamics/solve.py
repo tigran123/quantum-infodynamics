@@ -24,9 +24,7 @@ p.add_argument("-c", action="store_true", help="Use classical (non-quantum) prop
 args = p.parse_args()
 
 with load(args.ifilename) as data:
-    x1 = float(data['x1']); x2 = float(data['x2']); Nx = int(data['Nx'])
-    p1 = float(data['p1']); p2 = float(data['p2']); Np = int(data['Np'])
-    t1 = float(data['t1']); t2 = float(data['t2']); tol = float(data['tol'])
+    (x1,x2,Nx,p1,p2,Np,t1,t2,tol) = data['params'][:9]
     W0 = fftshift(data['f0'])
     if args.classical:
         dU = data['cdU']; dT = data['cdT']
@@ -90,12 +88,10 @@ rho = sum(W, axis=2)*dp
 (rho_min,rho_max) = (amin(rho),amax(rho))
 phi = sum(W, axis=1)*dx
 (phi_min,phi_max) = (amin(phi), amax(phi))
+params = (Wmin,Wmax,rho_min,rho_max,phi_min,phi_max)
 
 print("Solved in %8.3f seconds, %d steps" % (time() - t_start, len(tv)))
 
 ofilename = args.ofilename
 if isfile(ofilename): print("WARNING: Overwriting file '%s'..." % (ofilename))
-
-savez(ofilename, x1=x1, x2=x2, Nx=Nx, p1=p1, p2=p2, Np=Np, t=tv,
-                 W=W, Wmin=Wmin, Wmax=Wmax, rho=rho, rho_min=rho_min, rho_max=rho_max,
-                 phi=phi, phi_min=phi_min, phi_max=phi_max)
+savez(ofilename, t=tv, W=W, rho=rho, phi=phi, params=params)

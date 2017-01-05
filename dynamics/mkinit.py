@@ -30,10 +30,6 @@ srcU = args.srcU
 (x1,x2,Nx,p1,p2,Np) = (args.x1,args.x2,args.Nx,args.p1,args.p2,args.Np)
 (t1,t2,tol) = (args.t1,args.t2,args.tol)
 
-def is_power2(num):
-    """Check if the number is a power of 2"""
-    return num and not num & (num-1)
-
 def pr_exit(str):
     print("ERROR:" + str)
     exit()
@@ -44,11 +40,11 @@ if not isfile(srcU): pr_exit("No such file '%s'" %(srcU))
 if x2 <= x1: pr_exit("x2 must be greater than x1, but %f <= %f" %(x2,x1))
 if p2 <= p1: pr_exit("p2 must be greater than p1, but %f <= %f" %(p2,p1))
 if t2 <= t1: pr_exit("t2 must be greater than t1, but %f <= %f" %(t2,t1))
-if Nx <= 0: pr_exit("Nx must be positive, but %d <= 0" %(Nx))
-if Np <= 0: pr_exit("Np must be positive, but %d <= 0" %(Np))
+if Nx <= 0: pr_exit("Nx must be positive, but %d <= 0" % Nx)
+if Np <= 0: pr_exit("Np must be positive, but %d <= 0" % Np)
 if tol <= 0: pr_exit("Tolerance must be positive, but %f <= 0" %(tol))
-if not is_power2(Nx): print("WARNING: Nx=%d is not a power 2, FFT may be slowed down" % Nx)
-if not is_power2(Np): print("WARNING: Np=%d is not a power 2, FFT may be slowed down" % Np)
+if Nx & (Nx-1): print("WARNING: Nx=%d is not a power 2, FFT may be slowed down" % Nx)
+if Np & (Np-1): print("WARNING: Np=%d is not a power 2, FFT may be slowed down" % Np)
 
 # construct the mesh grid for evaluating f0(x,p), U(x), dUdx(x), T(p), dTdp(p)
 xv,dx = linspace(x1, x2, Nx, endpoint=False, retstep=True)
@@ -86,10 +82,7 @@ cdU = Umod.dUdx(X)*1j*Theta
 cdT = -Umod.dTdp(P)*1j*Lam/2.
 
 Hm = Umod.T(pp)+Umod.U(xx)
-(Hmin,Hmax) = (amin(Hm),amax(Hm))
+params = (x1,x2,Nx,p1,p2,Np,t1,t2,tol,amin(Hm),amax(Hm))
 
 if isfile(ofilename): print("WARNING: Overwriting file '%s'..." % (ofilename))
-
-# save data in the compressed .npz file which can be dumped by prinit.py and used by the solvers
-savez_compressed(ofilename, x1=x1, x2=x2, Nx=Nx, p1=p1, p2=p2, Np=Np, t1=t1, t2=t2, tol=tol, f0=f0mod.f0(xx,pp),
-                 U=Umod.U(xv), H=Hm, Hmin=Hmin, Hmax=Hmax, qdU=qdU, qdT=qdT, cdU=cdU, cdT=cdT)
+savez_compressed(ofilename, params=params, f0=f0mod.f0(xx,pp), U=Umod.U(xv), H=Hm, qdU=qdU, qdT=qdT, cdU=cdU, cdT=cdT)
