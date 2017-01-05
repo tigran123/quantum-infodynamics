@@ -5,7 +5,7 @@ SOL_FILE_QUANTUM=$workdir/solq.npz
 SOL_FILE_CLASSICAL=$workdir/solq.npz
 
 python3 mkinit.py -x1 -5.0 -x2 5.0 -Nx 128 \
-                  -p1 -4.0 -p2 4.0 -Np 512 \
+                  -p1 -4.0 -p2 4.0 -Np 256 \
                   -t1 0.0 -t2 6.283185307179586 -tol 0.01 \
                   -f0 f0-gauss.py -u U_osc_nonrel.py -o $INIT_FILE
 
