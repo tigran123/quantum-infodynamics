@@ -85,10 +85,7 @@ for k in range(time_steps):
         if s == s_longest:
             time_index = k
         else:
-            #current_time = t_longest[k]
-            # find an element in t[s] closest to current_time
-            #t_closest = min(t[s],key=lambda x: abs(x-current_time))
-            #time_index = where(t[s] == t_closest)[0][0]
+            # find an element in t[s] closest to current time value (i.e. t_longest[k])
             time_index = abs(t[s] - t_longest[k]).argmin()
             print("current time = ", t_longest[k], "nearest time=", t[s][time_index])
         ax[0].contour(xx, pp, H, levels=Hlevels, linewidths=0.5, colors='k')
