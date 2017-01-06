@@ -10,7 +10,6 @@ import matplotlib.pyplot as plt
 from matplotlib import cm
 from numpy import load, linspace, mgrid, amin, amax, ma, interp, where
 import argparse as arg
-from os import mkdir
 
 mplt.rc('font', family='serif', size=12)
 
@@ -21,7 +20,6 @@ p.add_argument("-d", action="store", help="Frames directory", dest="framedir", r
 args = p.parse_args()
 
 framedir = args.framedir
-mkdir(framedir)
 
 with load(args.ifilename) as idata:
     params = idata['params']
