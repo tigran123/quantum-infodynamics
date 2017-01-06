@@ -8,7 +8,7 @@ import matplotlib as mplt
 mplt.use('Agg')
 import matplotlib.pyplot as plt
 from matplotlib import cm
-from numpy import load, linspace, mgrid, amin, amax, ma, interp
+from numpy import load, linspace, mgrid, amin, amax, ma, interp, where
 import argparse as arg
 from os import mkdir
 
@@ -79,13 +79,18 @@ nsol = len(t)
 for k in range(time_steps):
     fig, axes = plt.subplots(nsol, 3, figsize=(19.2,10.8), dpi=100)
     
-    print("Time index k=", k)
+    if k%20 == 0: print("Time index k=", k)
     s = 0
     for ax in axes:
         if s == s_longest:
             time_index = k
         else:
-            time_index = int(k*len(t[s])/time_steps)
+            #current_time = t_longest[k]
+            # find an element in t[s] closest to current_time
+            #t_closest = min(t[s],key=lambda x: abs(x-current_time))
+            #time_index = where(t[s] == t_closest)[0][0]
+            time_index = abs(t[s] - t_longest[k]).argmin()
+            print("current time = ", t_longest[k], "nearest time=", t[s][time_index])
         ax[0].contour(xx, pp, H, levels=Hlevels, linewidths=0.5, colors='k')
         ax[0].set_title("Information field $W(x,p,t)$")
         ax[0].grid(True)
