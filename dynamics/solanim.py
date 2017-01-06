@@ -84,10 +84,8 @@ for k in range(time_steps):
     for ax in axes:
         if s == s_longest:
             time_index = k
-        else:
-            # find an element in t[s] closest to current time value (i.e. t_longest[k])
+        else: # find an element in t[s] closest to the current time value (i.e. t_longest[k])
             time_index = abs(t[s] - t_longest[k]).argmin()
-            print("current time = ", t_longest[k], "nearest time=", t[s][time_index])
         ax[0].contour(xx, pp, H, levels=Hlevels, linewidths=0.5, colors='k')
         ax[0].set_title("Information field $W(x,p,t)$")
         ax[0].grid(True)
