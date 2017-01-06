@@ -43,9 +43,6 @@ for sfilename in args.sfilenames:
         rho_min.append(params[2]); rho_max.append(params[3])
         phi_min.append(params[4]); phi_max.append(params[5])
 
-nsol = len(t)
-assert len(W) == nsol and len(rho) == nsol and len(phi) == nsol and len(Wmin) == nsol and len(Wmin) == nsol and len(Wmax) == nsol
-
 xv,dx = linspace(x1, x2, Nx, endpoint=False, retstep=True)
 pv,dp = linspace(p1, p2, Np, endpoint=False, retstep=True)
 xx,pp = mgrid[x1:x2-dx:Nx*1j, p1:p2-dp:Np*1j]
@@ -76,6 +73,8 @@ norm = MidpointNormalize(midpoint=0.0)
 t_longest = max(t, key=len)
 s_longest = t.index(t_longest)
 time_steps = len(t_longest)
+
+nsol = len(t)
 
 for k in range(time_steps):
     fig, axes = plt.subplots(nsol, 3, figsize=(19.2,10.8), dpi=100)
