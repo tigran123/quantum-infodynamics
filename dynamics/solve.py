@@ -71,11 +71,12 @@ tv = [t1]
 t = t1
 i = 0
 while t <= t2:
+    if i%300 == 299: print("%s: step %d"%(method,i))
     if i%20 == 0:
         (Wnext, new_dt, expU, expT) = adjust_step(dt, W[i])
         W.append(Wnext)
         if new_dt != dt:
-            print("Step %d, adjusted dt from"%i, dt, "to ", new_dt)
+            print("%s: step %d, adjusted dt from"%(method,i), dt, "to ", new_dt)
             dt = new_dt
     else:
         W.append(solve_spectral(W[i], expU, expT))
