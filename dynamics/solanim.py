@@ -86,7 +86,6 @@ for k in range(time_steps):
             time_index = abs(t[s] - t_longest[k]).argmin()
         ax[0].contour(xx, pp, H, levels=Hlevels, linewidths=0.5, colors='k')
         ax[0].set_title("Information field $W(x,p,t)$")
-        ax[0].grid(True)
         im = ax[0].contourf(xx, pp, W[s][time_index], levels=Wlevels[s], norm=norm, cmap=cm.bwr)
         divider = make_axes_locatable(ax[0])
         cax = divider.append_axes("right", "2%", pad="1%")
@@ -97,7 +96,6 @@ for k in range(time_steps):
         ax[0].set_ylim([p1,p2-dp])
 
         ax[1].set_title(r"Spatial density $\rho(x,t)$")
-        ax[1].grid(True)
         rho_now = rho[s][time_index]
         ax[1].plot(xv, rho_now, color='black')
         ax[1].fill_between(xv, 0, rho_now, where=rho_now>0, color='red', interpolate=True)
@@ -109,7 +107,6 @@ for k in range(time_steps):
         ax[1].set_ylim([1.02*rho_min[s],1.02*rho_max[s]])
 
         ax[2].set_title(r"Momentum density $\varphi(p,t)$")
-        ax[2].grid(True)
         phi_now = phi[s][time_index]
         ax[2].plot(pv, phi_now, color='black')
         ax[2].fill_between(pv, 0, phi_now, where=phi_now>0, color='red', interpolate=True)
@@ -122,5 +119,4 @@ for k in range(time_steps):
 
     plt.tight_layout()
     fig.savefig(framedir + '/%05d.png' % k)
-    fig.clf()
     plt.close('all')
