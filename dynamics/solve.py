@@ -20,10 +20,13 @@ p = arg.ArgumentParser(description="Quantum Infodynamics Solver")
 p.add_argument("-i", action="store", help="Initial data file name", dest="ifilename", required=True)
 p.add_argument("-o", action="store", help="Solution file name", dest="ofilename", required=True)
 p.add_argument("-c", action="store_true", help="Use classical (non-quantum) propagator", dest="classical")
+p.add_argument("-tol", action="store", help="Absolute error tolerance", dest="tol", type=float, required=True)
 args = p.parse_args()
 
+tol = args.tol
+
 with load(args.ifilename) as data:
-    (x1,x2,Nx,p1,p2,Np,t1,t2,tol) = data['params'][:9]
+    (x1,x2,Nx,p1,p2,Np,t1,t2) = data['params'][:8]
     W0 = fftshift(data['f0'])
     if args.classical:
         method = "Classical"

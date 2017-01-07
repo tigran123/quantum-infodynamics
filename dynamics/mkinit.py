@@ -18,7 +18,6 @@ p.add_argument("-p2", action="store", help="Final p-coordinate", dest="p2", type
 p.add_argument("-Np", action="store", help="Number of points in p direction", dest="Np", type=int, required=True)
 p.add_argument("-t1", action="store", help="Starting time", dest="t1", type=float, required=True)
 p.add_argument("-t2", action="store", help="Final time", dest="t2", type=float, required=True)
-p.add_argument("-tol", action="store", help="Absolute error tolerance", dest="tol", type=float, required=True)
 p.add_argument("-f0", action="store", help="Python source of f0(x,p)", dest="srcf0", required=True)
 p.add_argument("-u",  action="store", help="Python source of U(x), T(p), U'(x) and T'(p)", dest="srcU", required=True)
 args = p.parse_args() # parse command-line arguments into args
@@ -26,8 +25,7 @@ args = p.parse_args() # parse command-line arguments into args
 # initialise our variables with the values passed via command-line
 srcf0 = args.srcf0
 srcU = args.srcU
-(x1,x2,Nx,p1,p2,Np) = (args.x1,args.x2,args.Nx,args.p1,args.p2,args.Np)
-(t1,t2,tol) = (args.t1,args.t2,args.tol)
+(x1,x2,Nx,p1,p2,Np,t1,t2) = (args.x1,args.x2,args.Nx,args.p1,args.p2,args.Np,args.t1,args.t2)
 
 def pr_exit(str):
     print("ERROR:" + str)
@@ -41,7 +39,6 @@ if p2 <= p1: pr_exit("p2 must be greater than p1, but %f <= %f" %(p2,p1))
 if t2 <= t1: pr_exit("t2 must be greater than t1, but %f <= %f" %(t2,t1))
 if Nx <= 0: pr_exit("Nx must be positive, but %d <= 0" % Nx)
 if Np <= 0: pr_exit("Np must be positive, but %d <= 0" % Np)
-if tol <= 0: pr_exit("Tolerance must be positive, but %f <= 0" %(tol))
 if Nx & (Nx-1): print("WARNING: Nx=%d is not a power 2, FFT may be slowed down" % Nx)
 if Np & (Np-1): print("WARNING: Np=%d is not a power 2, FFT may be slowed down" % Np)
 
@@ -81,5 +78,5 @@ cdU = Umod.dUdx(X)*1j*Theta
 cdT = -Umod.dTdp(P)*1j*Lam/2.
 
 Hm = Umod.T(pp)+Umod.U(xx)
-params = (x1,x2,Nx,p1,p2,Np,t1,t2,tol,amin(Hm),amax(Hm))
+params = (x1,x2,Nx,p1,p2,Np,t1,t2,amin(Hm),amax(Hm))
 savez_compressed(args.ofilename, params=params, f0=f0mod.f0(xx,pp), U=Umod.U(xv), H=Hm, qdU=qdU, qdT=qdT, cdU=cdU, cdT=cdT)
