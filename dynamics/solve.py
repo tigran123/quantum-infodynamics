@@ -23,7 +23,12 @@ p.add_argument("-c", action="store_true", help="Use classical (non-quantum) prop
 p.add_argument("-tol", action="store", help="Absolute error tolerance", dest="tol", type=float, required=True)
 args = p.parse_args()
 
+def pr_exit(str):
+    print("ERROR:" + str)
+    exit()
+
 tol = args.tol
+if tol <= 0: pr_exit("Tolerance value must be positive, but %f <=0" % tol)
 
 with load(args.ifilename) as data:
     (x1,x2,Nx,p1,p2,Np,t1,t2) = data['params'][:8]
