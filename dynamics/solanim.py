@@ -16,10 +16,24 @@ mplt.rc('font', family='serif', size=12)
 p = arg.ArgumentParser(description="Solution Animator")
 p.add_argument("-i", action="store", help="Initial data filename", dest="ifilename", required=True)
 p.add_argument("-s", action="append", help="Solution data filename (may be specified more than once)", dest="sfilenames", required=True, default=[])
+p.add_argument("-P", action="store", help="Number of parts to split the time range into", dest="nparts", type=int)
+p.add_argument("-p", action="store", help="The part number to process by this instance", dest="part", type=int)
 p.add_argument("-d", action="store", help="Frames directory", dest="framedir", required=True)
 args = p.parse_args()
 
 framedir = args.framedir
+
+nparts = args.nparts
+part = args.part
+if nparts == None: nparts = 1
+if part == None: part = 1
+
+def pr_exit(str):
+    print("ERROR:" + str)
+    exit()
+
+if nparts <= 0: pr_exit("Number of parts must be positive, but %d <= 0" % nparts)
+if part <= 0 or part > nparts: pr_exit("The part number must lie between 1 and %d,  but %d <= 0" % (nparts, part))
 
 with load(args.ifilename) as idata:
     params = idata['params']
@@ -68,16 +82,25 @@ class MidpointNormalize(Normalize):
 
 norm = MidpointNormalize(midpoint=0.0)
 
+def split(a, n, p):
+    """Split the list 'a' into 'n' chunks and return chunk number 'p' (numbered from 1)"""
+    k, m = divmod(len(a), n)
+    return list((a[i * k + min(i, m):(i + 1) * k + min(i + 1, m)] for i in range(n)))[p-1]
+
 t_longest = max(t, key=len)
 s_longest = t.index(t_longest)
 time_steps = len(t_longest)
 
 nsol = len(t)
 
-for k in range(time_steps):
+# split the entire time range into 'nparts' chunks and take chunk 'part'
+time_range = split(list(range(time_steps)), nparts, part)
+prog_prefix = "solanim: %d of %d" %(part, nparts)
+
+for k in time_range:
     fig, axes = plt.subplots(nsol, 3, figsize=(19.2,10.8), dpi=100)
     
-    if k%20 == 0: print("Time index k=", k)
+    if k%20 == 0: print(prog_prefix + ": time index k=", k)
     s = 0
     for ax in axes:
         if s == s_longest:
