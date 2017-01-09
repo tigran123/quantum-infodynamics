@@ -3,18 +3,18 @@
   Author: Tigran Aivazian <aivazian.tigran@gmail.com>
   License: GPL
 """
-import argparse as arg
+from argparse import ArgumentParser as argp
 from numpy import savez_compressed, mgrid, linspace, pi, newaxis, amin, amax
 from os.path import isfile, splitext
-from scipy.fftpack import fftshift, ifftshift, fft, ifft
+from scipy.fftpack import fftshift
 
-p = arg.ArgumentParser(description="Generate compressed initial data")
+p = argp(description="Generate compressed initial data")
 p.add_argument("-o",  action="store", help="Output file name", dest="ofilename", required=True)
-p.add_argument("-x1", action="store", help="Starting x-coordinate", dest="x1", type=float, required=True)
-p.add_argument("-x2", action="store", help="Final x-coordinate", dest="x2", type=float, required=True)
+p.add_argument("-x1", action="store", help="Starting coordinate", dest="x1", type=float, required=True)
+p.add_argument("-x2", action="store", help="Final coordinate", dest="x2", type=float, required=True)
 p.add_argument("-Nx", action="store", help="Number of points in x direction", dest="Nx", type=int, required=True)
-p.add_argument("-p1", action="store", help="Starting p-coordinate", dest="p1", type=float, required=True)
-p.add_argument("-p2", action="store", help="Final p-coordinate", dest="p2", type=float, required=True)
+p.add_argument("-p1", action="store", help="Starting momentum", dest="p1", type=float, required=True)
+p.add_argument("-p2", action="store", help="Final momentum", dest="p2", type=float, required=True)
 p.add_argument("-Np", action="store", help="Number of points in p direction", dest="Np", type=int, required=True)
 p.add_argument("-t1", action="store", help="Starting time", dest="t1", type=float, required=True)
 p.add_argument("-t2", action="store", help="Final time", dest="t2", type=float, required=True)
@@ -22,9 +22,7 @@ p.add_argument("-f0", action="store", help="Python source of f0(x,p)", dest="src
 p.add_argument("-u",  action="store", help="Python source of U(x), T(p), U'(x) and T'(p)", dest="srcU", required=True)
 args = p.parse_args() # parse command-line arguments into args
 
-# initialise our variables with the values passed via command-line
-srcf0 = args.srcf0
-srcU = args.srcU
+srcf0 = args.srcf0; srcU = args.srcU
 (x1,x2,Nx,p1,p2,Np,t1,t2) = (args.x1,args.x2,args.Nx,args.p1,args.p2,args.Np,args.t1,args.t2)
 
 def pr_exit(str):
@@ -78,5 +76,5 @@ cdU = Umod.dUdx(X)*1j*Theta
 cdT = -Umod.dTdp(P)*1j*Lam/2.
 
 Hm = Umod.T(pp)+Umod.U(xx)
-params = (x1,x2,Nx,p1,p2,Np,t1,t2,amin(Hm),amax(Hm))
+params = {'x1': x1, 'x2': x2, 'Nx': Nx, 'p1': p1, 'p2': p2, 'Np': Np, 't1': t1, 't2': t2, 'Hmin': amin(Hm), 'Hmax': amax(Hm)}
 savez_compressed(args.ofilename, params=params, f0=f0mod.f0(xx,pp), U=Umod.U(xv), H=Hm, qdU=qdU, qdT=qdT, cdU=cdU, cdT=cdT)

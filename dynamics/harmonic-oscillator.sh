@@ -6,7 +6,7 @@ SOLQ=$workdir/solq.npz
 SOLC=$workdir/solc.npz
 WQ=$workdir/Wq.npz
 WC=$workdir/Wc.npz
-MOVIE_FILE=osc_nonrel_qc.mp4
+MOVIE_FILE=harmonic-oscillator-qc.mp4
 
 python3 mkinit.py -x1 -5.0 -x2 5.0 -Nx 256 \
                   -p1 -4.0 -p2 4.0 -Np 256 \

@@ -3,30 +3,26 @@
   Author: Tigran Aivazian <aivazian.tigran@gmail.com>
   License: GPL
 """
-
 import matplotlib as mplt
 mplt.use('Agg')
 import matplotlib.pyplot as plt
 from matplotlib import cm
-from numpy import load, linspace, mgrid, amin, amax, ma, interp, where
-import argparse as arg
+from numpy import load, linspace, mgrid, amin, amax, ma, interp, where, memmap
+from argparse import ArgumentParser as argp
 
 mplt.rc('font', family='serif', size=12)
 
-p = arg.ArgumentParser(description="Solution Animator")
+p = argp(description="Solution Animator")
 p.add_argument("-i", action="store", help="Initial data filename", dest="ifilename", required=True)
 p.add_argument("-s", action="append", help="Solution data filename (may be specified more than once)", dest="sfilenames", required=True, default=[])
-p.add_argument("-P", action="store", help="Number of parts to split the time range into", dest="nparts", type=int)
-p.add_argument("-p", action="store", help="The part number to process by this instance", dest="part", type=int)
+p.add_argument("-P", action="store", help="Number of parts to split the time range into", dest="nparts", type=int, default=1)
+p.add_argument("-p", action="store", help="The part number to process in this instance", dest="part", type=int, default=1)
 p.add_argument("-d", action="store", help="Frames directory", dest="framedir", required=True)
 args = p.parse_args()
 
 framedir = args.framedir
-
 nparts = args.nparts
 part = args.part
-if nparts == None: nparts = 1
-if part == None: part = 1
 
 def pr_exit(str):
     print("ERROR:" + str)
@@ -36,24 +32,31 @@ if nparts <= 0: pr_exit("Number of parts must be positive, but %d <= 0" % nparts
 if part <= 0 or part > nparts: pr_exit("The part number must lie between 1 and %d,  but %d <= 0" % (nparts, part))
 
 with load(args.ifilename) as idata:
-    params = idata['params']
-    (x1,x2,Nx,p1,p2,Np) = params[:6]
-    (Hmin,Hmax) = params[-2:]
+    params = idata['params'][()] # very mysterious indexing! ;)
+    x1 = params['x1']; x2 = params['x2']; Nx = params['Nx']
+    p1 = params['p1']; p2 = params['p2']; Np = params['Np']
+    Hmin = params['Hmin']; Hmax = params['Hmax']
     U = idata['U']; H = idata['H']
 
 t = []; W = []; rho = []; phi = []; Wmin = []; Wmax = []; rho_min = []; rho_max = []; phi_min = []; phi_max = []
 Wlevels = []
 Wticks = []
+Wfilenames = []
+Nt = []
 
 for sfilename in args.sfilenames:
     with load(sfilename) as data:
-        t.append(data['t']); W.append(data['W']); rho.append(data['rho']); phi.append(data['phi'])
-        params = data['params']
-        Wmin.append(params[0]); Wmax.append(params[1])
+        t.append(data['t']); rho.append(data['rho']); phi.append(data['phi'])
+        params = data['params'][()]
+        Wmin.append(params['Wmin']); Wmax.append(params['Wmax'])
         Wlevels.append(linspace(Wmin[-1], Wmax[-1], 100))
         Wticks.append(linspace(Wmin[-1], Wmax[-1], 10))
-        rho_min.append(params[2]); rho_max.append(params[3])
-        phi_min.append(params[4]); phi_max.append(params[5])
+        rho_min.append(params['rho_min']); rho_max.append(params['rho_max'])
+        phi_min.append(params['phi_min']); phi_max.append(params['phi_max'])
+        Wfilenames.append(params['Wfilename'])
+        Nt.append(params['Nt'])
+
+W = [memmap(filename, mode='r', dtype='float64', shape=(nt,Nx,Np)) for (filename,nt) in zip(Wfilenames, Nt)]
 
 xv,dx = linspace(x1, x2, Nx, endpoint=False, retstep=True)
 pv,dp = linspace(p1, p2, Np, endpoint=False, retstep=True)
@@ -102,7 +105,9 @@ for k in time_range:
     
     if k%20 == 0: print(prog_prefix + ": time index k=", k)
     s = 0
-    for ax in axes:
+    if nsol == 1: axes_list = [axes]
+    else: axes_list = axes
+    for ax in axes_list:
         if s == s_longest:
             time_index = k
         else: # find an element in t[s] closest to the current time value (i.e. t_longest[k])
@@ -110,6 +115,7 @@ for k in time_range:
         ax[0].contour(xx, pp, H, levels=Hlevels, linewidths=0.5, colors='k')
         ax[0].set_title("Information field $W(x,p,t)$")
         im = ax[0].contourf(xx, pp, W[s][time_index], levels=Wlevels[s], norm=norm, cmap=cm.bwr)
+        #im = ax[0].contourf(xx, pp, W[s][time_index], levels=Wlevels[s])
         divider = make_axes_locatable(ax[0])
         cax = divider.append_axes("right", "2%", pad="1%")
         plt.colorbar(im, cax = cax, ticks=Wticks[s], format=mplt.ticker.FuncFormatter(fmt))

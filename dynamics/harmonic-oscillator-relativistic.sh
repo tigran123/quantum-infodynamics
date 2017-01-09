@@ -6,17 +6,17 @@ SOLQ=$workdir/solq.npz
 SOLC=$workdir/solc.npz
 WQ=$workdir/Wq.npz
 WC=$workdir/Wc.npz
-MOVIE_FILE=osc_nonrel_qc.mp4
+MOVIE_FILE=harmonic-oscillator-qc-rel.mp4
 
-python3 mkinit.py -x1 -5.0 -x2 5.0 -Nx 256 \
-                  -p1 -4.0 -p2 4.0 -Np 256 \
+python3 mkinit.py -x1 -5.0 -x2 5.0 -Nx 1024 \
+                  -p1 -4.0 -p2 4.0 -Np 1024 \
                   -t1 0.0 -t2 6.283185307179586 \
-                  -f0 f0-gauss.py -u U_osc_nonrel.py -o $INIT_FILE
+                  -f0 f0-gauss.py -u U_osc_rel.py -o $INIT_FILE
 
 python3 prinit.py $INIT_FILE
 
 python3 solve.py -tol 0.01 -i $INIT_FILE -o $SOLQ -W $WQ &
-python3 solve.py -c -tol 0.01 -i $INIT_FILE -o $SOLC -W $WC &
+python3 solve.py -c -tol 0.001 -i $INIT_FILE -o $SOLC -W $WC &
 wait
 
 python3 solanim.py -P 4 -p 1 -d $workdir/frames -i $INIT_FILE -s $SOLQ -s $SOLC &

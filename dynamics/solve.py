@@ -4,7 +4,7 @@
    License: GPL
 """
 
-from numpy import load, exp, zeros, real, savez, amin, amax, sum, abs
+from numpy import load, exp, zeros, real, savez, amin, amax, sum, abs, memmap
 import argparse as arg
 from time import time
 
@@ -19,6 +19,7 @@ pyfftw.interfaces.cache.set_keepalive_time(10)
 p = arg.ArgumentParser(description="Quantum Infodynamics Solver")
 p.add_argument("-i", action="store", help="Initial data file name", dest="ifilename", required=True)
 p.add_argument("-o", action="store", help="Solution file name", dest="ofilename", required=True)
+p.add_argument("-W", action="store", help="Solution W(x,p,t) file name", dest="Wfilename", required=True)
 p.add_argument("-c", action="store_true", help="Use classical (non-quantum) propagator", dest="classical")
 p.add_argument("-tol", action="store", help="Absolute error tolerance", dest="tol", type=float, required=True)
 args = p.parse_args()
@@ -30,8 +31,12 @@ def pr_exit(str):
 tol = args.tol
 if tol <= 0: pr_exit("Tolerance value must be positive, but %f <=0" % tol)
 
+t_start = time()
 with load(args.ifilename) as data:
-    (x1,x2,Nx,p1,p2,Np,t1,t2) = data['params'][:8]
+    params = data['params'][()] # very mysterious indexing! ;)
+    x1 = params['x1']; x2 = params['x2']; Nx = params['Nx']
+    p1 = params['p1']; p2 = params['p2']; Np = params['Np']
+    t1 = params['t1']; t2 = params['t2']
     W0 = fftshift(data['f0'])
     if args.classical:
         method = "Classical"
@@ -39,6 +44,7 @@ with load(args.ifilename) as data:
     else:
         method = "Quantum"
         dU = data['qdU']; dT = data['qdT']
+print("%s: initial data loaded in %8.2f seconds" % (method, time() - t_start))
 
 def solve_spectral(Winit, expU, expT):
     B = fft(Winit, axis=0) # (x,p) -> (λ,p)
@@ -83,7 +89,8 @@ while t <= t2:
         (Wnext, new_dt, expU, expT) = adjust_step(dt, W[i])
         W.append(Wnext)
         if new_dt != dt:
-            print("%s: step %d, adjusted dt from"%(method,i), dt, "to ", new_dt)
+            est_steps = (t2-t)//new_dt
+            print("%s: step %d, adjusted dt %.3f -> %.3f, estimated %d steps left" %(method,i,dt,new_dt,est_steps))
             dt = new_dt
     else:
         W.append(solve_spectral(W[i], expU, expT))
@@ -94,7 +101,15 @@ while t <= t2:
 W = ifftshift(W, axes=(1,2))
 rho = sum(W, axis=2)*dp
 phi = sum(W, axis=1)*dx
-params = (amin(W),amax(W),amin(rho),amax(rho),amin(phi),amax(phi))
+Nt = len(tv)
+params = {'Wmin': amin(W), 'Wmax': amax(W), 'rho_min': amin(rho), 'rho_max': amax(rho),
+          'phi_min': amin(phi), 'phi_max': amax(phi), 'Wfilename': args.Wfilename, 'Nt': Nt}
 
-print("%s: solved in %8.3f seconds, %d steps" % (method, time() - t_start, len(tv)))
-savez(args.ofilename, t=tv, W=W, rho=rho, phi=phi, params=params)
+print("%s: solved in %8.2f seconds, %d steps" % (method, time() - t_start, Nt))
+
+t_start = time()
+savez(args.ofilename, t=tv, rho=rho, phi=phi, params=params)
+fp = memmap(args.Wfilename, dtype='float64', mode='w+', shape=(Nt, Nx, Np))
+fp[:] = W[:]
+del fp
+print("%s: solution saved in %8.2f seconds" % (method, time() - t_start))
