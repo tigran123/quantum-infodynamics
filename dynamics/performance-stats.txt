@@ -1,0 +1,55 @@
+$ time bin/harmonic-oscillator.sh 
+workdir=/tmp/solanim.W4m4
+x1=-5.000, x2= 5.000, Nx=256
+p1=-4.000, p2= 4.000, Np=256
+t1= 0.000, t2= 6.283
+Hmin= 0.000, Hmax= 20.500
+Calculated norm of f0(x,p)= 1.0
+Calculated energy E= 0.525
+Quantum: initial data loaded in     0.03 seconds
+Classical: initial data loaded in     0.03 seconds
+Quantum: step 0, adjusted dt 0.314 -> 0.113, estimated 55 steps left
+Classical: step 0, adjusted dt 0.314 -> 0.113, estimated 55 steps left
+Classical: solved in     0.75 seconds, 57 steps
+Classical: solution saved in     0.02 seconds
+Quantum: solved in     0.78 seconds, 57 steps
+Quantum: solution saved in     0.02 seconds
+solanim: 1 of 4: time index k= 0
+solanim: 2 of 4: time index k= 20
+solanim: 3 of 4: time index k= 40
+
+real	0m52.876s
+user	2m36.856s
+sys	0m44.680s
+
+$ time bin/harmonic-oscillator-relativistic.sh 
+workdir=/tmp/solanim.veVJ
+x1=-5.000, x2= 5.000, Nx=1024
+p1=-4.000, p2= 4.000, Np=1024
+t1= 0.000, t2= 6.283
+Hmin= 1.000, Hmax= 16.623
+Calculated norm of f0(x,p)= 1.0
+Calculated energy E= 1.43599120815
+Classical: initial data loaded in     0.27 seconds
+Quantum: initial data loaded in     0.28 seconds
+Quantum: step 0, adjusted dt 0.314 -> 0.113, estimated 55 steps left
+Classical: step 0, adjusted dt 0.314 -> 0.113, estimated 55 steps left
+Classical: step 20, adjusted dt 0.113 -> 0.041, estimated 98 steps left
+Quantum: step 40, adjusted dt 0.113 -> 0.024, estimated 72 steps left
+Quantum: step 60, adjusted dt 0.024 -> 0.015, estimated 86 steps left
+Classical: solved in    24.57 seconds, 120 steps
+Classical: solution saved in     0.58 seconds
+Quantum: solved in    28.87 seconds, 148 steps
+Quantum: solution saved in     0.56 seconds
+solanim: 1 of 4: time index k= 0
+solanim: 2 of 4: time index k= 40
+solanim: 3 of 4: time index k= 80
+solanim: 4 of 4: time index k= 120
+solanim: 1 of 4: time index k= 20
+solanim: 2 of 4: time index k= 60
+solanim: 3 of 4: time index k= 100
+solanim: 4 of 4: time index k= 140
+
+real	5m38.597s
+user	19m7.720s
+sys	2m0.288s
