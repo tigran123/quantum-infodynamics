@@ -1,5 +1,4 @@
-#workdir=$(mktemp -d ${TMPDIR:-/tmp}/solanim.XXXX)
-workdir=/tmp/tunnel
+workdir=$(mktemp -d ${TMPDIR:-/tmp}/solanim.XXXX)
 mkdir -p $workdir/frames
 echo "workdir=$workdir"
 INIT_FILE=$workdir/init.npz
@@ -9,17 +8,15 @@ WQ=$workdir/Wq.npz
 WC=$workdir/Wc.npz
 MOVIE_FILE=tunnel-effect-qc-nonrel.mp4
 
-python3 mkinit.py -x1 -18.0 -x2 22.0 -Nx 1024 \
-                  -p1 -5.0 -p2 5.0 -Np 1024 \
+python3 mkinit.py -x1 -18.0 -x2 22.0 -Nx 256 \
+                  -p1 -5.0 -p2 5.0 -Np 256 \
                   -t1 0.0 -t2 30 \
                   -f0 f0-gauss-x-4.py -u U_tun_nonrel.py -o $INIT_FILE
 
 python3 prinit.py $INIT_FILE
 
-exit
-
 python3 solve.py -tol 0.01 -i $INIT_FILE -o $SOLQ -W $WQ &
-python3 solve.py -c -tol 0.01 -i $INIT_FILE -o $SOLC -W $WC &
+python3 solve.py -c -tol 0.05 -i $INIT_FILE -o $SOLC -W $WC &
 wait
 
 python3 solanim.py -P 4 -p 1 -d $workdir/frames -i $INIT_FILE -s $SOLQ -s $SOLC &
