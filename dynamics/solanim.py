@@ -93,12 +93,14 @@ nsol = len(t)
 
 # split the entire time range into 'nparts' chunks and take chunk 'part'
 time_range = split(list(range(time_steps)), nparts, part)
-prog_prefix = "solanim: %d of %d" %(part, nparts)
+prog_prefix = "solanim: %d of %d: " %(part, nparts)
 
+total_frames = len(time_range)
+print(prog_prefix + "processing %d frame(s)" % total_frames)
+frames = 0
 for k in time_range:
     fig, axes = plt.subplots(nsol, 3, figsize=(19.2,10.8), dpi=100)
     
-    if k%20 == 0: print(prog_prefix + ": time index k=", k)
     s = 0
     if nsol == 1: axes_list = [axes]
     else: axes_list = axes
@@ -146,3 +148,6 @@ for k in time_range:
     plt.tight_layout()
     fig.savefig(framedir + '/%05d.png' % k)
     plt.close('all')
+    frames += 1
+    if frames%20 == 0: print(prog_prefix + "processed %d frame(s) of %d" % (frames,total_frames))
+print(prog_prefix + "processed all %d frame(s)" % total_frames)
