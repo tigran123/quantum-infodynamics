@@ -115,7 +115,6 @@ for k in time_range:
         ax[0].contour(xx, pp, H, levels=Hlevels, linewidths=0.5, colors='k')
         ax[0].set_title("Information field $W(x,p,t)$")
         im = ax[0].contourf(xx, pp, W[s][time_index], levels=Wlevels[s], norm=norm, cmap=cm.bwr)
-        #im = ax[0].contourf(xx, pp, W[s][time_index], levels=Wlevels[s])
         divider = make_axes_locatable(ax[0])
         cax = divider.append_axes("right", "2%", pad="1%")
         plt.colorbar(im, cax = cax, ticks=Wticks[s], format=mplt.ticker.FuncFormatter(fmt))
@@ -132,7 +131,7 @@ for k in time_range:
         ax[1].set_ylabel(r'$\rho$')
         ax[1].set_xlabel('$x$')
         ax[1].set_xlim([x1,x2-dx])
-        ax[1].text(3.0, 3.2, "t=% 6.3f" % t[s][time_index])
+        ax[1].text(0.8, 0.8, "t=% 6.3f" % t[s][time_index], transform=ax[1].transAxes)
         ax[1].set_ylim([1.02*rho_min[s],1.02*rho_max[s]])
 
         ax[2].set_title(r"Momentum density $\varphi(p,t)$")
