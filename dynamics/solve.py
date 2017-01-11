@@ -103,7 +103,7 @@ rho = sum(W, axis=2)*dp
 phi = sum(W, axis=1)*dx
 Nt = len(tv)
 params = {'Wmin': amin(W), 'Wmax': amax(W), 'rho_min': amin(rho), 'rho_max': amax(rho),
-          'phi_min': amin(phi), 'phi_max': amax(phi), 'Wfilename': args.Wfilename, 'Nt': Nt}
+          'phi_min': amin(phi), 'phi_max': amax(phi), 'tol': tol, 'Wfilename': args.Wfilename, 'Nt': Nt}
 
 print("%s: solved in %8.2f seconds, %d steps" % (method, time() - t_start, Nt))
 
