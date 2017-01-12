@@ -5,12 +5,10 @@ SOLC=$workdir/solc.npz
 WQ=$workdir/Wq.npz
 WC=$workdir/Wc.npz
 MOVIE_FILE=harmonic-oscillator-qc-rel.mp4
+PARAMS="-x1 -5.0 -x2 5.0 -Nx 1024 -p1 -4.0 -p2 4.0 -Np 1024 -t1 0.0 -t2 6.283185307179586 -f0 f0-gauss.py -u U_osc_rel.py"
 
-python3 solve.py -x1 -5.0 -x2 5.0 -Nx 1024 -p1 -4.0 -p2 4.0 -Np 1024 -t1 0.0 -t2 6.283185307179586 \
-                 -f0 f0-gauss.py -u U_osc_rel.py -tol 0.01 -o $SOLQ -W $WQ &
-
-python3 solve.py -x1 -5.0 -x2 5.0 -Nx 1024 -p1 -4.0 -p2 4.0 -Np 1024 -t1 0.0 -t2 6.283185307179586 \
-                 -f0 f0-gauss.py -u U_osc_rel.py -tol 0.001 -o $SOLC -W $WC -c &
+python3 solve.py $PARAMS -tol 0.01 -o $SOLQ -W $WQ &
+python3 solve.py $PARAMS -tol 0.001 -o $SOLC -W $WC -c &
 wait
 
 python3 solanim.py -P 4 -p 1 -d $workdir/frames -s $SOLQ -s $SOLC &
