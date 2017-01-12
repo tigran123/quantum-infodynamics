@@ -123,7 +123,7 @@ def adjust_step(cur_dt, Winit, maxtries=15):
         expTn = exp(0.5*dt*dT)
         W2 = solve_spectral(solve_spectral(Winit, expUn, expTn), expUn, expTn)
         if amax(abs(W2 - W1)) <= tol or tries > maxtries: break
-        dt *= 0.6
+        dt *= 0.7
     return (W1, dt, expU, expT)
 
 t_start = time()
