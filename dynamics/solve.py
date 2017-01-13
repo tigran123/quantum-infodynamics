@@ -94,9 +94,6 @@ H = Umod.T(pp)+Umod.U(xx)
 x0 = f0mod.x0
 p0 = f0mod.p0
 
-t_start = time()
-W0 = fftshift(f0mod.f0(xx,pp))
-
 def solve_spectral(Winit, expU, expT):
     B = fft(Winit, axis=0) # (x,p) -> (λ,p)
     B *= expT
@@ -127,10 +124,8 @@ def adjust_step(cur_dt, Winit, maxtries=15):
     return (W1, dt, expU, expT)
 
 t_start = time()
-dp = (p2-p1)/Np
-dx = (x2-x1)/Nx
 dt = (t2-t1)/20. # the first very rough guess of time step
-W = [W0]
+W = [fftshift(f0mod.f0(xx,pp))]
 tv = [t1]
 t = t1
 i = 0
@@ -148,20 +143,19 @@ while t <= t2:
     t += dt
     i += 1
     tv.append(t)
+Nt = len(tv)
+print("%s: solved in %8.2f seconds, %d steps" % (method, time() - t_start, Nt))
 
 W = ifftshift(W, axes=(1,2))
 rho = sum(W, axis=2)*dp
 phi = sum(W, axis=1)*dx
-Nt = len(tv)
 params = {'Wmin': amin(W), 'Wmax': amax(W), 'rho_min': amin(rho), 'rho_max': amax(rho), 'Hmin': amin(H), 'Hmax': amax(H),
           'phi_min': amin(phi), 'phi_max': amax(phi), 'tol': tol, 'Wfilename': args.Wfilename, 'Nt': Nt,
           'x0': x0, 'p0': p0, 'x1': x1, 'x2': x2, 'Nx': Nx, 'p1': p1, 'p2': p2, 'Np': Np}
-
-print("%s: solved in %8.2f seconds, %d steps" % (method, time() - t_start, Nt))
 
 t_start = time()
 savez(args.ofilename, t=tv, rho=rho, phi=phi, H=H, params=params)
 fp = memmap(args.Wfilename, dtype='float64', mode='w+', shape=(Nt, Nx, Np))
 fp[:] = W[:]
-del fp
+del fp # causes the flush of memmap
 print("%s: solution saved in %8.2f seconds" % (method, time() - t_start))
