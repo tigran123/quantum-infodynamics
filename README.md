@@ -13,10 +13,10 @@ For more information see the project's website at http://quantuminfodynamics.com
 
 * Python 3.5.2
 
-* Nupy >= 1.11.3
+* numpy >= 1.11.3
 
-* Scipy >= 0.18.1
+* scipy >= 0.18.1
 
-* Matplotlib >= 1.5.3
+* matplotlib >= 1.5.3
 
 * PyFFTW >= 0.10.4 (but the slower scipy.fftpack and even numpy.fft can also be used)
