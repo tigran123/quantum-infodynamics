@@ -19,4 +19,4 @@ For more information see the project's website at http://quantuminfodynamics.com
 
 * matplotlib >= 1.5.3
 
-* PyFFTW >= 0.10.4 (but the slower scipy.fftpack and even numpy.fft can also be used)
+* PyFFTW >= 0.10.4 (but the slower scipy.fftpack or even numpy.fft can be used where PyFFTW is not available, e.g. in Termux)
