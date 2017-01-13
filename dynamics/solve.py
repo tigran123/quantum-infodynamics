@@ -1,5 +1,5 @@
 """
-   solve.py --- Quantum Infodynamics Solver
+   solve.py --- Quantum Infodynamics Solver (Spectral Split Propagator of Second Order with Adaptive Timestep Control)
    Author: Tigran Aivazian <aivazian.tigran@gmail.com>
    License: GPL
 """
