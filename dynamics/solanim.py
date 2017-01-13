@@ -50,7 +50,7 @@ for sfilename in args.sfilenames:
         p1.append(params['p1']); p2.append(params['p2']); Np.append(params['Np'])
         Hmin.append(params['Hmin']); Hmax.append(params['Hmax'])
 
-W = [memmap(filename, mode='r', dtype='float64', shape=(nt,nx,np)) for (filename,nt,nx,np) in zip(Wfilenames, Nt,Nx,Np)]
+W = [memmap(filename, mode='r', dtype='float64', shape=(nt,nx,np)) for (filename,nt,nx,np) in zip(Wfilenames,Nt,Nx,Np)]
 
 xvdx = [linspace(x1i, x2i, Nxi, endpoint=False, retstep=True) for (x1i,x2i,Nxi) in zip(x1,x2,Nx)]
 pvdp = [linspace(p1i, p2i, Npi, endpoint=False, retstep=True) for (p1i,p2i,Npi) in zip(p1,p2,Np)]
