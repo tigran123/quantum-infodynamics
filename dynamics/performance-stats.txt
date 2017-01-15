@@ -1,46 +1,27 @@
 $ time bin/harmonic-oscillator.sh 
-CLASS: step 0, adjusted dt 0.314 -> 0.154, estimated 40 steps left
-QUANT: step 0, adjusted dt 0.314 -> 0.154, estimated 40 steps left
-QUANT: solved in     0.63 seconds, 42 steps
-CLASS: solved in     0.63 seconds, 42 steps
-CLASS: solution saved in     0.02 seconds
-QUANT: solution saved in     0.02 seconds
-solanim: 4 of 4: processing 10 frame(s)
+Quantum Relativistic Oscillator: step 0, adjusted dt 0.314 -> 0.154, estimated 40 steps left
+Classical Relativistic Oscillator: step 0, adjusted dt 0.314 -> 0.154, estimated 40 steps left
+Classical Non-relativistic Oscillator: step 0, adjusted dt 0.314 -> 0.154, estimated 40 steps left
+Quantum Non-relativistic Oscillator: step 0, adjusted dt 0.314 -> 0.154, estimated 40 steps left
+Classical Non-relativistic Oscillator: solved in     1.10 seconds, 42 steps
+Quantum Relativistic Oscillator: step 40, adjusted dt 0.154 -> 0.053, estimated 2 steps left
+Classical Non-relativistic Oscillator: solution saved in     0.05 seconds
+Quantum Relativistic Oscillator: solved in     1.27 seconds, 44 steps
+Quantum Non-relativistic Oscillator: solved in     1.30 seconds, 42 steps
+Classical Relativistic Oscillator: step 40, adjusted dt 0.154 -> 0.075, estimated 1 steps left
+Classical Relativistic Oscillator: solved in     1.42 seconds, 43 steps
+Quantum Relativistic Oscillator: solution saved in     0.05 seconds
+Quantum Non-relativistic Oscillator: solution saved in     0.04 seconds
+Classical Relativistic Oscillator: solution saved in     0.04 seconds
 solanim: 1 of 4: processing 11 frame(s)
 solanim: 2 of 4: processing 11 frame(s)
-solanim: 3 of 4: processing 10 frame(s)
-solanim: 4 of 4: processed all 10 frame(s)
-solanim: 3 of 4: processed all 10 frame(s)
+solanim: 4 of 4: processing 11 frame(s)
+solanim: 3 of 4: processing 11 frame(s)
 solanim: 1 of 4: processed all 11 frame(s)
 solanim: 2 of 4: processed all 11 frame(s)
+solanim: 3 of 4: processed all 11 frame(s)
+solanim: 4 of 4: processed all 11 frame(s)
 
-real	0m39.299s
-user	1m56.376s
-sys	0m33.660s
-$ time bin/harmonic-oscillator-relativistic.sh 
-CLASS: step 0, adjusted dt 0.314 -> 0.108, estimated 58 steps left
-QUANT: step 0, adjusted dt 0.314 -> 0.108, estimated 58 steps left
-CLASS: step 20, adjusted dt 0.108 -> 0.053, estimated 78 steps left
-QUANT: step 40, adjusted dt 0.108 -> 0.026, estimated 76 steps left
-QUANT: step 80, adjusted dt 0.026 -> 0.018, estimated 51 steps left
-CLASS: solved in    21.62 seconds, 100 steps
-CLASS: solution saved in     0.52 seconds
-QUANT: step 120, adjusted dt 0.018 -> 0.013, estimated 16 steps left
-QUANT: solved in    28.00 seconds, 138 steps
-QUANT: solution saved in     0.53 seconds
-solanim: 3 of 4: processing 34 frame(s)
-solanim: 2 of 4: processing 35 frame(s)
-solanim: 1 of 4: processing 35 frame(s)
-solanim: 4 of 4: processing 34 frame(s)
-solanim: 3 of 4: processed 20 frame(s) of 34
-solanim: 1 of 4: processed 20 frame(s) of 35
-solanim: 2 of 4: processed 20 frame(s) of 35
-solanim: 4 of 4: processed 20 frame(s) of 34
-solanim: 3 of 4: processed all 34 frame(s)
-solanim: 4 of 4: processed all 34 frame(s)
-solanim: 1 of 4: processed all 35 frame(s)
-solanim: 2 of 4: processed all 35 frame(s)
-
-real	5m14.442s
-user	17m41.048s
-sys	1m55.208s
+real	1m19.483s
+user	4m1.448s
+sys	1m7.636s
