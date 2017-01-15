@@ -30,10 +30,8 @@ def pr_exit(str):
 if nparts <= 0: pr_exit("Number of parts must be positive, but %d <= 0" % nparts)
 if part <= 0 or part > nparts: pr_exit("The part number must lie between 1 and %d,  but %d <= 0" % (nparts, part))
 
-t,Nt,W,rho,phi,Wmin,Wmax,rho_min,rho_max,phi_min,phi_max = [],[],[],[],[],[],[],[],[],[],[]
-Wlevels,Wticks,Wfilenames = [],[],[]
-x1,x2,Nx,p1,p2,Np = [],[],[],[],[],[]
-H,Hmin,Hmax = [],[],[]
+(t,Nt,W,rho,phi,Wmin,Wmax,rho_min,rho_max,phi_min,phi_max,
+  Wlevels,Wticks,Wfilenames,x1,x2,Nx,p1,p2,Np,H,Hmin,Hmax) = ([] for _ in range(23))
 
 for sfilename in args.sfilenames:
     with load(sfilename) as data:
