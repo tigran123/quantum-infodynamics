@@ -30,23 +30,21 @@ def pr_exit(str):
 if nparts <= 0: pr_exit("Number of parts must be positive, but %d <= 0" % nparts)
 if part <= 0 or part > nparts: pr_exit("The part number must lie between 1 and %d,  but %d <= 0" % (nparts, part))
 
-(t,Nt,W,rho,phi,Wmin,Wmax,rho_min,rho_max,phi_min,phi_max,
-  Wlevels,Wticks,Wfilenames,x1,x2,Nx,p1,p2,Np,H,Hmin,Hmax) = ([] for _ in range(23))
+(t,Nt,W,rho,phi,Wmin,Wmax,rho_min,rho_max,phi_min,phi_max,trajectory,descr,
+  Wlevels,Wticks,Wfilenames,x1,x2,Nx,p1,p2,Np,H,Hmin,Hmax) = ([] for _ in range(25))
 
 for sfilename in args.sfilenames:
     with load(sfilename) as data:
         t.append(data['t']); rho.append(data['rho']); phi.append(data['phi']); H.append(data['H'])
-        params = data['params'][()]
+        trajectory.append(data['trajectory']); params = data['params'][()]
         Wmin.append(params['Wmin']); Wmax.append(params['Wmax'])
-        Wlevels.append(linspace(Wmin[-1], Wmax[-1], 100))
-        Wticks.append(linspace(Wmin[-1], Wmax[-1], 10))
+        Wlevels.append(linspace(Wmin[-1], Wmax[-1], 100)); Wticks.append(linspace(Wmin[-1], Wmax[-1], 10))
         rho_min.append(params['rho_min']); rho_max.append(params['rho_max'])
         phi_min.append(params['phi_min']); phi_max.append(params['phi_max'])
-        Wfilenames.append(params['Wfilename'])
-        Nt.append(params['Nt'])
+        Wfilenames.append(params['Wfilename']); Nt.append(params['Nt'])
         x1.append(params['x1']); x2.append(params['x2']); Nx.append(params['Nx'])
         p1.append(params['p1']); p2.append(params['p2']); Np.append(params['Np'])
-        Hmin.append(params['Hmin']); Hmax.append(params['Hmax'])
+        Hmin.append(params['Hmin']); Hmax.append(params['Hmax']); descr.append(params['descr'])
 
 W = [memmap(filename, mode='r', dtype='float64', shape=(nt,nx,np)) for (filename,nt,nx,np) in zip(Wfilenames,Nt,Nx,Np)]
 
@@ -106,16 +104,19 @@ for k in time_range:
         xx,pp = xxpp[s][0],xxpp[s][1]
         xv = xvdx[s][0]
         pv = pvdp[s][0]
+        x = trajectory[s][:,0]
+        p = trajectory[s][:,1]
         if s == s_longest:
             time_index = k
         else: # find an element in t[s] closest to the current time value (i.e. t_longest[k])
             time_index = abs(t[s] - t_longest[k]).argmin()
         ax[0].contour(xx, pp, H[s], levels=Hlevels[s], linewidths=0.5, colors='k')
-        ax[0].set_title("Information field $W(x,p,t)$")
+        ax[0].set_title(descr[s] + ' $W(x,p,t)$')
         im = ax[0].contourf(xx, pp, W[s][time_index], levels=Wlevels[s], norm=norm, cmap=cm.bwr)
         divider = make_axes_locatable(ax[0])
         cax = divider.append_axes("right", "2%", pad="1%")
         plt.colorbar(im, cax = cax, ticks=Wticks[s], format=mplt.ticker.FuncFormatter(fmt))
+        ax[0].plot(x, p, color='g', linestyle='--')
         ax[0].set_ylabel('$p$')
         ax[0].set_xlabel('$x$')
         ax[0].set_xlim([x1[s],x2[s]-dx[s]])

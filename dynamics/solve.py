@@ -5,6 +5,7 @@
 """
 
 from numpy import linspace, mgrid, pi, newaxis, exp, real, savez, amin, amax, sum, abs, memmap
+from scipy.integrate import odeint
 import argparse as arg
 from time import time
 from os.path import isfile, splitext
@@ -18,6 +19,7 @@ pyfftw.interfaces.cache.enable()
 pyfftw.interfaces.cache.set_keepalive_time(10)
 
 p = arg.ArgumentParser(description="Quantum Infodynamics Solver")
+p.add_argument("-d",  action="store", help="Description text", dest="descr", required=True)
 p.add_argument("-x1", action="store", help="Starting coordinate", dest="x1", type=float, required=True)
 p.add_argument("-x2", action="store", help="Final coordinate", dest="x2", type=float, required=True)
 p.add_argument("-Nx", action="store", help="Number of points in x direction", dest="Nx", type=int, required=True)
@@ -28,9 +30,9 @@ p.add_argument("-t1", action="store", help="Starting time", dest="t1", type=floa
 p.add_argument("-t2", action="store", help="Final time", dest="t2", type=float, required=True)
 p.add_argument("-f0", action="store", help="Python source of f0(x,p)", dest="srcf0", required=True)
 p.add_argument("-u",  action="store", help="Python source of U(x), T(p), U'(x) and T'(p)", dest="srcU", required=True)
-p.add_argument("-o", action="store", help="Solution file name", dest="ofilename", required=True)
-p.add_argument("-W", action="store", help="Solution W(x,p,t) file name", dest="Wfilename", required=True)
-p.add_argument("-c", action="store_true", help="Use classical (non-quantum) propagator", dest="classical")
+p.add_argument("-o",  action="store", help="Solution file name", dest="ofilename", required=True)
+p.add_argument("-W",  action="store", help="Solution W(x,p,t) file name", dest="Wfilename", required=True)
+p.add_argument("-c",  action="store_true", help="Use classical (non-quantum) propagator", dest="classical")
 p.add_argument("-tol", action="store", help="Absolute error tolerance", dest="tol", type=float, required=True)
 args = p.parse_args()
 
@@ -39,7 +41,7 @@ def pr_exit(str):
     exit()
 
 srcf0 = args.srcf0; srcU = args.srcU
-(x1,x2,Nx,p1,p2,Np,t1,t2,tol) = (args.x1,args.x2,args.Nx,args.p1,args.p2,args.Np,args.t1,args.t2,args.tol)
+(descr,x1,x2,Nx,p1,p2,Np,t1,t2,tol) = (args.descr,args.x1,args.x2,args.Nx,args.p1,args.p2,args.Np,args.t1,args.t2,args.tol)
 if tol <= 0: pr_exit("Tolerance value must be positive, but %f <=0" % tol)
 if not isfile(srcf0): pr_exit("No such file '%s'" %(srcf0))
 if not isfile(srcU): pr_exit("No such file '%s'" %(srcU))
@@ -82,17 +84,13 @@ f0mod = __import__(splitext(srcf0)[0])
 Umod = __import__(splitext(srcU)[0])
 
 if args.classical:
-    method = "CLASS"
     dU = Umod.dUdx(X)*1j*Theta
     dT = -Umod.dTdp(P)*1j*Lam/2.
 else:
-    method = "QUANT"
     dU = qd(Umod.U, X, 1j*Theta)
     dT = qd(Umod.T, P, -1j*Lam)/2.
 
 H = Umod.T(pp)+Umod.U(xx)
-x0 = f0mod.x0
-p0 = f0mod.p0
 
 def solve_spectral(Winit, expU, expT):
     B = fft(Winit, axis=0) # (x,p) -> (λ,p)
@@ -130,13 +128,13 @@ tv = [t1]
 t = t1
 i = 0
 while t <= t2:
-    if i%300 == 299: print("%s: step %d"%(method,i))
+    if i%300 == 299: print("%s: step %d"%(descr,i))
     if i%20 == 0:
         (Wnext, new_dt, expU, expT) = adjust_step(dt, W[i])
         W.append(Wnext)
         if new_dt != dt:
             est_steps = (t2-t)//new_dt
-            print("%s: step %d, adjusted dt %.3f -> %.3f, estimated %d steps left" %(method,i,dt,new_dt,est_steps))
+            print("%s: step %d, adjusted dt %.3f -> %.3f, estimated %d steps left" %(descr,i,dt,new_dt,est_steps))
             dt = new_dt
     else:
         W.append(solve_spectral(W[i], expU, expT))
@@ -144,18 +142,20 @@ while t <= t2:
     i += 1
     tv.append(t)
 Nt = len(tv)
-print("%s: solved in %8.2f seconds, %d steps" % (method, time() - t_start, Nt))
+trajectory = odeint(lambda y,t: [Umod.dTdp(y[1]),-Umod.dUdx(y[0])], [f0mod.x0,f0mod.p0], tv)
+
+print("%s: solved in %8.2f seconds, %d steps" % (descr, time() - t_start, Nt))
 
 W = ifftshift(W, axes=(1,2))
 rho = sum(W, axis=2)*dp
 phi = sum(W, axis=1)*dx
 params = {'Wmin': amin(W), 'Wmax': amax(W), 'rho_min': amin(rho), 'rho_max': amax(rho), 'Hmin': amin(H), 'Hmax': amax(H),
           'phi_min': amin(phi), 'phi_max': amax(phi), 'tol': tol, 'Wfilename': args.Wfilename, 'Nt': Nt,
-          'x0': x0, 'p0': p0, 'x1': x1, 'x2': x2, 'Nx': Nx, 'p1': p1, 'p2': p2, 'Np': Np}
+          'x1': x1, 'x2': x2, 'Nx': Nx, 'p1': p1, 'p2': p2, 'Np': Np, 'descr': descr}
 
 t_start = time()
-savez(args.ofilename, t=tv, rho=rho, phi=phi, H=H, params=params)
+savez(args.ofilename, t=tv, trajectory=trajectory, rho=rho, phi=phi, H=H, params=params)
 fp = memmap(args.Wfilename, dtype='float64', mode='w+', shape=(Nt, Nx, Np))
 fp[:] = W[:]
 del fp # causes the flush of memmap
-print("%s: solution saved in %8.2f seconds" % (method, time() - t_start))
+print("%s: solution saved in %8.2f seconds" % (descr, time() - t_start))
