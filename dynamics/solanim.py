@@ -10,7 +10,7 @@ from matplotlib import cm
 from numpy import load, linspace, mgrid, amin, amax, ma, interp, where, memmap
 from argparse import ArgumentParser as argp
 
-mplt.rc('font', family='serif', size=12)
+mplt.rc('font', family='serif', size=11)
 
 p = argp(description="Solution Animator")
 p.add_argument("-s", action="append", help="Solution data filename (multiple OK)", dest="sfilenames", required=True, default=[])
