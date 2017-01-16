@@ -11,12 +11,12 @@ WQN=$workdir/Wqn.npz
 WCN=$workdir/Wcn.npz
 
 MOVIE_FILE=harmonic-oscillator.mp4
-PARAMS="-x1 -5.0 -x2 5.0 -Nx 256 -p1 -4.0 -p2 4.0 -Np 256 -t1 0.0 -t2 6.283185307179586 -f0 f0-gauss.py"
+PARAMS="-x1 -5.0 -x2 5.0 -Nx 512 -p1 -4.0 -p2 4.0 -Np 512 -t1 0.0 -t2 6.283185307179586 -f0 f0-gauss.py"
 
-python3 solve.py -d "Quantum Relativistic Oscillator" $PARAMS -u U_osc_rel.py -tol 0.03 -o $SOLQR -W $WQR &
-python3 solve.py -d "Classical Relativistic Oscillator" $PARAMS -u U_osc_rel.py -tol 0.006 -o $SOLCR -W $WCR -c &
-python3 solve.py -d "Quantum Non-relativistic Oscillator" $PARAMS -u U_osc_nonrel.py -tol 0.01 -o $SOLQN -W $WQN &
-python3 solve.py -d "Classical Non-relativistic Oscillator" $PARAMS -u U_osc_nonrel.py -tol 0.01 -o $SOLCN -W $WCN -c &
+python3 solve.py -d "Quantum Relativistic Oscillator" $PARAMS -u U_osc_rel.py -tol 0.01 -o $SOLQR -W $WQR &
+python3 solve.py -d "Classical Relativistic Oscillator" $PARAMS -u U_osc_rel.py -tol 0.0009 -o $SOLCR -W $WCR -c &
+python3 solve.py -d "Quantum Non-relativistic Oscillator" $PARAMS -u U_osc_nonrel.py -tol 0.001 -o $SOLQN -W $WQN &
+python3 solve.py -d "Classical Non-relativistic Oscillator" $PARAMS -u U_osc_nonrel.py -tol 0.001 -o $SOLCN -W $WCN -c &
 wait
 
 python3 solanim.py -P 4 -p 1 -d $workdir/frames -s $SOLQR -s $SOLCR -s $SOLQN -s $SOLCN &
