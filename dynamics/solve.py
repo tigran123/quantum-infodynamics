@@ -10,7 +10,7 @@ import argparse as arg
 from time import time
 from os.path import isfile, splitext
 
-# select FFT implementation
+# select FFT implementation: pyfftw is the fastest and numpy is the slowest, scipy is in between these two
 #from numpy.fft import ifftshift, fftshift, fft, ifft
 #from scipy.fftpack import fftshift, ifftshift, fft, ifft
 import pyfftw
