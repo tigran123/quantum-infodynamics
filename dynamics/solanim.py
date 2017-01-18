@@ -92,7 +92,7 @@ time_range = split(list(range(time_steps)), nparts, part)
 prog_prefix = "solanim: %d of %d: " %(part, nparts)
 
 total_frames = len(time_range)
-print(prog_prefix + "processing %d frame(s)" % total_frames)
+print(prog_prefix + "processing %d frames" % total_frames)
 frames = 0
 for k in time_range:
     fig, axes = plt.subplots(nsol, 3, figsize=(19.2,10.8), dpi=100)
@@ -148,5 +148,5 @@ for k in time_range:
     fig.savefig(framedir + '/%05d.png' % k)
     plt.close('all')
     frames += 1
-    if frames%20 == 0: print(prog_prefix + "processed %d frame(s) of %d" % (frames,total_frames))
-print(prog_prefix + "processed all %d frame(s)" % total_frames)
+    if frames%30 == 0: print(prog_prefix + "processed %d frames of %d" % (frames,total_frames))
+print(prog_prefix + "processed all %d frames" % total_frames)

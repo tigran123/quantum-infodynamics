@@ -1,35 +1,31 @@
 $ time bin/harmonic-oscillator.sh 
-Quantum Relativistic Oscillator: step 0, adjusted dt 0.314 -> 0.108, estimated 58 steps left
-Classical Non-relativistic Oscillator: step 0, adjusted dt 0.314 -> 0.075, estimated 83 steps left
-Quantum Non-relativistic Oscillator: step 0, adjusted dt 0.314 -> 0.075, estimated 83 steps left
 Classical Relativistic Oscillator: step 0, adjusted dt 0.314 -> 0.108, estimated 58 steps left
+Classical Non-relativistic Oscillator: step 0, adjusted dt 0.314 -> 0.075, estimated 83 steps left
+Quantum Relativistic Oscillator: step 0, adjusted dt 0.314 -> 0.108, estimated 58 steps left
+Quantum Non-relativistic Oscillator: step 0, adjusted dt 0.314 -> 0.075, estimated 83 steps left
 Classical Non-relativistic Oscillator: step 20, adjusted dt 0.075 -> 0.053, estimated 90 steps left
-Quantum Non-relativistic Oscillator: step 20, adjusted dt 0.075 -> 0.053, estimated 90 steps left
 Classical Relativistic Oscillator: step 20, adjusted dt 0.108 -> 0.053, estimated 78 steps left
+Quantum Non-relativistic Oscillator: step 20, adjusted dt 0.075 -> 0.053, estimated 90 steps left
 Quantum Relativistic Oscillator: step 40, adjusted dt 0.108 -> 0.037, estimated 53 steps left
 Quantum Relativistic Oscillator: step 60, adjusted dt 0.037 -> 0.026, estimated 47 steps left
-Classical Non-relativistic Oscillator: solved in     9.60 seconds, 112 steps
-Quantum Non-relativistic Oscillator: solved in     9.64 seconds, 112 steps
-Classical Non-relativistic Oscillator: solution saved in     0.25 seconds
-Quantum Non-relativistic Oscillator: solution saved in     0.23 seconds
+Classical Non-relativistic Oscillator: solved in    10.12 seconds, 112 steps
+Classical Relativistic Oscillator: solved in    10.51 seconds, 100 steps
+Classical Non-relativistic Oscillator: solution saved in     0.27 seconds
+Classical Relativistic Oscillator: solution saved in     0.26 seconds
+Quantum Non-relativistic Oscillator: solved in    11.71 seconds, 112 steps
 Quantum Relativistic Oscillator: step 100, adjusted dt 0.026 -> 0.018, estimated 10 steps left
-Classical Relativistic Oscillator: solved in    11.08 seconds, 100 steps
-Quantum Relativistic Oscillator: solved in    11.34 seconds, 112 steps
-Classical Relativistic Oscillator: solution saved in     0.16 seconds
+Quantum Non-relativistic Oscillator: solution saved in     0.16 seconds
+Quantum Relativistic Oscillator: solved in    12.55 seconds, 112 steps
 Quantum Relativistic Oscillator: solution saved in     0.12 seconds
-solanim: 4 of 4: processing 28 frame(s)
-solanim: 2 of 4: processing 28 frame(s)
-solanim: 3 of 4: processing 28 frame(s)
-solanim: 1 of 4: processing 28 frame(s)
-solanim: 3 of 4: processed 20 frame(s) of 28
-solanim: 1 of 4: processed 20 frame(s) of 28
-solanim: 2 of 4: processed 20 frame(s) of 28
-solanim: 4 of 4: processed 20 frame(s) of 28
-solanim: 3 of 4: processed all 28 frame(s)
-solanim: 1 of 4: processed all 28 frame(s)
-solanim: 2 of 4: processed all 28 frame(s)
-solanim: 4 of 4: processed all 28 frame(s)
+solanim: 2 of 4: processing 28 frames
+solanim: 1 of 4: processing 28 frames
+solanim: 4 of 4: processing 28 frames
+solanim: 3 of 4: processing 28 frames
+solanim: 3 of 4: processed all 28 frames
+solanim: 2 of 4: processed all 28 frames
+solanim: 1 of 4: processed all 28 frames
+solanim: 4 of 4: processed all 28 frames
 
-real	4m16.419s
-user	13m40.328s
-sys	2m50.872s
+real	4m14.261s
+user	13m41.548s
+sys	2m50.124s
