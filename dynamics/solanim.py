@@ -17,11 +17,11 @@ p.add_argument("-s", action="append", help="Solution data filename (multiple OK)
 p.add_argument("-P", action="store", help="Number of parts to split the time range into", dest="nparts", type=int, default=1)
 p.add_argument("-p", action="store", help="The part number to process in this instance", dest="part", type=int, default=1)
 p.add_argument("-d", action="store", help="Frames directory", dest="framedir", required=True)
+p.add_argument("-fw", action="store", help="Frame width in pixels (default 1920)", dest="fwidth", type=int, default=1920)
+p.add_argument("-fh", action="store", help="Frame height in pixels (default 1080)", dest="fheight", type=int, default=1080)
 args = p.parse_args()
 
-framedir = args.framedir
-nparts = args.nparts
-part = args.part
+(framedir,nparts,part,fwidth,fheight) = (args.framedir,args.nparts,args.part,args.fwidth,args.fheight)
 
 def pr_exit(str):
     print("ERROR:" + str)
@@ -95,7 +95,7 @@ total_frames = len(time_range)
 print(prog_prefix + "processing %d frames" % total_frames)
 frames = 0
 for k in time_range:
-    fig, axes = plt.subplots(nsol, 3, figsize=(19.2,10.8), dpi=100)
+    fig, axes = plt.subplots(nsol, 3, figsize=(fwidth/100,fheight/100), dpi=100)
     
     s = 0
     if nsol == 1: axes_list = [axes]
