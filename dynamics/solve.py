@@ -4,7 +4,7 @@
    License: GPL
 """
 
-from numpy import linspace, mgrid, pi, newaxis, exp, real, savez, amin, amax, sum, abs, memmap
+from numpy import linspace, mgrid, pi, newaxis, exp, real, savez, amin, amax, sum, abs, memmap, sqrt, sign
 from scipy.integrate import odeint
 import argparse as arg
 from time import time
@@ -33,6 +33,8 @@ p.add_argument("-u",  action="store", help="Python source of U(x), T(p), U'(x) a
 p.add_argument("-o",  action="store", help="Solution file name", dest="ofilename", required=True)
 p.add_argument("-W",  action="store", help="Solution W(x,p,t) file name", dest="Wfilename", required=True)
 p.add_argument("-c",  action="store_true", help="Use classical (non-quantum) propagator", dest="classical")
+p.add_argument("-r",  action="store_true", help="Use relativistic dynamics", dest="relativistic")
+p.add_argument("-m",  action="store", help="Rest mass in a.u. (default=1.0)", dest="mass", default=1.0)
 p.add_argument("-tol", action="store", help="Absolute error tolerance", dest="tol", type=float, required=True)
 args = p.parse_args()
 
@@ -41,8 +43,10 @@ def pr_exit(str):
     exit()
 
 srcf0 = args.srcf0; srcU = args.srcU
-(descr,x1,x2,Nx,p1,p2,Np,t1,t2,tol) = (args.descr,args.x1,args.x2,args.Nx,args.p1,args.p2,args.Np,args.t1,args.t2,args.tol)
+(descr,x1,x2,Nx,p1,p2,Np,t1,t2,tol,mass) = (args.descr,args.x1,args.x2,args.Nx,args.p1,args.p2,args.Np,args.t1,args.t2,
+                                            args.tol,args.mass)
 if tol <= 0: pr_exit("Tolerance value must be positive, but %f <=0" % tol)
+if mass < 0: pr_exit("The value of mass must be non-negative, but %f < 0" % mass)
 if not isfile(srcf0): pr_exit("No such file '%s'" %(srcf0))
 if not isfile(srcU): pr_exit("No such file '%s'" %(srcU))
 if x2 <= x1: pr_exit("x2 must be greater than x1, but %f <= %f" %(x2,x1))
@@ -83,14 +87,42 @@ def qd(f, x, dx):
 f0mod = __import__(splitext(srcf0)[0])
 Umod = __import__(splitext(srcU)[0])
 
+def T_nonrel(p):
+    global mass
+    return p**2/(2.*mass)
+
+def dTdp_nonrel(p):
+    global mass
+    return p/mass
+
+c = 1.0 # speed of light
+
+def T_rel(p):
+    global mass, c
+    return c*sqrt(p**2 + mass**2*c**2)
+
+def dTdp_rel(p):
+    global mass, c
+    if mass == 0.0:
+        return c*sign(p)
+    else:
+        return c*p/sqrt(p**2 + mass**2*c**2)
+
+if args.relativistic:
+    T = T_rel
+    dTdp = dTdp_rel
+else:
+    T = T_nonrel
+    dTdp = dTdp_nonrel
+
 if args.classical:
     dU = Umod.dUdx(X)*1j*Theta
-    dT = -Umod.dTdp(P)*1j*Lam/2.
+    dT = -dTdp(P)*1j*Lam/2.
 else:
     dU = qd(Umod.U, X, 1j*Theta)
-    dT = qd(Umod.T, P, -1j*Lam)/2.
+    dT = qd(T, P, -1j*Lam)/2.
 
-H = Umod.T(pp)+Umod.U(xx)
+H = T(pp)+Umod.U(xx)
 
 def solve_spectral(Winit, expU, expT):
     B = fft(Winit, axis=0) # (x,p) -> (λ,p)
@@ -142,7 +174,7 @@ while t <= t2:
     i += 1
     tv.append(t)
 Nt = len(tv)
-trajectory = odeint(lambda y,t: [Umod.dTdp(y[1]),-Umod.dUdx(y[0])], [f0mod.x0,f0mod.p0], tv)
+trajectory = odeint(lambda y,t: [dTdp(y[1]),-Umod.dUdx(y[0])], [f0mod.x0,f0mod.p0], tv)
 
 print("%s: solved in %8.2f seconds, %d steps" % (descr, time() - t_start, Nt))
 
