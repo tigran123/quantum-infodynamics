@@ -1,0 +1,154 @@
+"""
+  solplay.py --- Solution Playback
+  Author: Tigran Aivazian <aivazian.tigran@gmail.com>
+  License: GPL
+"""
+import matplotlib as mplt
+import matplotlib.pyplot as plt
+from matplotlib import cm
+from numpy import load, linspace, mgrid, amin, amax, ma, interp, where, memmap
+from argparse import ArgumentParser as argp
+from threading import Thread
+from time import sleep
+
+mplt.rc('font', family='serif', size=10)
+
+p = argp(description="Solution Animator")
+p.add_argument("-s", action="append", help="Solution data filename (multiple OK)", dest="sfilenames", required=True, default=[])
+args = p.parse_args()
+
+(t,Nt,W,rho,phi,Wmin,Wmax,rho_min,rho_max,phi_min,phi_max,trajectory,descr,
+  Wlevels,Wticks,Wfilenames,x1,x2,Nx,p1,p2,Np,H,Hmin,Hmax) = ([] for _ in range(25))
+
+for sfilename in args.sfilenames:
+    with load(sfilename) as data:
+        t.append(data['t']); rho.append(data['rho']); phi.append(data['phi']); H.append(data['H'])
+        trajectory.append(data['trajectory']); params = data['params'][()]
+        Wmin.append(params['Wmin']); Wmax.append(params['Wmax'])
+        Wlevels.append(linspace(Wmin[-1], Wmax[-1], 100)); Wticks.append(linspace(Wmin[-1], Wmax[-1], 10))
+        rho_min.append(params['rho_min']); rho_max.append(params['rho_max'])
+        phi_min.append(params['phi_min']); phi_max.append(params['phi_max'])
+        Wfilenames.append(params['Wfilename']); Nt.append(params['Nt'])
+        x1.append(params['x1']); x2.append(params['x2']); Nx.append(params['Nx'])
+        p1.append(params['p1']); p2.append(params['p2']); Np.append(params['Np'])
+        Hmin.append(params['Hmin']); Hmax.append(params['Hmax']); descr.append(params['descr'])
+
+W = [memmap(filename, mode='r', dtype='float64', shape=(nt,nx,np)) for (filename,nt,nx,np) in zip(Wfilenames,Nt,Nx,Np)]
+
+xvdx = [linspace(x1i, x2i, Nxi, endpoint=False, retstep=True) for (x1i,x2i,Nxi) in zip(x1,x2,Nx)]
+pvdp = [linspace(p1i, p2i, Npi, endpoint=False, retstep=True) for (p1i,p2i,Npi) in zip(p1,p2,Np)]
+dx = [a[1] for a in xvdx]
+dp = [a[1] for a in pvdp]
+xxpp = [mgrid[x1i:x2i-dxi:Nxi*1j, p1i:p2i-dpi:Npi*1j] for (x1i,x2i,dxi,Nxi,p1i,p2i,dpi,Npi) in zip(x1,x2,dx,Nx,p1,p2,dp,Np)]
+Hlevels =  [linspace(hmin, hmax, 10) for (hmin,hmax) in zip(Hmin,Hmax)]
+
+def fmt(x, pos):
+    return "%3.2f" % x
+
+from mpl_toolkits.axes_grid1 import make_axes_locatable
+
+from matplotlib.colors import Normalize
+
+# shift the midpoint of a colormap to a specified location (usually 0.0)
+class MidpointNormalize(Normalize):
+    def __init__(self, vmin=None, vmax=None, midpoint=None, clip=False):
+        self.midpoint = midpoint
+        Normalize.__init__(self, vmin, vmax, clip)
+
+    def __call__(self, value, clip=None):
+        # I'm ignoring masked values and all kinds of edge cases to make a
+        # simple example...
+        x, y = [self.vmin, self.midpoint, self.vmax], [0, 0.5, 1]
+        return ma.masked_array(interp(value, x, y))
+
+t_longest = max(t, key=len)
+s_longest = t.index(t_longest)
+time_steps = len(t_longest)
+nsol = len(t)
+norm = [MidpointNormalize(midpoint=0.0) for _ in range(nsol)]
+
+plt.ion()
+fig, axes = plt.subplots(nsol, 3, figsize=(19.2,10.8), dpi=100)
+if nsol == 1: axes_list = [axes]
+else: axes_list = axes
+
+s = 0
+ims, rho_artists, phi_artists, text_artists = [], [], [], []
+for ax in axes_list:
+    xx,pp = xxpp[s][0],xxpp[s][1]
+    xv = xvdx[s][0]
+    pv = pvdp[s][0]
+    x = trajectory[s][:,0]
+    p = trajectory[s][:,1]
+    ax[0].contour(xx, pp, H[s], levels=Hlevels[s], linewidths=0.5, colors='k')
+    ax[0].set_title(descr[s])
+    im = ax[0].imshow(W[s][0].T, origin='lower', interpolation='none', extent=[x1[s],x2[s]-dx[s],p1[s],p2[s]-dp[s]],
+                vmin=Wmin[s], vmax=Wmax[s], norm=norm[s], cmap=cm.bwr)
+    ims.append(im)
+    divider = make_axes_locatable(ax[0])
+    cax = divider.append_axes("right", "2%", pad="1%")
+    plt.colorbar(im, cax = cax, ticks=Wticks[s], format=mplt.ticker.FuncFormatter(fmt))
+    ax[0].plot(x, p, color='g', linestyle='--')
+    ax[0].set_ylabel('$p$')
+    ax[0].set_xlabel('$x$')
+    ax[0].set_xlim([x1[s],x2[s]-dx[s]])
+    ax[0].set_ylim([p1[s],p2[s]-dp[s]])
+
+    ax[1].set_title(r"Spatial density $\rho(x,t)$")
+    rho_now = rho[s][0]
+    rho_artist, = ax[1].plot(xv, rho_now, color='black')
+    rho_artists.append(rho_artist)
+    ax[1].set_ylabel(r'$\rho$')
+    ax[1].set_xlabel('$x$')
+    ax[1].set_xlim([x1[s],x2[s]-dx[s]])
+    text_artist = ax[1].text(0.8, 0.8, "t=% 6.3f" % t[s][0], transform=ax[1].transAxes)
+    text_artists.append(text_artist)
+    ax[1].set_ylim([1.02*rho_min[s],1.02*rho_max[s]])
+
+    ax[2].set_title(r"Momentum density $\varphi(p,t)$")
+    phi_now = phi[s][0]
+    phi_artist, = ax[2].plot(pv, phi_now, color='black')
+    phi_artists.append(phi_artist)
+    ax[2].set_ylabel(r'$\varphi$')
+    ax[2].set_xlabel('$p$')
+    ax[2].set_xlim([p1[s],p2[s]-dp[s]])
+    ax[2].set_ylim([1.02*phi_min[s],1.02*phi_max[s]])
+    s += 1
+
+fig.tight_layout()
+
+def command_line_handler():
+    global pause_flag
+    while True:
+        cmd = input("QID> ")
+        if cmd == 'p' or cmd == 'pause':
+            pause_flag = True
+        elif cmd == 'r' or cmd == 'resume':
+            pause_flag = False
+
+pause_flag = False
+stop_flag = False
+thr = Thread(target=command_line_handler)
+thr.start()
+
+while True:
+    for k in range(time_steps):
+        while True:
+            if pause_flag: sleep(2)
+            else: break
+        s = 0
+        for ax in axes_list:
+            if s == s_longest:
+                time_index = k
+            else: # find an element in t[s] closest to the current time value (i.e. t_longest[k])
+                time_index = abs(t[s] - t_longest[k]).argmin()
+            rho_now = rho[s][time_index]
+            rho_artists[s].set_ydata(rho_now)
+            phi_now = phi[s][time_index]
+            phi_artists[s].set_ydata(phi_now)
+            text_artists[s].set_text("t=% 6.3f" % t[s][time_index])
+            W_now = W[s][time_index].T
+            ims[s].set_data(W_now)
+            s += 1
+        fig.canvas.draw()
+thr.join()
