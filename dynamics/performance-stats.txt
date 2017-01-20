@@ -1,31 +1,65 @@
+# using Python 3.5.2
 $ time bin/harmonic-oscillator.sh 
 Classical Relativistic Oscillator: step 0, adjusted dt 0.314 -> 0.108, estimated 58 steps left
-Classical Non-relativistic Oscillator: step 0, adjusted dt 0.314 -> 0.075, estimated 83 steps left
 Quantum Relativistic Oscillator: step 0, adjusted dt 0.314 -> 0.108, estimated 58 steps left
+Quantum Non-relativistic Oscillator: step 0, adjusted dt 0.314 -> 0.075, estimated 83 steps left
+Classical Non-relativistic Oscillator: step 0, adjusted dt 0.314 -> 0.075, estimated 83 steps left
+Classical Relativistic Oscillator: step 20, adjusted dt 0.108 -> 0.053, estimated 78 steps left
+Quantum Non-relativistic Oscillator: step 20, adjusted dt 0.075 -> 0.053, estimated 90 steps left
+Classical Non-relativistic Oscillator: step 20, adjusted dt 0.075 -> 0.053, estimated 90 steps left
+Quantum Relativistic Oscillator: step 40, adjusted dt 0.108 -> 0.037, estimated 53 steps left
+Quantum Relativistic Oscillator: step 60, adjusted dt 0.037 -> 0.026, estimated 47 steps left
+Classical Relativistic Oscillator: solved in     8.53 seconds, 100 steps
+Classical Relativistic Oscillator: solution saved in     0.26 seconds
+Quantum Non-relativistic Oscillator: solved in     9.56 seconds, 112 steps
+Quantum Non-relativistic Oscillator: solution saved in     0.22 seconds
+Quantum Relativistic Oscillator: step 100, adjusted dt 0.026 -> 0.018, estimated 10 steps left
+Quantum Relativistic Oscillator: solved in    10.69 seconds, 112 steps
+Quantum Relativistic Oscillator: solution saved in     0.15 seconds
+Classical Non-relativistic Oscillator: solved in    11.43 seconds, 112 steps
+Classical Non-relativistic Oscillator: solution saved in     0.12 seconds
+solanim: 4 of 4: processing 28 frames
+solanim: 1 of 4: processing 28 frames
+solanim: 3 of 4: processing 28 frames
+solanim: 2 of 4: processing 28 frames
+solanim: 3 of 4: processed all 28 frames
+solanim: 1 of 4: processed all 28 frames
+solanim: 2 of 4: processed all 28 frames
+solanim: 4 of 4: processed all 28 frames
+
+real	4m12.723s
+user	13m34.716s
+sys	2m50.944s
+
+# using Python 3.6.0
+$ time bin/harmonic-oscillator.sh 
+Quantum Relativistic Oscillator: step 0, adjusted dt 0.314 -> 0.108, estimated 58 steps left
+Classical Relativistic Oscillator: step 0, adjusted dt 0.314 -> 0.108, estimated 58 steps left
+Classical Non-relativistic Oscillator: step 0, adjusted dt 0.314 -> 0.075, estimated 83 steps left
 Quantum Non-relativistic Oscillator: step 0, adjusted dt 0.314 -> 0.075, estimated 83 steps left
 Classical Non-relativistic Oscillator: step 20, adjusted dt 0.075 -> 0.053, estimated 90 steps left
 Classical Relativistic Oscillator: step 20, adjusted dt 0.108 -> 0.053, estimated 78 steps left
 Quantum Non-relativistic Oscillator: step 20, adjusted dt 0.075 -> 0.053, estimated 90 steps left
 Quantum Relativistic Oscillator: step 40, adjusted dt 0.108 -> 0.037, estimated 53 steps left
 Quantum Relativistic Oscillator: step 60, adjusted dt 0.037 -> 0.026, estimated 47 steps left
-Classical Non-relativistic Oscillator: solved in    10.12 seconds, 112 steps
-Classical Relativistic Oscillator: solved in    10.51 seconds, 100 steps
-Classical Non-relativistic Oscillator: solution saved in     0.27 seconds
-Classical Relativistic Oscillator: solution saved in     0.26 seconds
-Quantum Non-relativistic Oscillator: solved in    11.71 seconds, 112 steps
+Classical Relativistic Oscillator: solved in     8.87 seconds, 100 steps
+Classical Non-relativistic Oscillator: solved in     9.59 seconds, 112 steps
 Quantum Relativistic Oscillator: step 100, adjusted dt 0.026 -> 0.018, estimated 10 steps left
-Quantum Non-relativistic Oscillator: solution saved in     0.16 seconds
-Quantum Relativistic Oscillator: solved in    12.55 seconds, 112 steps
-Quantum Relativistic Oscillator: solution saved in     0.12 seconds
-solanim: 2 of 4: processing 28 frames
-solanim: 1 of 4: processing 28 frames
-solanim: 4 of 4: processing 28 frames
+Classical Relativistic Oscillator: solution saved in     0.31 seconds
+Quantum Relativistic Oscillator: solved in    10.23 seconds, 112 steps
+Quantum Non-relativistic Oscillator: solved in    10.51 seconds, 112 steps
+Classical Non-relativistic Oscillator: solution saved in     0.35 seconds
+Quantum Relativistic Oscillator: solution saved in     0.15 seconds
+Quantum Non-relativistic Oscillator: solution saved in     0.13 seconds
 solanim: 3 of 4: processing 28 frames
+solanim: 1 of 4: processing 28 frames
+solanim: 2 of 4: processing 28 frames
+solanim: 4 of 4: processing 28 frames
 solanim: 3 of 4: processed all 28 frames
-solanim: 2 of 4: processed all 28 frames
 solanim: 1 of 4: processed all 28 frames
+solanim: 2 of 4: processed all 28 frames
 solanim: 4 of 4: processed all 28 frames
 
-real	4m14.261s
-user	13m41.548s
-sys	2m50.124s
+real	4m7.870s
+user	13m17.652s
+sys	2m45.424s
