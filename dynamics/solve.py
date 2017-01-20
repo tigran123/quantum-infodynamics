@@ -79,11 +79,10 @@ Theta = fftshift(thetav)[newaxis,:]
 Lam = fftshift(lamv)[:,newaxis]
 
 def qd(f, x, dx):
-    """Quantum differential of function f(x) at a point x on the increment dx"""
     hbar = 1.0
     return (f(x+1j*hbar*dx/2.) - f(x-1j*hbar*dx/2.))/(1j*hbar)
 
-# load the python modules with initial distribution and the physical model (U(x) and T(p))
+# load the python modules with the initial distribution and the physical model (U(x) and dUdx(x))
 f0mod = __import__(splitext(srcf0)[0])
 Umod = __import__(splitext(srcU)[0])
 
@@ -108,20 +107,8 @@ def dTdp_rel(p):
     else:
         return c*p/sqrt(p**2 + mass**2*c**2)
 
-if args.relativistic:
-    T = T_rel
-    dTdp = dTdp_rel
-else:
-    T = T_nonrel
-    dTdp = dTdp_nonrel
-
-if args.classical:
-    dU = Umod.dUdx(X)*1j*Theta
-    dT = -dTdp(P)*1j*Lam/2.
-else:
-    dU = qd(Umod.U, X, 1j*Theta)
-    dT = qd(T, P, -1j*Lam)/2.
-
+(T,dTdp) = (T_rel,dTdp_rel) if args.relativistic else (T_nonrel,dTdp_nonrel)
+(dU,dT) = (Umod.dUdx(X)*1j*Theta,-dTdp(P)*1j*Lam/2.) if args.classical else (qd(Umod.U,X,1j*Theta),qd(T,P,-1j*Lam)/2.)
 H = T(pp)+Umod.U(xx)
 
 def solve_spectral(Winit, expU, expT):
