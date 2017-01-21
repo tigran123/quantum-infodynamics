@@ -14,14 +14,15 @@ mplt.rc('font', family='serif', size=11)
 
 p = argp(description="Solution Animator")
 p.add_argument("-s", action="append", help="Solution data filename (multiple OK)", dest="sfilenames", required=True, default=[])
+p.add_argument("-c", action="store", help="Number of contour levels of W(x,p,t) to plot (default 100)", dest="clevels", type=int, default=100)
 p.add_argument("-P", action="store", help="Number of parts to split the time range into", dest="nparts", type=int, default=1)
 p.add_argument("-p", action="store", help="The part number to process in this instance", dest="part", type=int, default=1)
 p.add_argument("-d", action="store", help="Frames directory", dest="framedir", required=True)
-p.add_argument("-fw", action="store", help="Frame width in pixels (default 1920)", dest="fwidth", type=int, default=1920)
-p.add_argument("-fh", action="store", help="Frame height in pixels (default 1080)", dest="fheight", type=int, default=1080)
+p.add_argument("-fw", action="store", help="Frame width in pixels (default 1920)", dest="framew", type=int, default=1920)
+p.add_argument("-fh", action="store", help="Frame height in pixels (default 1080)", dest="frameh", type=int, default=1080)
 args = p.parse_args()
 
-(framedir,nparts,part,fwidth,fheight) = (args.framedir,args.nparts,args.part,args.fwidth,args.fheight)
+(framedir,nparts,part,framew,frameh) = (args.framedir,args.nparts,args.part,args.framew,args.frameh)
 
 def pr_exit(str):
     print("ERROR:" + str)
@@ -38,7 +39,7 @@ for sfilename in args.sfilenames:
         t.append(data['t']); rho.append(data['rho']); phi.append(data['phi']); H.append(data['H'])
         trajectory.append(data['trajectory']); params = data['params'][()]
         Wmin.append(params['Wmin']); Wmax.append(params['Wmax'])
-        Wlevels.append(linspace(Wmin[-1], Wmax[-1], 100)); Wticks.append(linspace(Wmin[-1], Wmax[-1], 10))
+        Wlevels.append(linspace(Wmin[-1], Wmax[-1], args.clevels)); Wticks.append(linspace(Wmin[-1], Wmax[-1], 10))
         rho_min.append(params['rho_min']); rho_max.append(params['rho_max'])
         phi_min.append(params['phi_min']); phi_max.append(params['phi_max'])
         Wfilenames.append(params['Wfilename']); Nt.append(params['Nt'])
@@ -95,7 +96,7 @@ total_frames = len(time_range)
 print(prog_prefix + "processing %d frames" % total_frames)
 frames = 0
 for k in time_range:
-    fig, axes = plt.subplots(nsol, 3, figsize=(fwidth/100,fheight/100), dpi=100)
+    fig, axes = plt.subplots(nsol, 3, figsize=(framew/100,frameh/100), dpi=100)
     
     s = 0
     if nsol == 1: axes_list = [axes]
