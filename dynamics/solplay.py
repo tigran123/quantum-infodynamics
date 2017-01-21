@@ -14,6 +14,9 @@ mplt.rc('font', family='serif', size=10)
 
 p = argp(description="Solution Animator")
 p.add_argument("-s", action="append", help="Solution data filename (multiple OK)", dest="sfilenames", required=True, default=[])
+p.add_argument("-c", action="store", help="Number of contour levels of W(x,p,t) to plot (default 20)", dest="clevels", type=int, default=20)
+p.add_argument("-fw", action="store", help="Frame width in pixels (default 1920)", dest="framew", type=int, default=1920)
+p.add_argument("-fh", action="store", help="Frame height in pixels (default 1080)", dest="frameh", type=int, default=1080)
 args = p.parse_args()
 
 (t,Nt,W,rho,phi,Wmin,Wmax,rho_min,rho_max,phi_min,phi_max,trajectory,descr,
@@ -24,7 +27,7 @@ for sfilename in args.sfilenames:
         t.append(data['t']); rho.append(data['rho']); phi.append(data['phi']); H.append(data['H'])
         trajectory.append(data['trajectory']); params = data['params'][()]
         Wmin.append(params['Wmin']); Wmax.append(params['Wmax'])
-        Wlevels.append(linspace(Wmin[-1], Wmax[-1], 100)); Wticks.append(linspace(Wmin[-1], Wmax[-1], 10))
+        Wlevels.append(linspace(Wmin[-1], Wmax[-1], args.clevels)); Wticks.append(linspace(Wmin[-1], Wmax[-1], 10))
         rho_min.append(params['rho_min']); rho_max.append(params['rho_max'])
         phi_min.append(params['phi_min']); phi_max.append(params['phi_max'])
         Wfilenames.append(params['Wfilename']); Nt.append(params['Nt'])
@@ -67,7 +70,7 @@ nsol = len(t)
 norm = [MidpointNormalize(midpoint=0.0) for _ in range(nsol)]
 
 plt.ion()
-fig, axes = plt.subplots(nsol, 3, figsize=(19.2,10.8), dpi=100)
+fig, axes = plt.subplots(nsol, 3, figsize=(args.framew/100,args.frameh/100), dpi=100)
 if nsol == 1: axes_list = [axes]
 else: axes_list = axes
 
@@ -81,8 +84,7 @@ for ax in axes_list:
     p = trajectory[s][:,1]
     ax[0].contour(xx, pp, H[s], levels=Hlevels[s], linewidths=0.5, colors='k')
     ax[0].set_title(descr[s])
-    im = ax[0].imshow(W[s][0].T, origin='lower', interpolation='none', extent=[x1[s],x2[s]-dx[s],p1[s],p2[s]-dp[s]],
-                vmin=Wmin[s], vmax=Wmax[s], norm=norm[s], cmap=cm.bwr)
+    im = ax[0].contourf(xx, pp, W[s][0], levels=Wlevels[s], norm=norm[s], cmap=cm.bwr)
     ims.append(im)
     divider = make_axes_locatable(ax[0])
     cax = divider.append_axes("right", "2%", pad="1%")
@@ -130,8 +132,8 @@ while True:
             phi_now = phi[s][time_index]
             phi_artists[s].set_ydata(phi_now)
             text_artists[s].set_text("t=% 6.3f" % t[s][time_index])
-            W_now = W[s][time_index].T
-            ims[s].set_data(W_now)
+            for c in ims[s].collections: c.remove()
+            ims[s] = ax[0].contourf(xx, pp, W[s][time_index], levels=Wlevels[s], norm=norm[s], cmap=cm.bwr)
             s += 1
         fig.canvas.draw()
         t_duration = time() - t_start
