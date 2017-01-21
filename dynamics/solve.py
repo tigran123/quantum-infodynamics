@@ -34,7 +34,7 @@ p.add_argument("-o",  action="store", help="Solution file name", dest="ofilename
 p.add_argument("-W",  action="store", help="Solution W(x,p,t) file name", dest="Wfilename", required=True)
 p.add_argument("-c",  action="store_true", help="Use classical (non-quantum) propagator", dest="classical")
 p.add_argument("-r",  action="store_true", help="Use relativistic dynamics", dest="relativistic")
-p.add_argument("-m",  action="store", help="Rest mass in a.u. (default=1.0)", dest="mass", default=1.0)
+p.add_argument("-m",  action="store", help="Rest mass in a.u. (default=1.0)", type=float, dest="mass", default=1.0)
 p.add_argument("-tol", action="store", help="Absolute error tolerance", dest="tol", type=float, required=True)
 args = p.parse_args()
 
