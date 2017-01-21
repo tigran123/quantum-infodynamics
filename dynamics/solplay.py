@@ -8,8 +8,7 @@ import matplotlib.pyplot as plt
 from matplotlib import cm
 from numpy import load, linspace, mgrid, amin, amax, ma, interp, where, memmap
 from argparse import ArgumentParser as argp
-from threading import Thread
-from time import sleep
+from time import time
 
 mplt.rc('font', family='serif', size=10)
 
@@ -117,25 +116,9 @@ for ax in axes_list:
 
 fig.tight_layout()
 
-def command_line_handler():
-    global pause_flag
-    while True:
-        cmd = input("QID> ")
-        if cmd == 'p' or cmd == 'pause':
-            pause_flag = True
-        elif cmd == 'r' or cmd == 'resume':
-            pause_flag = False
-
-pause_flag = False
-stop_flag = False
-thr = Thread(target=command_line_handler)
-thr.start()
-
 while True:
     for k in range(time_steps):
-        while True:
-            if pause_flag: sleep(2)
-            else: break
+        t_start = time()
         s = 0
         for ax in axes_list:
             if s == s_longest:
@@ -151,4 +134,6 @@ while True:
             ims[s].set_data(W_now)
             s += 1
         fig.canvas.draw()
-thr.join()
+        t_duration = time() - t_start
+        fps = 1/t_duration
+        print("frame rendered in %f seconds, fps=%f" % (t_duration, fps))
