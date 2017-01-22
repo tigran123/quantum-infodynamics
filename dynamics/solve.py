@@ -143,22 +143,21 @@ dt = (t2-t1)/20. # the first very rough guess of time step
 W = [fftshift(f0mod.f0(xx,pp))]
 tv = [t1]
 t = t1
-i = 0
+Nt = 1
 while t <= t2:
-    if i%300 == 299: print("%s: step %d"%(descr,i))
-    if i%20 == 0:
-        (Wnext, new_dt, expU, expT) = adjust_step(dt, W[i])
+    if Nt%300 == 299: print("%s: step %d"%(descr,Nt))
+    if Nt%20 == 1:
+        (Wnext, new_dt, expU, expT) = adjust_step(dt, W[-1])
         W.append(Wnext)
         if new_dt != dt:
             est_steps = (t2-t)//new_dt
-            print("%s: step %d, adjusted dt %.3f -> %.3f, estimated %d steps left" %(descr,i,dt,new_dt,est_steps))
+            print("%s: step %d, adjusted dt %.3f -> %.3f, estimated %d steps left" %(descr,Nt,dt,new_dt,est_steps))
             dt = new_dt
     else:
-        W.append(solve_spectral(W[i], expU, expT))
+        W.append(solve_spectral(W[-1], expU, expT))
     t += dt
-    i += 1
+    Nt += 1
     tv.append(t)
-Nt = len(tv)
 trajectory = odeint(lambda y,t: [dTdp(y[1]),-Umod.dUdx(y[0])], [f0mod.x0,f0mod.p0], tv)
 
 print("%s: solved in %8.2f seconds, %d steps" % (descr, time() - t_start, Nt))
