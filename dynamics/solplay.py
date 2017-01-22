@@ -120,7 +120,7 @@ fig.show()
 
 while True:
     for k in range(time_steps):
-        t_start = time()
+        #t_start = time()
         s = 0
         for ax in axes_list:
             if s == s_longest:
@@ -136,6 +136,6 @@ while True:
             ims[s] = ax[0].contourf(xx, pp, W[s][time_index], levels=Wlevels[s], norm=norm[s], cmap=cm.bwr)
             s += 1
         fig.canvas.draw()
-        t_duration = time() - t_start
-        fps = 1/t_duration
-        print("frame rendered in %f seconds, fps=%f" % (t_duration, fps))
+        #t_duration = time() - t_start
+        #fps = 1/t_duration
+        #print("frame rendered in %f seconds, fps=%f" % (t_duration, fps))
