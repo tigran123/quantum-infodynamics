@@ -11,7 +11,7 @@ WQN=$workdir/Wqn.npz
 WCN=$workdir/Wcn.npz
 
 MOVIE_FILE=harmonic-oscillator.mp4
-PARAMS="-x1 -5.0 -x2 5.0 -Nx 512 -p1 -4.0 -p2 4.0 -Np 512 -t1 0.0 -t2 6.283185307179586 -f0 f0-gauss.py -u U_harmonic.py"
+PARAMS="-x1 -5.0 -x2 5.0 -Nx 512 -p1 -4.0 -p2 4.0 -Np 512 -t1 0.0 -t2 6.283185307179586 -f0 f0-gauss -u U_harmonic"
 
 python3 solve.py -r -d "Quantum Relativistic Oscillator" $PARAMS -tol 0.01 -o $SOLQR -W $WQR &
 python3 solve.py -r -c -d "Classical Relativistic Oscillator" $PARAMS -tol 0.0009 -o $SOLCR -W $WCR -c &

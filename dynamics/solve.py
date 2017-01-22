@@ -8,7 +8,7 @@ from numpy import linspace, mgrid, pi, newaxis, exp, real, savez, amin, amax, su
 from scipy.integrate import odeint
 import argparse as arg
 from time import time
-from os.path import isfile, splitext
+from os.path import splitext
 
 # select FFT implementation: pyfftw is the fastest and numpy is the slowest, scipy is in between these two
 #from numpy.fft import ifftshift, fftshift, fft, ifft
@@ -42,13 +42,14 @@ def pr_exit(str):
     print("ERROR:" + str)
     exit()
 
-srcf0 = args.srcf0; srcU = args.srcU
+# load the python modules with the initial distribution and the physical model (U(x) and dUdx(x))
+f0mod = __import__(splitext(args.srcf0)[0])
+Umod = __import__(splitext(args.srcU)[0])
+
 (descr,x1,x2,Nx,p1,p2,Np,t1,t2,tol,mass) = (args.descr,args.x1,args.x2,args.Nx,args.p1,args.p2,args.Np,args.t1,args.t2,
                                             args.tol,args.mass)
 if tol <= 0: pr_exit("Tolerance value must be positive, but %f <=0" % tol)
 if mass < 0: pr_exit("The value of mass must be non-negative, but %f < 0" % mass)
-if not isfile(srcf0): pr_exit("No such file '%s'" %(srcf0))
-if not isfile(srcU): pr_exit("No such file '%s'" %(srcU))
 if x2 <= x1: pr_exit("x2 must be greater than x1, but %f <= %f" %(x2,x1))
 if p2 <= p1: pr_exit("p2 must be greater than p1, but %f <= %f" %(p2,p1))
 if t2 <= t1: pr_exit("t2 must be greater than t1, but %f <= %f" %(t2,t1))
@@ -81,10 +82,6 @@ Lam = fftshift(lamv)[:,newaxis]
 def qd(f, x, dx):
     hbar = 1.0
     return (f(x+1j*hbar*dx/2.) - f(x-1j*hbar*dx/2.))/(1j*hbar)
-
-# load the python modules with the initial distribution and the physical model (U(x) and dUdx(x))
-f0mod = __import__(splitext(srcf0)[0])
-Umod = __import__(splitext(srcU)[0])
 
 def T_nonrel(p):
     global mass
