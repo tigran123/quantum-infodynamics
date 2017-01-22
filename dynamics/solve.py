@@ -30,21 +30,23 @@ p.add_argument("-t1", action="store", help="Starting time", dest="t1", type=floa
 p.add_argument("-t2", action="store", help="Final time", dest="t2", type=float, required=True)
 p.add_argument("-f0", action="store", help="Python source of f0(x,p)", dest="srcf0", required=True)
 p.add_argument("-u",  action="store", help="Python source of U(x), T(p), U'(x) and T'(p)", dest="srcU", required=True)
-p.add_argument("-o",  action="store", help="Solution file name", dest="ofilename", required=True)
-p.add_argument("-W",  action="store", help="Solution W(x,p,t) file name", dest="Wfilename", required=True)
+p.add_argument("-s",  action="store", help="Solution file name", dest="sfilename", required=True)
 p.add_argument("-c",  action="store_true", help="Use classical (non-quantum) propagator", dest="classical")
 p.add_argument("-r",  action="store_true", help="Use relativistic dynamics", dest="relativistic")
 p.add_argument("-m",  action="store", help="Rest mass in a.u. (default=1.0)", type=float, dest="mass", default=1.0)
 p.add_argument("-tol", action="store", help="Absolute error tolerance", dest="tol", type=float, required=True)
 args = p.parse_args()
 
+sfilename = args.sfilename
+Wfilename = splitext(sfilename)[0] + '_W.npz'
+
 def pr_exit(str):
     print("ERROR:" + str)
     exit()
 
 # load the python modules with the initial distribution and the physical model (U(x) and dUdx(x))
-f0mod = __import__(splitext(args.srcf0)[0])
-Umod = __import__(splitext(args.srcU)[0])
+f0mod = __import__(args.srcf0)
+Umod = __import__(args.srcU)
 
 (descr,x1,x2,Nx,p1,p2,Np,t1,t2,tol,mass) = (args.descr,args.x1,args.x2,args.Nx,args.p1,args.p2,args.Np,args.t1,args.t2,
                                             args.tol,args.mass)
@@ -166,12 +168,12 @@ W = ifftshift(W, axes=(1,2))
 rho = sum(W, axis=2)*dp
 phi = sum(W, axis=1)*dx
 params = {'Wmin': amin(W), 'Wmax': amax(W), 'rho_min': amin(rho), 'rho_max': amax(rho), 'Hmin': amin(H), 'Hmax': amax(H),
-          'phi_min': amin(phi), 'phi_max': amax(phi), 'tol': tol, 'Wfilename': args.Wfilename, 'Nt': Nt,
+          'phi_min': amin(phi), 'phi_max': amax(phi), 'tol': tol, 'Wfilename': Wfilename, 'Nt': Nt,
           'x1': x1, 'x2': x2, 'Nx': Nx, 'p1': p1, 'p2': p2, 'Np': Np, 'descr': descr}
 
 t_start = time()
-savez(args.ofilename, t=tv, trajectory=trajectory, rho=rho, phi=phi, H=H, params=params)
-fp = memmap(args.Wfilename, dtype='float64', mode='w+', shape=(Nt, Nx, Np))
+savez(sfilename, t=tv, trajectory=trajectory, rho=rho, phi=phi, H=H, params=params)
+fp = memmap(Wfilename, dtype='float64', mode='w+', shape=(Nt, Nx, Np))
 fp[:] = W[:]
 del fp # causes the flush of memmap
 print("%s: solution saved in %8.2f seconds" % (descr, time() - t_start))
