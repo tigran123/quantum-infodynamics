@@ -46,7 +46,7 @@ xxpp = [mgrid[x1i:x2i-dxi:Nxi*1j, p1i:p2i-dpi:Npi*1j] for (x1i,x2i,dxi,Nxi,p1i,p
 Hlevels =  [linspace(hmin, hmax, 10) for (hmin,hmax) in zip(Hmin,Hmax)]
 
 def fmt(x, pos):
-    return "%3.2f" % x
+    return "%3.1f" % x
 
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
@@ -59,8 +59,6 @@ class MidpointNormalize(Normalize):
         Normalize.__init__(self, vmin, vmax, clip)
 
     def __call__(self, value, clip=None):
-        # I'm ignoring masked values and all kinds of edge cases to make a
-        # simple example...
         x, y = [self.vmin, self.midpoint, self.vmax], [0, 0.5, 1]
         return ma.masked_array(interp(value, x, y))
 
@@ -71,12 +69,11 @@ nsol = len(t)
 norm = [MidpointNormalize(midpoint=0.0) for _ in range(nsol)]
 
 fig, axes = plt.subplots(nsol, 3, figsize=(args.framew/100,args.frameh/100), dpi=100)
-if nsol == 1: axes_list = [axes]
-else: axes_list = axes
+if nsol == 1: axes = [axes]
 
 s = 0
 ims, rho_artists, phi_artists, text_artists = [], [], [], []
-for ax in axes_list:
+for ax in axes:
     xx,pp = xxpp[s][0],xxpp[s][1]
     xv = xvdx[s][0]
     pv = pvdp[s][0]
@@ -119,7 +116,7 @@ while True:
     for k in range(time_steps):
         if args.verbose: t_start = time()
         s = 0
-        for ax in axes_list:
+        for ax in axes:
             if s == s_longest:
                 time_index = k
             else: # find an element in t[s] closest to the current time value (i.e. t_longest[k])
