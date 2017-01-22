@@ -15,6 +15,7 @@ mplt.rc('font', family='serif', size=10)
 p = argp(description="Solution Animator")
 p.add_argument("-s", action="append", help="Solution data filename (multiple OK)", dest="sfilenames", required=True, default=[])
 p.add_argument("-c", action="store", help="Number of contour levels of W(x,p,t) to plot (default 20)", dest="clevels", type=int, default=20)
+p.add_argument("-v", action="store_true", help="Print some info on the console", dest="verbose")
 p.add_argument("-fw", action="store", help="Frame width in pixels (default 1920)", dest="framew", type=int, default=1920)
 p.add_argument("-fh", action="store", help="Frame height in pixels (default 1080)", dest="frameh", type=int, default=1080)
 args = p.parse_args()
@@ -120,7 +121,7 @@ fig.show()
 
 while True:
     for k in range(time_steps):
-        #t_start = time()
+        if args.verbose: t_start = time()
         s = 0
         for ax in axes_list:
             if s == s_longest:
@@ -136,6 +137,4 @@ while True:
             ims[s] = ax[0].contourf(xx, pp, W[s][time_index], levels=Wlevels[s], norm=norm[s], cmap=cm.bwr)
             s += 1
         fig.canvas.draw()
-        #t_duration = time() - t_start
-        #fps = 1/t_duration
-        #print("frame rendered in %f seconds, fps=%f" % (t_duration, fps))
+        if args.verbose: print("FPS=%f" % (1/(time()-t_start)))
