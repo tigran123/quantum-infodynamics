@@ -96,21 +96,17 @@ for ax in axes_list:
     ax[0].set_ylim([p1[s],p2[s]-dp[s]])
 
     ax[1].set_title(r"Spatial density $\rho(x,t)$")
-    rho_now = rho[s][0]
-    rho_artist, = ax[1].plot(xv, rho_now, color='black')
+    rho_artist, = ax[1].plot(xv, rho[s][0], color='black')
     rho_artists.append(rho_artist)
-    ax[1].set_ylabel(r'$\rho$')
     ax[1].set_xlabel('$x$')
     ax[1].set_xlim([x1[s],x2[s]-dx[s]])
-    text_artist = ax[1].text(0.8, 0.8, "t=% 6.3f" % t[s][0], transform=ax[1].transAxes)
+    text_artist = ax[1].text(0.8, 0.8, "", transform=ax[1].transAxes)
     text_artists.append(text_artist)
     ax[1].set_ylim([1.02*rho_min[s],1.02*rho_max[s]])
 
     ax[2].set_title(r"Momentum density $\varphi(p,t)$")
-    phi_now = phi[s][0]
-    phi_artist, = ax[2].plot(pv, phi_now, color='black')
+    phi_artist, = ax[2].plot(pv, phi[s][0], color='black')
     phi_artists.append(phi_artist)
-    ax[2].set_ylabel(r'$\varphi$')
     ax[2].set_xlabel('$p$')
     ax[2].set_xlim([p1[s],p2[s]-dp[s]])
     ax[2].set_ylim([1.02*phi_min[s],1.02*phi_max[s]])
@@ -128,10 +124,8 @@ while True:
                 time_index = k
             else: # find an element in t[s] closest to the current time value (i.e. t_longest[k])
                 time_index = abs(t[s] - t_longest[k]).argmin()
-            rho_now = rho[s][time_index]
-            rho_artists[s].set_ydata(rho_now)
-            phi_now = phi[s][time_index]
-            phi_artists[s].set_ydata(phi_now)
+            rho_artists[s].set_ydata(rho[s][time_index])
+            phi_artists[s].set_ydata(phi[s][time_index])
             text_artists[s].set_text("t=% 6.3f" % t[s][time_index])
             for c in ims[s].collections: c.remove()
             ims[s] = ax[0].contourf(xx, pp, W[s][time_index], levels=Wlevels[s], norm=norm[s], cmap=cm.bwr)
