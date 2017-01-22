@@ -69,7 +69,6 @@ time_steps = len(t_longest)
 nsol = len(t)
 norm = [MidpointNormalize(midpoint=0.0) for _ in range(nsol)]
 
-plt.ion()
 fig, axes = plt.subplots(nsol, 3, figsize=(args.framew/100,args.frameh/100), dpi=100)
 if nsol == 1: axes_list = [axes]
 else: axes_list = axes
@@ -117,6 +116,7 @@ for ax in axes_list:
     s += 1
 
 fig.tight_layout()
+fig.show()
 
 while True:
     for k in range(time_steps):
