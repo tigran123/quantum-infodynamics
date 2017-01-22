@@ -1,10 +1,10 @@
 workdir=$(mktemp -d ${TMPDIR:-/tmp}/solanim.XXXX)
 mkdir -p $workdir/frames
 
-SOLQR=$workdir/solqr.npz
-SOLCR=$workdir/solcr.npz
-SOLQN=$workdir/solqn.npz
-SOLCN=$workdir/solcn.npz
+SOLQR=$workdir/solqr
+SOLCR=$workdir/solcr
+SOLQN=$workdir/solqn
+SOLCN=$workdir/solcn
 
 MOVIE_FILE=harmonic-oscillator.mp4
 PARAMS="-x1 -5.0 -x2 5.0 -Nx 512 -p1 -4.0 -p2 4.0 -Np 512 -t1 0.0 -t2 6.283185307179586 -f0 f0-gauss -u U_harmonic"

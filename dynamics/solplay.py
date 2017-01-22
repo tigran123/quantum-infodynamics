@@ -23,7 +23,7 @@ args = p.parse_args()
   Wlevels,Wticks,Wfilenames,x1,x2,Nx,p1,p2,Np,H,Hmin,Hmax) = ([] for _ in range(25))
 
 for sfilename in args.sfilenames:
-    with load(sfilename) as data:
+    with load(sfilename + '.npz') as data:
         t.append(data['t']); rho.append(data['rho']); phi.append(data['phi']); H.append(data['H'])
         trajectory.append(data['trajectory']); params = data['params'][()]
         Wmin.append(params['Wmin']); Wmax.append(params['Wmax'])

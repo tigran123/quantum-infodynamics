@@ -8,7 +8,6 @@ from numpy import linspace, mgrid, pi, newaxis, exp, real, savez, amin, amax, su
 from scipy.integrate import odeint
 import argparse as arg
 from time import time
-from os.path import splitext
 
 # select FFT implementation: pyfftw is the fastest and numpy is the slowest, scipy is in between these two
 #from numpy.fft import ifftshift, fftshift, fft, ifft
@@ -38,7 +37,7 @@ p.add_argument("-tol", action="store", help="Absolute error tolerance", dest="to
 args = p.parse_args()
 
 sfilename = args.sfilename
-Wfilename = splitext(sfilename)[0] + '_W.npz'
+Wfilename = sfilename + '_W.npz'
 
 def pr_exit(str):
     print("ERROR:" + str)
