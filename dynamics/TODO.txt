@@ -1,0 +1,10 @@
+The list of things to do
+------------------------
+
+* Think of how to speedup savefig() calls in solanim
+
+* Use multiprocessing module in solanim to move the parallel logic from the driver scripts to python code
+
+* Start work on the 2-dimensional solver
+
+* Speed up solplay (either by using artists animation or by blitting?)
