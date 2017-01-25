@@ -5,20 +5,19 @@
 """
 import matplotlib as mplt
 import matplotlib.pyplot as plt
-from matplotlib import cm
+from matplotlib import cm, animation
 from numpy import load, linspace, mgrid, amin, amax, memmap
 from argparse import ArgumentParser as argp
-from time import time
 
 # our own modules
 from midnorm import MidpointNormalize
+from progress import ProgressBar
 
 mplt.rc('font', family='serif', size=10)
 
 p = argp(description="Solution Animator")
 p.add_argument("-s", action="append", help="Solution data filename (multiple OK)", dest="sfilenames", required=True, default=[])
 p.add_argument("-c", action="store", help="Number of contour levels of W(x,p,t) to plot (default 20)", dest="clevels", type=int, default=20)
-p.add_argument("-v", action="store_true", help="Print some info on the console", dest="verbose")
 p.add_argument("-fw", action="store", help="Frame width in pixels (default 1920)", dest="framew", type=int, default=1920)
 p.add_argument("-fh", action="store", help="Frame height in pixels (default 1080)", dest="frameh", type=int, default=1080)
 args = p.parse_args()
@@ -63,21 +62,23 @@ fig, axes = plt.subplots(nsol, 3, figsize=(args.framew/100,args.frameh/100), dpi
 if nsol == 1: axes = [axes]
 
 s = 0
-ims, rho_artists, phi_artists, text_artists = [], [], [], []
+c_artists,h_artists,traj_artists,rho_artists,phi_artists,text_artists = ([] for _ in range(6))
 for ax in axes:
     xx,pp = xxpp[s][0],xxpp[s][1]
     xv = xvdx[s][0]
     pv = pvdp[s][0]
     x = trajectory[s][:,0]
     p = trajectory[s][:,1]
-    ax[0].contour(xx, pp, H[s], levels=Hlevels[s], linewidths=0.5, colors='k')
+    imh = ax[0].contour(xx, pp, H[s], levels=Hlevels[s], linewidths=0.5, colors='k')
+    h_artists.append(imh)
     ax[0].set_title(descr[s])
     im = ax[0].contourf(xx, pp, W[s][0], levels=Wlevels[s], norm=norm[s], cmap=cm.bwr)
-    ims.append(im)
+    c_artists.append(im)
     divider = make_axes_locatable(ax[0])
     cax = divider.append_axes("right", "2%", pad="1%")
     plt.colorbar(im, cax = cax, ticks=Wticks[s], format=mplt.ticker.FuncFormatter(fmt))
-    ax[0].plot(x, p, color='g', linestyle='--')
+    traj, = ax[0].plot(x, p, color='g', linestyle='--')
+    traj_artists.append(traj)
     ax[0].set_ylabel('$p$')
     ax[0].set_xlabel('$x$')
     ax[0].set_xlim([x1[s],x2[s]-dx[s]])
@@ -86,10 +87,10 @@ for ax in axes:
     ax[1].set_title(r"Spatial density $\rho(x,t)$")
     rho_artist, = ax[1].plot(xv, rho[s][0], color='black')
     rho_artists.append(rho_artist)
+    text_artist = ax[1].text(0.8, 0.8, "", transform=ax[1].transAxes, animated=True)
+    text_artists.append(text_artist)
     ax[1].set_xlabel('$x$')
     ax[1].set_xlim([x1[s],x2[s]-dx[s]])
-    text_artist = ax[1].text(0.8, 0.8, "", transform=ax[1].transAxes)
-    text_artists.append(text_artist)
     ax[1].set_ylim([1.02*rho_min[s],1.02*rho_max[s]])
 
     ax[2].set_title(r"Momentum density $\varphi(p,t)$")
@@ -103,20 +104,29 @@ for ax in axes:
 fig.tight_layout()
 fig.show()
 
-while True:
-    for k in range(time_steps):
-        if args.verbose: t_start = time()
-        s = 0
-        for ax in axes:
-            if s == s_longest:
-                time_index = k
-            else: # find an element in t[s] closest to the current time value (i.e. t_longest[k])
-                time_index = abs(t[s] - t_longest[k]).argmin()
-            rho_artists[s].set_ydata(rho[s][time_index])
-            phi_artists[s].set_ydata(phi[s][time_index])
-            text_artists[s].set_text("t=% 6.3f" % t[s][time_index])
-            for c in ims[s].collections: c.remove()
-            ims[s] = ax[0].contourf(xx, pp, W[s][time_index], levels=Wlevels[s], norm=norm[s], cmap=cm.bwr)
-            s += 1
-        fig.canvas.draw()
-        if args.verbose: print("FPS=%f" % (1/(time()-t_start)))
+ims = []
+progress = ProgressBar(time_steps, msg="Playing back frames")
+
+def animate(k):
+    s = 0
+    artists = []
+    for ax in axes:
+        if s == s_longest:
+            time_index = k
+        else: # find an element in t[s] closest to the current time value (i.e. t_longest[k])
+            time_index = abs(t[s] - t_longest[k]).argmin()
+        for c in c_artists[s].collections: c.remove()
+        c_artists[s] = ax[0].contourf(xx, pp, W[s][time_index], levels=Wlevels[s], norm=norm[s], cmap=cm.bwr, animated=True)
+        text_artists[s].set_text("t=% 6.3f" % t[s][time_index])
+        rho_artists[s].set_ydata(rho[s][time_index])
+        rho_artists[s].set(color='blue')
+        phi_artists[s].set_ydata(phi[s][time_index])
+        phi_artists[s].set(color='blue')
+        artists.extend(c_artists[s].collections + h_artists[s].collections +
+                        [traj_artists[s],rho_artists[s],phi_artists[s],text_artists[s]])
+        s += 1
+    progress.update(k)
+    return artists
+
+ani = animation.FuncAnimation(fig, animate, frames=time_steps, interval=0, repeat_delay = 1000, blit=True)
+plt.show()
