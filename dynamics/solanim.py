@@ -133,7 +133,7 @@ for k in time_range:
         s += 1
 
     plt.tight_layout()
-    fig.savefig(framedir + '/%05d.png' % k)
+    fig.savefig(framedir + '/%05d.png' % k, format='png')
     plt.close('all')
     frames += 1
     if frames%30 == 0: print(prog_prefix + "processed %d frames of %d" % (frames,total_frames))
