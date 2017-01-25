@@ -1,5 +1,5 @@
 """
-  solanim.py --- Solution Animator
+  solanim.py --- Generate animation frames from a solution
   Author: Tigran Aivazian <aivazian.tigran@gmail.com>
   License: GPL
 """

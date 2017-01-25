@@ -15,7 +15,7 @@ from progress import ProgressBar
 
 mplt.rc('font', family='serif', size=10)
 
-p = argp(description="Solution Animator")
+p = argp(description="Solution Playback")
 p.add_argument("-s", action="append", help="Solution data filename (multiple OK)", dest="sfilenames", required=True, default=[])
 p.add_argument("-c", action="store", help="Number of contour levels of W(x,p,t) to plot (default 20)", dest="clevels", type=int, default=20)
 p.add_argument("-fw", action="store", help="Frame width in pixels (default 1920)", dest="framew", type=int, default=1920)
