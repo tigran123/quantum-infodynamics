@@ -104,7 +104,6 @@ for ax in axes:
 fig.tight_layout()
 fig.show()
 
-ims = []
 progress = ProgressBar(time_steps, msg="Playing back frames")
 
 def animate(k):
