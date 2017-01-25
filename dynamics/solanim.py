@@ -7,8 +7,11 @@ import matplotlib as mplt
 mplt.use('Agg')
 import matplotlib.pyplot as plt
 from matplotlib import cm
-from numpy import load, linspace, mgrid, amin, amax, ma, interp, where, memmap
+from numpy import load, linspace, mgrid, amin, amax, memmap
 from argparse import ArgumentParser as argp
+
+# our own modules
+from midnorm import norm
 
 mplt.rc('font', family='serif', size=11)
 
@@ -60,22 +63,6 @@ def fmt(x, pos):
     return "%3.2f" % x
 
 from mpl_toolkits.axes_grid1 import make_axes_locatable
-
-from matplotlib.colors import Normalize
-
-# shift the midpoint of a colormap to a specified location (usually 0.0)
-class MidpointNormalize(Normalize):
-    def __init__(self, vmin=None, vmax=None, midpoint=None, clip=False):
-        self.midpoint = midpoint
-        Normalize.__init__(self, vmin, vmax, clip)
-
-    def __call__(self, value, clip=None):
-        # I'm ignoring masked values and all kinds of edge cases to make a
-        # simple example...
-        x, y = [self.vmin, self.midpoint, self.vmax], [0, 0.5, 1]
-        return ma.masked_array(interp(value, x, y))
-
-norm = MidpointNormalize(midpoint=0.0)
 
 def split(a, n, p):
     """Split the list 'a' into 'n' chunks and return chunk number 'p' (numbered from 1)"""

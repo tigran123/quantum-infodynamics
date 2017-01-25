@@ -6,9 +6,12 @@
 import matplotlib as mplt
 import matplotlib.pyplot as plt
 from matplotlib import cm
-from numpy import load, linspace, mgrid, amin, amax, ma, interp, where, memmap
+from numpy import load, linspace, mgrid, amin, amax, memmap
 from argparse import ArgumentParser as argp
 from time import time
+
+# our own modules
+from midnorm import MidpointNormalize
 
 mplt.rc('font', family='serif', size=10)
 
@@ -49,18 +52,6 @@ def fmt(x, pos):
     return "%3.1f" % x
 
 from mpl_toolkits.axes_grid1 import make_axes_locatable
-
-from matplotlib.colors import Normalize
-
-# shift the midpoint of a colormap to a specified location (usually 0.0)
-class MidpointNormalize(Normalize):
-    def __init__(self, vmin=None, vmax=None, midpoint=None, clip=False):
-        self.midpoint = midpoint
-        Normalize.__init__(self, vmin, vmax, clip)
-
-    def __call__(self, value, clip=None):
-        x, y = [self.vmin, self.midpoint, self.vmax], [0, 0.5, 1]
-        return ma.masked_array(interp(value, x, y))
 
 t_longest = max(t, key=len)
 s_longest = t.index(t_longest)
