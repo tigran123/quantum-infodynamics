@@ -17,6 +17,7 @@ mplt.rc('font', family='serif', size=10)
 
 p = argp(description="Solution Playback")
 p.add_argument("-s", action="append", help="Solution data filename (multiple OK)", dest="sfilenames", required=True, default=[])
+p.add_argument("-l",  action="store_true", help="Pre-load solution data before animation", dest="preload")
 p.add_argument("-c", action="store", help="Number of contour levels of W(x,p,t) to plot (default 20)", dest="clevels", type=int, default=20)
 p.add_argument("-fw", action="store", help="Frame width in pixels (default 1920)", dest="framew", type=int, default=1920)
 p.add_argument("-fh", action="store", help="Frame height in pixels (default 1080)", dest="frameh", type=int, default=1080)
@@ -47,9 +48,6 @@ dp = [a[1] for a in pvdp]
 xxpp = [mgrid[x1i:x2i-dxi:Nxi*1j, p1i:p2i-dpi:Npi*1j] for (x1i,x2i,dxi,Nxi,p1i,p2i,dpi,Npi) in zip(x1,x2,dx,Nx,p1,p2,dp,Np)]
 Hlevels =  [linspace(hmin, hmax, 10) for (hmin,hmax) in zip(Hmin,Hmax)]
 
-def fmt(x, pos):
-    return "%3.1f" % x
-
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 t_longest = max(t, key=len)
@@ -62,7 +60,7 @@ fig, axes = plt.subplots(nsol, 3, figsize=(args.framew/100,args.frameh/100), dpi
 if nsol == 1: axes = [axes]
 
 s = 0
-c_artists,h_artists,traj_artists,rho_artists,phi_artists,text_artists = ([] for _ in range(6))
+c_artists,h_artists,traj_artists = [],[],[]
 for ax in axes:
     xx,pp = xxpp[s][0],xxpp[s][1]
     xv = xvdx[s][0]
@@ -76,7 +74,7 @@ for ax in axes:
     c_artists.append(im)
     divider = make_axes_locatable(ax[0])
     cax = divider.append_axes("right", "2%", pad="1%")
-    plt.colorbar(im, cax = cax, ticks=Wticks[s], format=mplt.ticker.FuncFormatter(fmt))
+    plt.colorbar(im, cax = cax, ticks=Wticks[s], format=mplt.ticker.FuncFormatter(lambda x, pos: "%3.1f" % x))
     traj, = ax[0].plot(x, p, color='g', linestyle='--')
     traj_artists.append(traj)
     ax[0].set_ylabel('$p$')
@@ -86,16 +84,13 @@ for ax in axes:
 
     ax[1].set_title(r"Spatial density $\rho(x,t)$")
     rho_artist, = ax[1].plot(xv, rho[s][0], color='black')
-    rho_artists.append(rho_artist)
     text_artist = ax[1].text(0.8, 0.8, "", transform=ax[1].transAxes, animated=True)
-    text_artists.append(text_artist)
     ax[1].set_xlabel('$x$')
     ax[1].set_xlim([x1[s],x2[s]-dx[s]])
     ax[1].set_ylim([1.02*rho_min[s],1.02*rho_max[s]])
 
     ax[2].set_title(r"Momentum density $\varphi(p,t)$")
     phi_artist, = ax[2].plot(pv, phi[s][0], color='black')
-    phi_artists.append(phi_artist)
     ax[2].set_xlabel('$p$')
     ax[2].set_xlim([p1[s],p2[s]-dp[s]])
     ax[2].set_ylim([1.02*phi_min[s],1.02*phi_max[s]])
@@ -104,7 +99,8 @@ for ax in axes:
 fig.tight_layout()
 fig.show()
 
-progress = ProgressBar(time_steps, msg="Playing back frames")
+msg = "Preloading frames" if args.preload else "Playing back frames"
+progress = ProgressBar(time_steps, msg=msg)
 
 def animate(k):
     s = 0
@@ -114,18 +110,19 @@ def animate(k):
             time_index = k
         else: # find an element in t[s] closest to the current time value (i.e. t_longest[k])
             time_index = abs(t[s] - t_longest[k]).argmin()
-        for c in c_artists[s].collections: c.remove()
+        if not args.preload:
+            for c in c_artists[s].collections: c.remove()
         c_artists[s] = ax[0].contourf(xx, pp, W[s][time_index], levels=Wlevels[s], norm=norm[s], cmap=cm.bwr, animated=True)
-        text_artists[s].set_text("t=% 6.3f" % t[s][time_index])
-        rho_artists[s].set_ydata(rho[s][time_index])
-        rho_artists[s].set(color='blue')
-        phi_artists[s].set_ydata(phi[s][time_index])
-        phi_artists[s].set(color='blue')
-        artists.extend(c_artists[s].collections + h_artists[s].collections +
-                        [traj_artists[s],rho_artists[s],phi_artists[s],text_artists[s]])
+        rho_artist, = ax[1].plot(xv, rho[s][time_index], color='blue', animated=True)
+        phi_artist, = ax[2].plot(pv, phi[s][time_index], color='blue', animated=True)
+        text_artist = ax[1].text(0.8, 0.8, "t=% 6.3f" % t[s][time_index], transform=ax[1].transAxes, animated=True)
+        artists.extend(c_artists[s].collections + h_artists[s].collections + [traj_artists[s],rho_artist,phi_artist,text_artist])
         s += 1
     progress.update(k)
     return artists
 
-ani = animation.FuncAnimation(fig, animate, frames=time_steps, interval=0, repeat_delay = 1000, blit=True)
+if args.preload:
+    ani = animation.ArtistAnimation(fig, [animate(k) for k in range(time_steps)], interval=0, repeat_delay = 1000, blit=True)
+else:
+    ani = animation.FuncAnimation(fig, animate, frames=time_steps, interval=0, repeat_delay = 1000, blit=True)
 plt.show()
