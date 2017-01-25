@@ -6,7 +6,7 @@
 import matplotlib as mplt
 import matplotlib.pyplot as plt
 from matplotlib import cm, animation
-from numpy import load, linspace, mgrid, amin, amax, memmap
+from numpy import load, linspace, mgrid, memmap
 from argparse import ArgumentParser as argp
 
 # our own modules
