@@ -121,8 +121,23 @@ def animate(k):
     progress.update(k)
     return artists
 
+anim_running = False
+
+def keypress(event):
+    global anim, anim_running
+    if event.key == ' ': # SPACE: pause and resume animation
+        if anim_running:
+            if anim and anim.event_source: anim.event_source.stop()
+            anim_running = False
+        else:
+            if anim and anim.event_source: anim.event_source.start()
+            anim_running = True
+
+fig.canvas.mpl_connect('key_press_event', keypress)
+
 if args.preload:
-    ani = animation.ArtistAnimation(fig, [animate(k) for k in range(time_steps)], interval=0, repeat_delay = 1000, blit=True)
+    anim = animation.ArtistAnimation(fig, [animate(k) for k in range(time_steps)], interval=0, repeat_delay = 1000, blit=True)
 else:
-    ani = animation.FuncAnimation(fig, animate, frames=time_steps, interval=0, repeat_delay = 1000, blit=True)
+    anim = animation.FuncAnimation(fig, animate, frames=time_steps, interval=0, repeat_delay = 1000, blit=True)
+anim_running = True
 plt.show()
