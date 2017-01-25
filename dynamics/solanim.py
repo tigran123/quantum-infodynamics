@@ -11,7 +11,8 @@ from numpy import load, linspace, mgrid, amin, amax, memmap
 from argparse import ArgumentParser as argp
 
 # our own modules
-from midnorm import norm
+from midnorm import MidpointNormalize
+norm = MidpointNormalize(midpoint=0.0)
 
 mplt.rc('font', family='serif', size=11)
 

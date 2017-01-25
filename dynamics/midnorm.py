@@ -10,5 +10,3 @@ class MidpointNormalize(Normalize):
     def __call__(self, value, clip=None):
         x, y = [self.vmin, self.midpoint, self.vmax], [0, 0.5, 1]
         return ma.masked_array(interp(value, x, y))
-
-norm = MidpointNormalize(midpoint=0.0)
