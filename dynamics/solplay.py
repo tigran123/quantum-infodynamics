@@ -99,7 +99,7 @@ for ax in axes:
 fig.tight_layout()
 fig.show()
 
-msg = "Preloading frames" if args.preload else "Playing back frames"
+msg = "Preloading data" if args.preload else "Playing back data"
 progress = ProgressBar(time_steps, msg=msg)
 
 def animate(k):
