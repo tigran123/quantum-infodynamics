@@ -82,6 +82,7 @@ Lam = fftshift(lamv)[:,newaxis]
 
 def qd(f, x, dx):
     hbar = 1.0
+    #hbar = 1.0545718e-34 # Planck's constant in J*s (SI)
     return (f(x+1j*hbar*dx/2.) - f(x-1j*hbar*dx/2.))/(1j*hbar)
 
 c = 1.0 # speed of light
@@ -96,6 +97,8 @@ def dTdp_rel(p):
 
 (dU,dT) = (Umod.dUdx(X)*1j*Theta,-dTdp(P)*1j*Lam/2.) if args.classical else (qd(Umod.U,X,1j*Theta),qd(T,P,-1j*Lam)/2.)
 
+Uv = Umod.U(xv)
+Tv = T(pv)
 H = T(pp)+Umod.U(xx)
 
 def solve_spectral(Winit, expU, expT):
@@ -138,7 +141,7 @@ while t <= t2:
         W.append(Wnext)
         if new_dt != dt:
             est_steps = (t2-t)//new_dt
-            print("%s: step %d, adjusted dt %.3f -> %.3f, estimated %d steps left" %(descr,Nt,dt,new_dt,est_steps))
+            print("%s: step %d, adjusted dt %.4f -> %.4f, estimated %d steps left" %(descr,Nt,dt,new_dt,est_steps))
             dt = new_dt
     else:
         W.append(solve_spectral(W[-1], expU, expT))
@@ -152,12 +155,14 @@ print("%s: solved in %8.2f seconds, %d steps" % (descr, time() - t_start, Nt))
 W = ifftshift(W, axes=(1,2))
 rho = sum(W, axis=2)*dp
 phi = sum(W, axis=1)*dx
-params = {'Wmin': amin(W), 'Wmax': amax(W), 'rho_min': amin(rho), 'rho_max': amax(rho), 'Hmin': amin(H), 'Hmax': amax(H),
+E = sum(H*W,axis=(1,2))*dx*dp
+
+params = {'Wmin': amin(W), 'Wmax': amax(W), 'rho_min': amin(rho), 'rho_max': amax(rho), 'Hmin': amin(H), 'Hmax': amax(H), 'Emin': amin(E), 'Emax': amax(E),
           'phi_min': amin(phi), 'phi_max': amax(phi), 'tol': tol, 'Wfilename': Wfilename, 'Nt': Nt,
           'x1': x1, 'x2': x2, 'Nx': Nx, 'p1': p1, 'p2': p2, 'Np': Np, 'descr': descr}
 
 t_start = time()
-savez(sfilename, t=tv, trajectory=trajectory, rho=rho, phi=phi, H=H, params=params)
+savez(sfilename, t=tv, trajectory=trajectory, rho=rho, phi=phi, H=H, U=Uv, T=Tv, E=E, params=params)
 fp = memmap(Wfilename, dtype='float64', mode='w+', shape=(Nt, Nx, Np))
 fp[:] = W[:]
 del fp # causes the flush of memmap

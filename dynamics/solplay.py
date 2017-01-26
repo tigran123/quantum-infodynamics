@@ -24,13 +24,15 @@ p.add_argument("-fh", action="store", help="Frame height in pixels (default 1080
 args = p.parse_args()
 
 (t,Nt,W,rho,phi,Wmin,Wmax,rho_min,rho_max,phi_min,phi_max,trajectory,descr,
-  Wlevels,Wticks,Wfilenames,x1,x2,Nx,p1,p2,Np,H,Hmin,Hmax) = ([] for _ in range(25))
+  Wlevels,Wticks,Wfilenames,x1,x2,Nx,p1,p2,Np,H,U,T,Hmin,Hmax,E,Emin,Emax) = ([] for _ in range(30))
 
 for sfilename in args.sfilenames:
     with load(sfilename + '.npz') as data:
         t.append(data['t']); rho.append(data['rho']); phi.append(data['phi']); H.append(data['H'])
-        trajectory.append(data['trajectory']); params = data['params'][()]
+        U.append(data['U']); T.append(data['T'])
+        trajectory.append(data['trajectory']); E.append(data['E']); params = data['params'][()]
         Wmin.append(params['Wmin']); Wmax.append(params['Wmax'])
+        Emin.append(params['Emin']); Emax.append(params['Emax'])
         Wlevels.append(linspace(Wmin[-1], Wmax[-1], args.clevels)); Wticks.append(linspace(Wmin[-1], Wmax[-1], 10))
         rho_min.append(params['rho_min']); rho_max.append(params['rho_max'])
         phi_min.append(params['phi_min']); phi_max.append(params['phi_max'])
@@ -60,7 +62,7 @@ fig, axes = plt.subplots(nsol, 3, figsize=(args.framew/100,args.frameh/100), dpi
 if nsol == 1: axes = [axes]
 
 s = 0
-c_artists,h_artists,traj_artists,rho_init_artists,phi_init_artists = [],[],[],[],[]
+c_artists,h_artists,traj_artists,U_artists,T_artists,rho_init_artists,phi_init_artists = ([] for _ in range(7))
 for ax in axes:
     xx,pp = xxpp[s][0],xxpp[s][1]
     xv = xvdx[s][0]
@@ -81,14 +83,18 @@ for ax in axes:
     ax[0].set_xlim([x1[s],x2[s]-dx[s]])
     ax[0].set_ylim([p1[s],p2[s]-dp[s]])
 
-    ax[1].set_title(r"Spatial density $\rho(x,t)$")
-    rho_init_artists += [ax[1].plot(xv, rho[s][0], color='green')[0]]
+    ax[1].set_title(r"$\rho(x,t), E_0=$ % 6.3f, $E_{min}=$% 6.3f, $E_{max}=$% 6.3f" % (E[s][0],Emin[s],Emax[s]))
+    rho_init_artists += [ax[1].plot(xv, rho[s][0], color='green', label=r'$\rho_0(x)$')[0]]
+    U_artists += [ax[1].plot(xv, U[s], color='black', label='$U(x)$')[0]]
+    ax[1].legend(prop=dict(size=12))
     ax[1].set_xlabel('$x$')
     ax[1].set_xlim([x1[s],x2[s]-dx[s]])
     ax[1].set_ylim([1.02*rho_min[s],1.02*rho_max[s]])
 
-    ax[2].set_title(r"Momentum density $\varphi(p,t)$")
-    phi_init_artists += [ax[2].plot(pv, phi[s][0], color='green')[0]]
+    ax[2].set_title(r"$\varphi(p,t)$")
+    phi_init_artists += [ax[2].plot(pv, phi[s][0], color='green', label=r'$\varphi_0(x)$')[0]]
+    T_artists += [ax[2].plot(pv, T[s], color='blue', label='$T(p)$')[0]]
+    ax[2].legend(prop=dict(size=12))
     ax[2].set_xlabel('$p$')
     ax[2].set_xlim([p1[s],p2[s]-dp[s]])
     ax[2].set_ylim([1.02*phi_min[s],1.02*phi_max[s]])
@@ -118,9 +124,9 @@ def animate(k):
         phi_artist, = ax[2].plot(pv, phi_now, color='black', animated=True)
         phi_plus = ax[2].fill_between(pv, 0, phi_now, where=phi_now>0, color='red', interpolate=False, animated=True)
         phi_minus = ax[2].fill_between(pv, 0, phi_now, where=phi_now<0, color='blue', interpolate=False, animated=True)
-        text_artist = ax[1].text(0.8, 0.8, "t=% 6.3f" % t[s][time_index], transform=ax[1].transAxes, animated=True)
+        text_artist = ax[1].text(0.8, 0.8, "E=% 6.3f\nt=% 6.4f" % (E[s][time_index],t[s][time_index]), transform=ax[1].transAxes, animated=True)
         artists.extend(c_artists[s].collections + h_artists[s].collections +
-                        [traj_artists[s],rho_init_artists[s],rho_artist,rho_plus,rho_minus,
+                        [traj_artists[s],U_artists[s],T_artists[s],rho_init_artists[s],rho_artist,rho_plus,rho_minus,
                          phi_init_artists[s],phi_artist,phi_plus,phi_minus,text_artist])
         s += 1
     progress.update(k)
