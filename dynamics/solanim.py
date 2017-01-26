@@ -1,5 +1,6 @@
 """
-  solanim.py --- Generate animation frames from a solution
+  solanim.py --- Quantum Infodynamics Tools - Solution Animator
+
   Author: Tigran Aivazian <aivazian.tigran@gmail.com>
   License: GPL
 """
@@ -16,7 +17,7 @@ norm = MidpointNormalize(midpoint=0.0)
 
 mplt.rc('font', family='serif', size=11)
 
-p = argp(description="Solution Animator")
+p = argp(description="Quantum Infodynamics Tools - Solution Animator")
 p.add_argument("-s", action="append", help="Solution data filename (multiple OK)", dest="sfilenames", required=True, default=[])
 p.add_argument("-c", action="store", help="Number of contour levels of W(x,p,t) to plot (default 100)", dest="clevels", type=int, default=100)
 p.add_argument("-P", action="store", help="Number of parts to split the time range into", dest="nparts", type=int, default=1)

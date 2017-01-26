@@ -17,7 +17,7 @@ from pyfftw.interfaces.numpy_fft import fft, fftshift, ifftshift, ifft
 pyfftw.interfaces.cache.enable()
 pyfftw.interfaces.cache.set_keepalive_time(10)
 
-p = arg.ArgumentParser(description="Quantum Infodynamics Solver")
+p = arg.ArgumentParser(description="Quantum Infodynamics Tools - Equations Solver")
 p.add_argument("-d",  action="store", help="Description text", dest="descr", required=True)
 p.add_argument("-x1", action="store", help="Starting coordinate", dest="x1", type=float, required=True)
 p.add_argument("-x2", action="store", help="Final coordinate", dest="x2", type=float, required=True)
