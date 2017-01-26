@@ -83,7 +83,7 @@ for ax in axes:
     ax[0].set_ylim([p1[s],p2[s]-dp[s]])
 
     ax[1].set_title(r"Spatial density $\rho(x,t)$")
-    rho_init_artist, = ax[1].plot(xv, rho[s][0], color='black')
+    rho_init_artist, = ax[1].plot(xv, rho[s][0], color='green')
     rho_init_artists.append(rho_init_artist)
     text_artist = ax[1].text(0.8, 0.8, "", transform=ax[1].transAxes, animated=True)
     ax[1].set_xlabel('$x$')
@@ -91,7 +91,7 @@ for ax in axes:
     ax[1].set_ylim([1.02*rho_min[s],1.02*rho_max[s]])
 
     ax[2].set_title(r"Momentum density $\varphi(p,t)$")
-    phi_init_artist, = ax[2].plot(pv, phi[s][0], color='black')
+    phi_init_artist, = ax[2].plot(pv, phi[s][0], color='green')
     phi_init_artists.append(phi_init_artist)
     ax[2].set_xlabel('$p$')
     ax[2].set_xlim([p1[s],p2[s]-dp[s]])
@@ -115,11 +115,18 @@ def animate(k):
         if not args.preload:
             for c in c_artists[s].collections: c.remove()
         c_artists[s] = ax[0].contourf(xx, pp, W[s][time_index], levels=Wlevels[s], norm=norm[s], cmap=cm.bwr, animated=True)
-        rho_artist, = ax[1].plot(xv, rho[s][time_index], color='blue', animated=True)
-        phi_artist, = ax[2].plot(pv, phi[s][time_index], color='blue', animated=True)
+        rho_now = rho[s][time_index]
+        rho_artist, = ax[1].plot(xv, rho_now, color='black', animated=True)
+        patch_rho_plus = ax[1].fill_between(xv, 0, rho_now, where=rho_now>0, color='red', interpolate=True)
+        patch_rho_minus = ax[1].fill_between(xv, 0, rho_now, where=rho_now<0, color='blue', interpolate=True)
+        phi_now = phi[s][time_index]
+        phi_artist, = ax[2].plot(pv, phi_now, color='black', animated=True)
+        patch_phi_plus = ax[2].fill_between(pv, 0, phi_now, where=phi_now>0, color='red', interpolate=True)
+        patch_phi_minus = ax[2].fill_between(pv, 0, phi_now, where=phi_now<0, color='blue', interpolate=True)
         text_artist = ax[1].text(0.8, 0.8, "t=% 6.3f" % t[s][time_index], transform=ax[1].transAxes, animated=True)
         artists.extend(c_artists[s].collections + h_artists[s].collections +
-                        [traj_artists[s],rho_init_artists[s],rho_artist,phi_init_artists[s],phi_artist,text_artist])
+                        [traj_artists[s],rho_init_artists[s],rho_artist,patch_rho_plus,patch_rho_minus,
+                         phi_init_artists[s],phi_artist,patch_phi_plus,patch_phi_minus,text_artist])
         s += 1
     progress.update(k)
     return artists
