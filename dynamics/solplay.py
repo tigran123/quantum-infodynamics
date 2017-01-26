@@ -60,7 +60,7 @@ fig, axes = plt.subplots(nsol, 3, figsize=(args.framew/100,args.frameh/100), dpi
 if nsol == 1: axes = [axes]
 
 s = 0
-c_artists,h_artists,traj_artists = [],[],[]
+c_artists,h_artists,traj_artists,rho_init_artists,phi_init_artists = [],[],[],[],[]
 for ax in axes:
     xx,pp = xxpp[s][0],xxpp[s][1]
     xv = xvdx[s][0]
@@ -83,14 +83,16 @@ for ax in axes:
     ax[0].set_ylim([p1[s],p2[s]-dp[s]])
 
     ax[1].set_title(r"Spatial density $\rho(x,t)$")
-    rho_artist, = ax[1].plot(xv, rho[s][0], color='black')
+    rho_init_artist, = ax[1].plot(xv, rho[s][0], color='black')
+    rho_init_artists.append(rho_init_artist)
     text_artist = ax[1].text(0.8, 0.8, "", transform=ax[1].transAxes, animated=True)
     ax[1].set_xlabel('$x$')
     ax[1].set_xlim([x1[s],x2[s]-dx[s]])
     ax[1].set_ylim([1.02*rho_min[s],1.02*rho_max[s]])
 
     ax[2].set_title(r"Momentum density $\varphi(p,t)$")
-    phi_artist, = ax[2].plot(pv, phi[s][0], color='black')
+    phi_init_artist, = ax[2].plot(pv, phi[s][0], color='black')
+    phi_init_artists.append(phi_init_artist)
     ax[2].set_xlabel('$p$')
     ax[2].set_xlim([p1[s],p2[s]-dp[s]])
     ax[2].set_ylim([1.02*phi_min[s],1.02*phi_max[s]])
@@ -116,7 +118,8 @@ def animate(k):
         rho_artist, = ax[1].plot(xv, rho[s][time_index], color='blue', animated=True)
         phi_artist, = ax[2].plot(pv, phi[s][time_index], color='blue', animated=True)
         text_artist = ax[1].text(0.8, 0.8, "t=% 6.3f" % t[s][time_index], transform=ax[1].transAxes, animated=True)
-        artists.extend(c_artists[s].collections + h_artists[s].collections + [traj_artists[s],rho_artist,phi_artist,text_artist])
+        artists.extend(c_artists[s].collections + h_artists[s].collections +
+                        [traj_artists[s],rho_init_artists[s],rho_artist,phi_init_artists[s],phi_artist,text_artist])
         s += 1
     progress.update(k)
     return artists
