@@ -84,29 +84,18 @@ def qd(f, x, dx):
     hbar = 1.0
     return (f(x+1j*hbar*dx/2.) - f(x-1j*hbar*dx/2.))/(1j*hbar)
 
-def T_nonrel(p):
-    global mass
-    return p**2/(2.*mass)
-
-def dTdp_nonrel(p):
-    global mass
-    return p/mass
-
 c = 1.0 # speed of light
 
-def T_rel(p):
-    global mass, c
-    return c*sqrt(p**2 + mass**2*c**2)
-
 def dTdp_rel(p):
-    global mass, c
     if mass == 0.0:
         return c*sign(p)
     else:
         return c*p/sqrt(p**2 + mass**2*c**2)
 
-(T,dTdp) = (T_rel,dTdp_rel) if args.relativistic else (T_nonrel,dTdp_nonrel)
+(T,dTdp) = (lambda p: c*sqrt(p**2 + mass**2*c**2),dTdp_rel) if args.relativistic else (lambda p: p**2/(2.*mass),lambda p: p/mass)
+
 (dU,dT) = (Umod.dUdx(X)*1j*Theta,-dTdp(P)*1j*Lam/2.) if args.classical else (qd(Umod.U,X,1j*Theta),qd(T,P,-1j*Lam)/2.)
+
 H = T(pp)+Umod.U(xx)
 
 def solve_spectral(Winit, expU, expT):
@@ -122,8 +111,6 @@ def solve_spectral(Winit, expU, expT):
     return real(B) # to avoid python warning
 
 def adjust_step(cur_dt, Winit, maxtries=15):
-    global tol, dU, dT
-    
     tries = 0
     dt = cur_dt
     while True:
