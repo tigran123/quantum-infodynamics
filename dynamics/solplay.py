@@ -112,12 +112,12 @@ def animate(k):
         c_artists[s] = ax[0].contourf(xx, pp, W[s][time_index], levels=Wlevels[s], norm=norm[s], cmap=cm.bwr, animated=True)
         rho_now = rho[s][time_index]
         rho_artist, = ax[1].plot(xv, rho_now, color='black', animated=True)
-        rho_plus = ax[1].fill_between(xv, 0, rho_now, where=rho_now>0, color='red', interpolate=True, animated=True)
-        rho_minus = ax[1].fill_between(xv, 0, rho_now, where=rho_now<0, color='blue', interpolate=True, animated=True)
+        rho_plus = ax[1].fill_between(xv, 0, rho_now, where=rho_now>0, color='red', interpolate=False, animated=True)
+        rho_minus = ax[1].fill_between(xv, 0, rho_now, where=rho_now<0, color='blue', interpolate=False, animated=True)
         phi_now = phi[s][time_index]
         phi_artist, = ax[2].plot(pv, phi_now, color='black', animated=True)
-        phi_plus = ax[2].fill_between(pv, 0, phi_now, where=phi_now>0, color='red', interpolate=True, animated=True)
-        phi_minus = ax[2].fill_between(pv, 0, phi_now, where=phi_now<0, color='blue', interpolate=True, animated=True)
+        phi_plus = ax[2].fill_between(pv, 0, phi_now, where=phi_now>0, color='red', interpolate=False, animated=True)
+        phi_minus = ax[2].fill_between(pv, 0, phi_now, where=phi_now<0, color='blue', interpolate=False, animated=True)
         text_artist = ax[1].text(0.8, 0.8, "t=% 6.3f" % t[s][time_index], transform=ax[1].transAxes, animated=True)
         artists.extend(c_artists[s].collections + h_artists[s].collections +
                         [traj_artists[s],rho_init_artists[s],rho_artist,rho_plus,rho_minus,
