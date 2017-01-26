@@ -28,7 +28,7 @@ p.add_argument("-Np", action="store", help="Number of points in p direction", de
 p.add_argument("-t1", action="store", help="Starting time", dest="t1", type=float, required=True)
 p.add_argument("-t2", action="store", help="Final time", dest="t2", type=float, required=True)
 p.add_argument("-f0", action="store", help="Python source of f0(x,p)", dest="srcf0", required=True)
-p.add_argument("-u",  action="store", help="Python source of U(x), T(p), U'(x) and T'(p)", dest="srcU", required=True)
+p.add_argument("-u",  action="store", help="Python source of U(x) and U'(x)", dest="srcU", required=True)
 p.add_argument("-s",  action="store", help="Solution file name", dest="sfilename", required=True)
 p.add_argument("-c",  action="store_true", help="Use classical (non-quantum) propagator", dest="classical")
 p.add_argument("-r",  action="store_true", help="Use relativistic dynamics", dest="relativistic")
