@@ -75,24 +75,20 @@ for ax in axes:
     divider = make_axes_locatable(ax[0])
     cax = divider.append_axes("right", "2%", pad="1%")
     plt.colorbar(im, cax = cax, ticks=Wticks[s], format=mplt.ticker.FuncFormatter(lambda x, pos: "%3.1f" % x))
-    traj, = ax[0].plot(x, p, color='g', linestyle='--')
-    traj_artists.append(traj)
+    traj_artists += [ax[0].plot(x, p, color='g', linestyle='--')[0]]
     ax[0].set_ylabel('$p$')
     ax[0].set_xlabel('$x$')
     ax[0].set_xlim([x1[s],x2[s]-dx[s]])
     ax[0].set_ylim([p1[s],p2[s]-dp[s]])
 
     ax[1].set_title(r"Spatial density $\rho(x,t)$")
-    rho_init_artist, = ax[1].plot(xv, rho[s][0], color='green')
-    rho_init_artists.append(rho_init_artist)
-    text_artist = ax[1].text(0.8, 0.8, "", transform=ax[1].transAxes, animated=True)
+    rho_init_artists += [ax[1].plot(xv, rho[s][0], color='green')[0]]
     ax[1].set_xlabel('$x$')
     ax[1].set_xlim([x1[s],x2[s]-dx[s]])
     ax[1].set_ylim([1.02*rho_min[s],1.02*rho_max[s]])
 
     ax[2].set_title(r"Momentum density $\varphi(p,t)$")
-    phi_init_artist, = ax[2].plot(pv, phi[s][0], color='green')
-    phi_init_artists.append(phi_init_artist)
+    phi_init_artists += [ax[2].plot(pv, phi[s][0], color='green')[0]]
     ax[2].set_xlabel('$p$')
     ax[2].set_xlim([p1[s],p2[s]-dp[s]])
     ax[2].set_ylim([1.02*phi_min[s],1.02*phi_max[s]])
@@ -101,8 +97,7 @@ for ax in axes:
 fig.tight_layout()
 fig.show()
 
-msg = "Preloading data" if args.preload else "Playing back data"
-progress = ProgressBar(time_steps, msg=msg)
+progress = ProgressBar(time_steps, msg="Preloading data" if args.preload else "Playing back data")
 
 def animate(k):
     s = 0
