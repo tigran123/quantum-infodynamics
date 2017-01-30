@@ -10,11 +10,17 @@ from argparse import ArgumentParser as argp
 p = argp(description="Quantum Infodynamics Tools - Solution Playback")
 p.add_argument("-s", action="append", help="Solution data filename (multiple OK)", dest="sfilenames", required=True, default=[])
 p.add_argument("-o", action="store", help="Output animation to the file", dest="ofilename")
+p.add_argument("-r", action="store", help="Number of frames per second [25]", dest="fps", type=int, default=25)
 p.add_argument("-l",  action="store_true", help="Pre-load solution data before animation", dest="preload")
-p.add_argument("-c", action="store", help="Number of contour levels of W(x,p,t) to plot (default 20)", dest="clevels", type=int, default=20)
-p.add_argument("-fw", action="store", help="Frame width in pixels (default 1920)", dest="framew", type=int, default=1920)
-p.add_argument("-fh", action="store", help="Frame height in pixels (default 1080)", dest="frameh", type=int, default=1080)
+p.add_argument("-c", action="store", help="Number of contour levels of W(x,p,t) to plot [20]", dest="clevels", type=int, default=20)
+p.add_argument("-fw", action="store", help="Frame width in pixels [1920]", dest="framew", type=int, default=1920)
+p.add_argument("-fh", action="store", help="Frame height in pixels [1080]", dest="frameh", type=int, default=1080)
 args = p.parse_args()
+
+fps = args.fps
+if fps <= 0:
+   print("fps must be non-negative")
+   exit()
 
 ofilename = args.ofilename
 if ofilename:
@@ -157,7 +163,7 @@ else:
     anim = animation.FuncAnimation(fig, animate, frames=time_steps, interval=0, repeat_delay = 1000, blit=True)
 
 if ofilename:
-    anim.save(ofilename, fps=25, extra_args=['-vcodec', 'libx264'])
+    anim.save(ofilename, fps=fps, extra_args=['-vcodec', 'libx264'])
 else:
     anim_running = True
     plt.show()
