@@ -164,6 +164,10 @@ W = ifftshift(W, axes=(1,2))
 rho = sum(W, axis=2)*dp
 phi = sum(W, axis=1)*dx
 E = sum(H*W,axis=(1,2))*dx*dp
+if args.relat: # so we can compare it with the non-relativistic kinetic energy
+    Erest = mass*c**2
+    E -= Erest
+    Tv -= Erest
 
 params = {'Wmin': amin(W), 'Wmax': amax(W), 'rho_min': amin(rho), 'rho_max': amax(rho), 'Hmin': amin(H), 'Hmax': amax(H), 'Emin': amin(E), 'Emax': amax(E),
           'phi_min': amin(phi), 'phi_max': amax(phi), 'tol': tol, 'Wfilename': Wfilename, 'Nt': Nt,
