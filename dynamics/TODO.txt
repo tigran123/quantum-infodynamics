@@ -1,8 +1,6 @@
 The list of things to do
 ------------------------
 
-* Think of how to speedup savefig() calls in solanim
-
-* Use multiprocessing module in solanim to move the parallel logic from the driver scripts to python code
+* Investigate single and dual potential wells
 
 * Start work on the 2-dimensional solver

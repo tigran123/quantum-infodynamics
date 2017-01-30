@@ -4,24 +4,32 @@
   License: GPL
 """
 import matplotlib as mplt
-import matplotlib.pyplot as plt
-from matplotlib import cm, animation
 from numpy import load, linspace, mgrid, memmap
 from argparse import ArgumentParser as argp
+
+p = argp(description="Quantum Infodynamics Tools - Solution Playback")
+p.add_argument("-s", action="append", help="Solution data filename (multiple OK)", dest="sfilenames", required=True, default=[])
+p.add_argument("-o", action="store", help="Output animation to the file", dest="ofilename")
+p.add_argument("-l",  action="store_true", help="Pre-load solution data before animation", dest="preload")
+p.add_argument("-c", action="store", help="Number of contour levels of W(x,p,t) to plot (default 20)", dest="clevels", type=int, default=20)
+p.add_argument("-fw", action="store", help="Frame width in pixels (default 1920)", dest="framew", type=int, default=1920)
+p.add_argument("-fh", action="store", help="Frame height in pixels (default 1080)", dest="frameh", type=int, default=1080)
+args = p.parse_args()
+
+ofilename = args.ofilename
+if ofilename:
+   preload = True
+else:
+   preload = args.preload
+
+import matplotlib.pyplot as plt
+from matplotlib import cm, animation
 
 # our own modules
 from midnorm import MidpointNormalize
 from progress import ProgressBar
 
 mplt.rc('font', family='serif', size=10)
-
-p = argp(description="Quantum Infodynamics Tools - Solution Playback")
-p.add_argument("-s", action="append", help="Solution data filename (multiple OK)", dest="sfilenames", required=True, default=[])
-p.add_argument("-l",  action="store_true", help="Pre-load solution data before animation", dest="preload")
-p.add_argument("-c", action="store", help="Number of contour levels of W(x,p,t) to plot (default 20)", dest="clevels", type=int, default=20)
-p.add_argument("-fw", action="store", help="Frame width in pixels (default 1920)", dest="framew", type=int, default=1920)
-p.add_argument("-fh", action="store", help="Frame height in pixels (default 1080)", dest="frameh", type=int, default=1080)
-args = p.parse_args()
 
 (t,Nt,W,rho,phi,Wmin,Wmax,rho_min,rho_max,phi_min,phi_max,trajectory,descr,
   Wlevels,Wticks,Wfilenames,x1,x2,Nx,p1,p2,Np,H,U,T,Hmin,Hmax,E,Emin,Emax) = ([] for _ in range(30))
@@ -92,7 +100,7 @@ for ax in axes:
     ax[1].set_ylim([1.02*rho_min[s],1.02*rho_max[s]])
 
     ax[2].set_title(r"$\varphi(p,t)$")
-    phi_init_artists += [ax[2].plot(pv, phi[s][0], color='green', label=r'$\varphi_0(x)$')[0]]
+    phi_init_artists += [ax[2].plot(pv, phi[s][0], color='green', label=r'$\varphi_0(p)$')[0]]
     T_artists += [ax[2].plot(pv, T[s], color='blue', label='$T(p)$')[0]]
     ax[2].legend(prop=dict(size=12))
     ax[2].set_xlabel('$p$')
@@ -101,9 +109,9 @@ for ax in axes:
     s += 1
 
 fig.tight_layout()
-fig.show()
+if not ofilename: fig.show()
 
-progress = ProgressBar(time_steps, msg="Preloading data" if args.preload else "Playing back data")
+progress = ProgressBar(time_steps, msg="Preloading" if preload else "Playing back")
 
 def animate(k):
     s = 0
@@ -113,7 +121,7 @@ def animate(k):
             time_index = k
         else: # find an element in t[s] closest to the current time value (i.e. t_longest[k])
             time_index = abs(t[s] - t_longest[k]).argmin()
-        if not args.preload:
+        if not preload:
             for c in c_artists[s].collections: c.remove()
         c_artists[s] = ax[0].contourf(xx, pp, W[s][time_index], levels=Wlevels[s], norm=norm[s], cmap=cm.bwr, animated=True)
         rho_now = rho[s][time_index]
@@ -124,7 +132,7 @@ def animate(k):
         phi_artist, = ax[2].plot(pv, phi_now, color='black', animated=True)
         phi_plus = ax[2].fill_between(pv, 0, phi_now, where=phi_now>0, color='red', interpolate=False, animated=True)
         phi_minus = ax[2].fill_between(pv, 0, phi_now, where=phi_now<0, color='blue', interpolate=False, animated=True)
-        text_artist = ax[1].text(0.8, 0.8, "E=% 6.3f\nt=% 6.4f" % (E[s][time_index],t[s][time_index]), transform=ax[1].transAxes, animated=True)
+        text_artist = ax[1].text(0.05, 0.8, "E=% 6.3f\nt=% 6.4f" % (E[s][time_index],t[s][time_index]), transform=ax[1].transAxes, animated=True)
         artists.extend(c_artists[s].collections + h_artists[s].collections +
                         [traj_artists[s],U_artists[s],T_artists[s],rho_init_artists[s],rho_artist,rho_plus,rho_minus,
                          phi_init_artists[s],phi_artist,phi_plus,phi_minus,text_artist])
@@ -143,9 +151,13 @@ def keypress(event):
 
 fig.canvas.mpl_connect('key_press_event', keypress)
 
-if args.preload:
+if preload:
     anim = animation.ArtistAnimation(fig, [animate(k) for k in range(time_steps)], interval=0, repeat_delay = 1000, blit=True)
 else:
     anim = animation.FuncAnimation(fig, animate, frames=time_steps, interval=0, repeat_delay = 1000, blit=True)
-anim_running = True
-plt.show()
+
+if ofilename:
+    anim.save(ofilename, fps=25, extra_args=['-vcodec', 'libx264'])
+else:
+    anim_running = True
+    plt.show()
