@@ -5,7 +5,6 @@
   License: GPL
 """
 import matplotlib as mplt
-mplt.use('Agg')
 import matplotlib.pyplot as plt
 from matplotlib import cm
 from numpy import load, linspace, mgrid, memmap
