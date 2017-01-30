@@ -19,6 +19,10 @@ pyfftw.interfaces.cache.set_keepalive_time(10)
 
 p = arg.ArgumentParser(description="Quantum Infodynamics Tools - Equations Solver")
 p.add_argument("-d",  action="store", help="Description text", dest="descr", required=True)
+p.add_argument("-x0", action="store", help="Initial wave packet's x-coordinate", dest="x0", type=float, required=True)
+p.add_argument("-p0", action="store", help="Initial wave packet's p-coordinate", dest="p0", type=float, required=True)
+p.add_argument("-sigmax", action="store", help="Initial wave packet's x-deviation", dest="sigmax", type=float, required=True)
+p.add_argument("-sigmap", action="store", help="Initial wave packet's p-deviation ", dest="sigmap", type=float, required=True)
 p.add_argument("-x1", action="store", help="Starting coordinate", dest="x1", type=float, required=True)
 p.add_argument("-x2", action="store", help="Final coordinate", dest="x2", type=float, required=True)
 p.add_argument("-Nx", action="store", help="Number of points in x direction", dest="Nx", type=int, required=True)
@@ -27,11 +31,10 @@ p.add_argument("-p2", action="store", help="Final momentum", dest="p2", type=flo
 p.add_argument("-Np", action="store", help="Number of points in p direction", dest="Np", type=int, required=True)
 p.add_argument("-t1", action="store", help="Starting time", dest="t1", type=float, required=True)
 p.add_argument("-t2", action="store", help="Final time", dest="t2", type=float, required=True)
-p.add_argument("-f0", action="store", help="Python source of f0(x,p)", dest="srcf0", required=True)
 p.add_argument("-u",  action="store", help="Python source of U(x) and U'(x)", dest="srcU", required=True)
 p.add_argument("-s",  action="store", help="Solution file name", dest="sfilename", required=True)
 p.add_argument("-c",  action="store_true", help="Use classical (non-quantum) propagator", dest="classical")
-p.add_argument("-r",  action="store_true", help="Use relativistic dynamics", dest="relativistic")
+p.add_argument("-r",  action="store_true", help="Use relativistic dynamics", dest="relat")
 p.add_argument("-m",  action="store", help="Rest mass in a.u. (default=1.0)", type=float, dest="mass", default=1.0)
 p.add_argument("-tol", action="store", help="Absolute error tolerance", dest="tol", type=float, required=True)
 args = p.parse_args()
@@ -43,19 +46,20 @@ def pr_exit(str):
     print("ERROR:" + str)
     exit()
 
-# load the python modules with the initial distribution and the physical model (U(x) and dUdx(x))
-f0mod = __import__(args.srcf0)
+# load the python module with the physical model (U(x) and dUdx(x))
 Umod = __import__(args.srcU)
 
-(descr,x1,x2,Nx,p1,p2,Np,t1,t2,tol,mass) = (args.descr,args.x1,args.x2,args.Nx,args.p1,args.p2,args.Np,args.t1,args.t2,
-                                            args.tol,args.mass)
-if tol <= 0: pr_exit("Tolerance value must be positive, but %f <=0" % tol)
-if mass < 0: pr_exit("The value of mass must be non-negative, but %f < 0" % mass)
+(descr,x0,p0,sigmax,sigmap,x1,x2,Nx,p1,p2,Np,t1,t2,tol,mass) = (args.descr,args.x0,args.p0,args.sigmax,args.sigmap,
+                                    args.x1,args.x2,args.Nx,args.p1,args.p2,args.Np,args.t1,args.t2, args.tol,args.mass)
+if tol <= 0: pr_exit("Tolerance must be positive, but %f <=0" % tol)
+if mass < 0: pr_exit("Mass cannot be negative, but %f < 0" % mass)
 if x2 <= x1: pr_exit("x2 must be greater than x1, but %f <= %f" %(x2,x1))
 if p2 <= p1: pr_exit("p2 must be greater than p1, but %f <= %f" %(p2,p1))
 if t2 <= t1: pr_exit("t2 must be greater than t1, but %f <= %f" %(t2,t1))
 if Nx <= 0: pr_exit("Nx must be positive, but %d <= 0" % Nx)
 if Np <= 0: pr_exit("Np must be positive, but %d <= 0" % Np)
+if sigmax <= 0: pr_exit("sigmax must be positive, but %f <= 0" % sigmax)
+if sigmap <= 0: pr_exit("sigmap must be positive, but %f <= 0" % sigmap)
 if Nx & (Nx-1): print("WARNING: Nx=%d is not a power 2, FFT may be slowed down" % Nx)
 if Np & (Np-1): print("WARNING: Np=%d is not a power 2, FFT may be slowed down" % Np)
 
@@ -80,6 +84,10 @@ P = fftshift(pv)[newaxis,:]
 Theta = fftshift(thetav)[newaxis,:]
 Lam = fftshift(lamv)[:,newaxis]
 
+def gauss(x,p,x0,p0,sigmax,sigmap):
+    Z = 1./(2.*pi*sigmax*sigmap)
+    return Z*exp(-((x-x0)**2/(2.*sigmax**2)+(p-p0)**2/(2.*sigmap**2)))
+
 def qd(f, x, dx):
     hbar = 1.0 # Planck's constant in a.u.
     #hbar = 1.0545718e-34 # Planck's constant in J*s (SI)
@@ -93,7 +101,7 @@ def dTdp_rel(p):
     else:
         return c*p/sqrt(p**2 + mass**2*c**2)
 
-(T,dTdp) = (lambda p: c*sqrt(p**2 + mass**2*c**2),dTdp_rel) if args.relativistic else (lambda p: p**2/(2.*mass),lambda p: p/mass)
+(T,dTdp) = (lambda p: c*sqrt(p**2 + mass**2*c**2),dTdp_rel) if args.relat else (lambda p: p**2/(2.*mass),lambda p: p/mass)
 
 (dU,dT) = (Umod.dUdx(X)*1j*Theta,-dTdp(P)*1j*Lam/2.) if args.classical else (qd(Umod.U,X,1j*Theta),qd(T,P,-1j*Lam)/2.)
 
@@ -130,7 +138,7 @@ def adjust_step(cur_dt, Winit, maxtries=15):
 
 t_start = time()
 dt = (t2-t1)/20. # the first very rough guess of time step
-W = [fftshift(f0mod.f0(xx,pp))]
+W = [fftshift(gauss(xx,pp,x0,p0,sigmax,sigmap))]
 tv = [t1]
 t = t1
 Nt = 1
@@ -148,7 +156,7 @@ while t <= t2:
     t += dt
     Nt += 1
     tv.append(t)
-trajectory = odeint(lambda y,t: [dTdp(y[1]),-Umod.dUdx(y[0])], [f0mod.x0,f0mod.p0], tv)
+trajectory = odeint(lambda y,t: [dTdp(y[1]),-Umod.dUdx(y[0])], [x0,p0], tv)
 
 print("%s: solved in %8.2f seconds, %d steps" % (descr, time() - t_start, Nt))
 
