@@ -81,11 +81,11 @@ Theta = fftshift(thetav)[newaxis,:]
 Lam = fftshift(lamv)[:,newaxis]
 
 def qd(f, x, dx):
-    hbar = 1.0
+    hbar = 1.0 # Planck's constant in a.u.
     #hbar = 1.0545718e-34 # Planck's constant in J*s (SI)
     return (f(x+1j*hbar*dx/2.) - f(x-1j*hbar*dx/2.))/(1j*hbar)
 
-c = 1.0 # speed of light
+c = 137.03604 # speed of light in a.u.
 
 def dTdp_rel(p):
     if mass == 0.0:
