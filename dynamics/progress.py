@@ -2,7 +2,7 @@ import sys
 from time import time
 
 class ProgressBar():
-    def __init__(self, nsteps, width=40, msg="Processing"):
+    def __init__(self, nsteps, width=30, msg="Processing"):
         self._start = self._stop = time()
         self._nsteps = nsteps
         self._width = width
