@@ -4,7 +4,7 @@
   License: GPL
 """
 import matplotlib as mplt
-from numpy import load, linspace, mgrid, memmap
+from numpy import load, linspace, mgrid, memmap, append, sort
 from argparse import ArgumentParser as argp
 
 p = argp(description="Quantum Infodynamics Tools - Solution Playback")
@@ -37,16 +37,16 @@ from progress import ProgressBar
 
 mplt.rc('font', family='serif', size=10)
 
-(t,Nt,W,rho,phi,Wmin,Wmax,rho_min,rho_max,phi_min,phi_max,trajectory,descr,
+(t,Nt,W,rho,phi,Wmin,Wmax,rho_min,rho_max,phi_min,phi_max,descr,Ei,
   Wlevels,Wticks,Wfilenames,x1,x2,Nx,p1,p2,Np,H,U,T,Hmin,Hmax,E,Emin,Emax) = ([] for _ in range(30))
 
 for sfilename in args.sfilenames:
     with load(sfilename + '.npz') as data:
         t.append(data['t']); rho.append(data['rho']); phi.append(data['phi']); H.append(data['H'])
         U.append(data['U']); T.append(data['T'])
-        trajectory.append(data['trajectory']); E.append(data['E']); params = data['params'][()]
+        E.append(data['E']); params = data['params'][()]
         Wmin.append(params['Wmin']); Wmax.append(params['Wmax'])
-        Emin.append(params['Emin']); Emax.append(params['Emax'])
+        Emin.append(params['Emin']); Emax.append(params['Emax']); Ei.append(params['Ei'])
         Wlevels.append(linspace(Wmin[-1], Wmax[-1], args.clevels)); Wticks.append(linspace(Wmin[-1], Wmax[-1], 10))
         rho_min.append(params['rho_min']); rho_max.append(params['rho_max'])
         phi_min.append(params['phi_min']); phi_max.append(params['phi_max'])
@@ -62,7 +62,7 @@ pvdp = [linspace(p1i, p2i, Npi, endpoint=False, retstep=True) for (p1i,p2i,Npi) 
 dx = [a[1] for a in xvdx]
 dp = [a[1] for a in pvdp]
 xxpp = [mgrid[x1i:x2i-dxi:Nxi*1j, p1i:p2i-dpi:Npi*1j] for (x1i,x2i,dxi,Nxi,p1i,p2i,dpi,Npi) in zip(x1,x2,dx,Nx,p1,p2,dp,Np)]
-Hlevels =  [linspace(hmin, hmax, 10) for (hmin,hmax) in zip(Hmin,Hmax)]
+Hlevels =  [sort(append(linspace(hmin, hmax, 10),ei)) for (hmin,hmax,ei) in zip(Hmin,Hmax,Ei)]
 
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
@@ -76,13 +76,11 @@ fig, axes = plt.subplots(nsol, 3, figsize=(args.framew/100,args.frameh/100), dpi
 if nsol == 1: axes = [axes]
 
 s = 0
-c_artists,h_artists,traj_artists,U_artists,T_artists,rho_init_artists,phi_init_artists = ([] for _ in range(7))
+c_artists,h_artists,U_artists,T_artists,rho_init_artists,phi_init_artists = ([] for _ in range(6))
 for ax in axes:
     xx,pp = xxpp[s][0],xxpp[s][1]
     xv = xvdx[s][0]
     pv = pvdp[s][0]
-    x = trajectory[s][:,0]
-    p = trajectory[s][:,1]
     imh = ax[0].contour(xx, pp, H[s], levels=Hlevels[s], linewidths=0.5, colors='k')
     h_artists.append(imh)
     ax[0].set_title(descr[s])
@@ -91,7 +89,6 @@ for ax in axes:
     divider = make_axes_locatable(ax[0])
     cax = divider.append_axes("right", "2%", pad="1%")
     plt.colorbar(im, cax = cax, ticks=Wticks[s], format=mplt.ticker.FuncFormatter(lambda x, pos: "%3.1f" % x))
-    traj_artists += [ax[0].plot(x, p, color='g', linestyle='--')[0]]
     ax[0].set_ylabel('$p$')
     ax[0].set_xlabel('$x$')
     ax[0].set_xlim([x1[s],x2[s]-dx[s]])
@@ -140,7 +137,7 @@ def animate(k):
         phi_minus = ax[2].fill_between(pv, 0, phi_now, where=phi_now<0, color='blue', interpolate=False, animated=True)
         text_artist = ax[1].text(0.05, 0.8, "E=% 6.3f\nt=% 6.4f" % (E[s][time_index],t[s][time_index]), transform=ax[1].transAxes, animated=True)
         artists.extend(c_artists[s].collections + h_artists[s].collections +
-                        [traj_artists[s],U_artists[s],T_artists[s],rho_init_artists[s],rho_artist,rho_plus,rho_minus,
+                        [U_artists[s],T_artists[s],rho_init_artists[s],rho_artist,rho_plus,rho_minus,
                          phi_init_artists[s],phi_artist,phi_plus,phi_minus,text_artist])
         s += 1
     progress.update(k)

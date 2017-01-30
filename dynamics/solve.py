@@ -5,7 +5,6 @@
 """
 
 from numpy import linspace, mgrid, pi, newaxis, exp, real, savez, amin, amax, sum, abs, memmap, sqrt, sign
-from scipy.integrate import odeint
 import argparse as arg
 from time import time
 
@@ -84,7 +83,7 @@ P = fftshift(pv)[newaxis,:]
 Theta = fftshift(thetav)[newaxis,:]
 Lam = fftshift(lamv)[:,newaxis]
 
-def gauss(x,p,x0,p0,sigmax,sigmap):
+def gauss(x, p, x0, p0, sigmax, sigmap):
     Z = 1./(2.*pi*sigmax*sigmap)
     return Z*exp(-((x-x0)**2/(2.*sigmax**2)+(p-p0)**2/(2.*sigmap**2)))
 
@@ -156,7 +155,6 @@ while t <= t2:
     t += dt
     Nt += 1
     tv.append(t)
-trajectory = odeint(lambda y,t: [dTdp(y[1]),-Umod.dUdx(y[0])], [x0,p0], tv)
 
 print("%s: solved in %8.2f seconds, %d steps" % (descr, time() - t_start, Nt))
 
@@ -169,12 +167,13 @@ if args.relat: # so we can compare it with the non-relativistic kinetic energy
     E -= Erest
     Tv -= Erest
 
-params = {'Wmin': amin(W), 'Wmax': amax(W), 'rho_min': amin(rho), 'rho_max': amax(rho), 'Hmin': amin(H), 'Hmax': amax(H), 'Emin': amin(E), 'Emax': amax(E),
+params = {'Wmin': amin(W), 'Wmax': amax(W), 'rho_min': amin(rho), 'rho_max': amax(rho),
+          'Hmin': amin(H), 'Hmax': amax(H), 'Emin': amin(E), 'Emax': amax(E), 'Ei': T(p0) + Umod.U(x0),
           'phi_min': amin(phi), 'phi_max': amax(phi), 'tol': tol, 'Wfilename': Wfilename, 'Nt': Nt,
           'x1': x1, 'x2': x2, 'Nx': Nx, 'p1': p1, 'p2': p2, 'Np': Np, 'descr': descr}
 
 t_start = time()
-savez(sfilename, t=tv, trajectory=trajectory, rho=rho, phi=phi, H=H, U=Uv, T=Tv, E=E, params=params)
+savez(sfilename, t=tv, rho=rho, phi=phi, H=H, U=Uv, T=Tv, E=E, params=params)
 fp = memmap(Wfilename, dtype='float64', mode='w+', shape=(Nt, Nx, Np))
 fp[:] = W[:]
 del fp # causes the flush of memmap
