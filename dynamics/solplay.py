@@ -100,7 +100,7 @@ for ax in axes:
     ax[1].set_title(r"$\rho(x,t), E_0=$ % 6.3f, $E_{min}=$% 6.3f, $E_{max}=$% 6.3f" % (E[s][0],Emin[s],Emax[s]))
     rho_init_artists += [ax[1].plot(xv, rho[s][0], color='green', label=r'$\rho_0(x)$')[0]]
     U_artists += [ax[1].plot(xv, U[s], color='black', label='$U(x)$')[0]]
-    ax[1].legend(prop=dict(size=12))
+    ax[1].legend(prop=dict(size=12),loc=1)
     ax[1].set_xlabel('$x$')
     ax[1].set_xlim([x1[s],x2[s]-dx[s]])
     ax[1].set_ylim([1.02*rho_min[s],1.02*rho_max[s]])
@@ -108,7 +108,7 @@ for ax in axes:
     ax[2].set_title(r"$\varphi(p,t)$")
     phi_init_artists += [ax[2].plot(pv, phi[s][0], color='green', label=r'$\varphi_0(p)$')[0]]
     T_artists += [ax[2].plot(pv, T[s], color='blue', label='$T(p)$')[0]]
-    ax[2].legend(prop=dict(size=12))
+    ax[2].legend(prop=dict(size=12),loc=1)
     ax[2].set_xlabel('$p$')
     ax[2].set_xlim([p1[s],p2[s]-dp[s]])
     ax[2].set_ylim([1.02*phi_min[s],1.02*phi_max[s]])
