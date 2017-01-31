@@ -6,6 +6,7 @@
 import matplotlib as mplt
 from numpy import load, linspace, mgrid, memmap, append, sort
 from argparse import ArgumentParser as argp
+from time import time
 
 p = argp(description="Quantum Infodynamics Tools - Solution Playback")
 p.add_argument("-s", action="append", help="Solution data filename (multiple OK)", dest="sfilenames", required=True, default=[])
@@ -37,7 +38,7 @@ from progress import ProgressBar
 
 mplt.rc('font', family='serif', size=10)
 
-(t,Nt,W,rho,phi,Wmin,Wmax,rho_min,rho_max,phi_min,phi_max,descr,Ei,
+(t,Nt,W,rho,phi,Wmin,Wmax,rho_min,rho_max,phi_min,phi_max,descr,H0,
   Wlevels,Wticks,Wfilenames,x1,x2,Nx,p1,p2,Np,H,U,T,Hmin,Hmax,E,Emin,Emax) = ([] for _ in range(30))
 
 for sfilename in args.sfilenames:
@@ -46,7 +47,7 @@ for sfilename in args.sfilenames:
         U.append(data['U']); T.append(data['T'])
         E.append(data['E']); params = data['params'][()]
         Wmin.append(params['Wmin']); Wmax.append(params['Wmax'])
-        Emin.append(params['Emin']); Emax.append(params['Emax']); Ei.append(params['Ei'])
+        Emin.append(params['Emin']); Emax.append(params['Emax']); H0.append(params['H0'])
         Wlevels.append(linspace(Wmin[-1], Wmax[-1], args.clevels)); Wticks.append(linspace(Wmin[-1], Wmax[-1], 10))
         rho_min.append(params['rho_min']); rho_max.append(params['rho_max'])
         phi_min.append(params['phi_min']); phi_max.append(params['phi_max'])
@@ -62,7 +63,7 @@ pvdp = [linspace(p1i, p2i, Npi, endpoint=False, retstep=True) for (p1i,p2i,Npi) 
 dx = [a[1] for a in xvdx]
 dp = [a[1] for a in pvdp]
 xxpp = [mgrid[x1i:x2i-dxi:Nxi*1j, p1i:p2i-dpi:Npi*1j] for (x1i,x2i,dxi,Nxi,p1i,p2i,dpi,Npi) in zip(x1,x2,dx,Nx,p1,p2,dp,Np)]
-Hlevels =  [sort(append(linspace(hmin, hmax, 10),ei)) for (hmin,hmax,ei) in zip(Hmin,Hmax,Ei)]
+Hlevels =  [sort(append(linspace(hmin, hmax, 10),h0)) for (hmin,hmax,h0) in zip(Hmin,Hmax,H0)]
 
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
@@ -155,12 +156,17 @@ def keypress(event):
 fig.canvas.mpl_connect('key_press_event', keypress)
 
 if preload:
+    t_start = time()
     anim = animation.ArtistAnimation(fig, [animate(k) for k in range(time_steps)], interval=0, repeat_delay = 1000, blit=True)
+    print(" OK [%.1fs]" % (time()-t_start))
 else:
     anim = animation.FuncAnimation(fig, animate, frames=time_steps, interval=0, repeat_delay = 1000, blit=True)
 
 if ofilename:
+    t_start = time()
+    print("Saving animation:", end=' ', flush=True)
     anim.save(ofilename, fps=fps, extra_args=['-vcodec', 'libx264'])
+    print("OK [%.1fs]" % (time()-t_start))
 else:
     anim_running = True
     plt.show()

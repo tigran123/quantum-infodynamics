@@ -168,7 +168,7 @@ if args.relat: # so we can compare it with the non-relativistic kinetic energy
     Tv -= Erest
 
 params = {'Wmin': amin(W), 'Wmax': amax(W), 'rho_min': amin(rho), 'rho_max': amax(rho),
-          'Hmin': amin(H), 'Hmax': amax(H), 'Emin': amin(E), 'Emax': amax(E), 'Ei': T(p0) + Umod.U(x0),
+          'Hmin': amin(H), 'Hmax': amax(H), 'Emin': amin(E), 'Emax': amax(E), 'H0': T(p0) + Umod.U(x0),
           'phi_min': amin(phi), 'phi_max': amax(phi), 'tol': tol, 'Wfilename': Wfilename, 'Nt': Nt,
           'x1': x1, 'x2': x2, 'Nx': Nx, 'p1': p1, 'p2': p2, 'Np': Np, 'descr': descr}
 
