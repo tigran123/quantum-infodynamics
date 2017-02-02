@@ -35,13 +35,13 @@ def pr_exit(str):
 if nparts <= 0: pr_exit("Number of parts must be positive, but %d <= 0" % nparts)
 if part <= 0 or part > nparts: pr_exit("The part number must lie between 1 and %d,  but %d <= 0" % (nparts, part))
 
-(t,Nt,W,rho,phi,Wmin,Wmax,rho_min,rho_max,phi_min,phi_max,trajectory,descr,
-  Wlevels,Wticks,Wfilenames,x1,x2,Nx,p1,p2,Np,H,Hmin,Hmax) = ([] for _ in range(25))
+(t,Nt,W,rho,phi,Wmin,Wmax,rho_min,rho_max,phi_min,phi_max,descr,
+  Wlevels,Wticks,Wfilenames,x1,x2,Nx,p1,p2,Np,H,Hmin,Hmax) = ([] for _ in range(24))
 
 for sfilename in args.sfilenames:
     with load(sfilename + '.npz') as data:
         t.append(data['t']); rho.append(data['rho']); phi.append(data['phi']); H.append(data['H'])
-        trajectory.append(data['trajectory']); params = data['params'][()]
+        params = data['params'][()]
         Wmin.append(params['Wmin']); Wmax.append(params['Wmax'])
         Wlevels.append(linspace(Wmin[-1], Wmax[-1], args.clevels)); Wticks.append(linspace(Wmin[-1], Wmax[-1], 10))
         rho_min.append(params['rho_min']); rho_max.append(params['rho_max'])
@@ -93,8 +93,6 @@ for k in time_range:
         xx,pp = xxpp[s][0],xxpp[s][1]
         xv = xvdx[s][0]
         pv = pvdp[s][0]
-        x = trajectory[s][:,0]
-        p = trajectory[s][:,1]
         if s == s_longest:
             time_index = k
         else: # find an element in t[s] closest to the current time value (i.e. t_longest[k])
@@ -105,7 +103,6 @@ for k in time_range:
         divider = make_axes_locatable(ax[0])
         cax = divider.append_axes("right", "2%", pad="1%")
         plt.colorbar(im, cax = cax, ticks=Wticks[s], format=mplt.ticker.FuncFormatter(fmt))
-        ax[0].plot(x, p, color='g', linestyle='--')
         ax[0].set_ylabel('$p$')
         ax[0].set_xlabel('$x$')
         ax[0].set_xlim([x1[s],x2[s]-dx[s]])
