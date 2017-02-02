@@ -13,7 +13,7 @@ For more information see the project's website at http://quantuminfodynamics.com
 
 * Python 3.6.0
 
-* numpy >= 1.10.0
+* numpy >= 1.12.0
 
 * scipy >= 0.18.1
 
