@@ -8,14 +8,6 @@ from numpy import linspace, mgrid, pi, newaxis, exp, real, savez, amin, amax, su
 import argparse as arg
 from time import time
 
-# select FFT implementation: pyfftw is the fastest and numpy is the slowest, scipy is in between these two
-#from numpy.fft import ifftshift, fftshift, fft, ifft
-#from scipy.fftpack import fftshift, ifftshift, fft, ifft
-import pyfftw
-from pyfftw.interfaces.numpy_fft import fft, fftshift, ifftshift, ifft
-pyfftw.interfaces.cache.enable()
-pyfftw.interfaces.cache.set_keepalive_time(10)
-
 p = arg.ArgumentParser(description="Quantum Infodynamics Tools - Equations Solver")
 p.add_argument("-d",  action="store", help="Description text", dest="descr", required=True)
 p.add_argument("-x0", action="store", help="Initial wave packet's x-coordinate", dest="x0", type=float, required=True)
@@ -41,6 +33,9 @@ args = p.parse_args()
 sfilename = args.sfilename
 Wfilename = sfilename + '_W.npz'
 
+(descr,x0,p0,sigmax,sigmap,x1,x2,Nx,p1,p2,Np,t1,t2,tol,mass) = (args.descr,args.x0,args.p0,args.sigmax,args.sigmap,
+                                    args.x1,args.x2,args.Nx,args.p1,args.p2,args.Np,args.t1,args.t2, args.tol,args.mass)
+
 def pr_msg(str):
     print(descr + ": " + str)
 
@@ -48,11 +43,26 @@ def pr_exit(str):
     pr_msg("ERROR: " + str)
     exit()
 
-# load the python module with the physical model (U(x) and dUdx(x))
-Umod = __import__(args.srcU)
+Umod = __import__(args.srcU) # load the physical model (U(x) and dUdx(x) definitions)
 
-(descr,x0,p0,sigmax,sigmap,x1,x2,Nx,p1,p2,Np,t1,t2,tol,mass) = (args.descr,args.x0,args.p0,args.sigmax,args.sigmap,
-                                    args.x1,args.x2,args.Nx,args.p1,args.p2,args.Np,args.t1,args.t2, args.tol,args.mass)
+# auto-select FFT implementation: pyfftw is the fastest and numpy is the slowest
+try:
+    import pyfftw
+except ImportError:
+    pr_msg("WARNING: pyfftw not available, trying scipy")
+    try:
+        from scipy.fftpack import fftshift, ifftshift, fft, ifft
+    except ImportError:
+        pr_msg("WARNING: scipy.fftpack not available, trying numpy")
+        try:
+            from numpy.fft import ifftshift, fftshift, fft, ifft
+        except ImportError:
+            pr_exit("No FFT implementation available, tried: pyfftw, scipy, numpy")
+else:
+    from pyfftw.interfaces.numpy_fft import fft, fftshift, ifftshift, ifft
+    pyfftw.interfaces.cache.enable()
+    pyfftw.interfaces.cache.set_keepalive_time(10)
+
 if tol <= 0: pr_exit("Tolerance must be positive, but %f <=0" % tol)
 if mass < 0: pr_exit("Mass cannot be negative, but %f < 0" % mass)
 if x2 <= x1: pr_exit("x2 must be greater than x1, but %f <= %f" %(x2,x1))
@@ -145,7 +155,7 @@ tv = [t1]
 t = t1
 Nt = 1
 while t <= t2:
-    if Nt%300 == 299: pr_msg("%s: step %d"%Nt)
+    if Nt%300 == 299: pr_msg("step %d"%Nt)
     if Nt%20 == 1:
         (Wnext, new_dt, expU, expT) = adjust_step(dt, W[-1])
         W.append(Wnext)
