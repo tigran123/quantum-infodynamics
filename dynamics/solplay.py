@@ -4,7 +4,7 @@
   License: GPL
 """
 import matplotlib as mplt
-from numpy import load, linspace, mgrid, memmap, append, sort
+from numpy import load, linspace, mgrid, memmap, append, unique
 from argparse import ArgumentParser as argp
 from time import time
 
@@ -12,11 +12,14 @@ p = argp(description="Quantum Infodynamics Tools - Solution Playback")
 p.add_argument("-s", action="append", help="Solution data filename (multiple OK)", dest="sfilenames", required=True, default=[])
 p.add_argument("-o", action="store", help="Output animation to the file", dest="ofilename")
 p.add_argument("-r", action="store", help="Number of frames per second [25]", dest="fps", type=int, default=25)
+p.add_argument("-W",  action="store_true", help="Animate W(x,p,t) only", dest="Wonly")
 p.add_argument("-l",  action="store_true", help="Pre-load solution data before animation", dest="preload")
 p.add_argument("-c", action="store", help="Number of contour levels of W(x,p,t) to plot [20]", dest="clevels", type=int, default=20)
 p.add_argument("-fw", action="store", help="Frame width in pixels [1920]", dest="framew", type=int, default=1920)
 p.add_argument("-fh", action="store", help="Frame height in pixels [1080]", dest="frameh", type=int, default=1080)
 args = p.parse_args()
+
+Wonly = args.Wonly
 
 fps = args.fps
 if fps <= 0:
@@ -44,10 +47,10 @@ mplt.rc('font', family='serif', size=10)
 for sfilename in args.sfilenames:
     with load(sfilename + '.npz') as data:
         t.append(data['t']); rho.append(data['rho']); phi.append(data['phi']); H.append(data['H'])
-        U.append(data['U']); T.append(data['T'])
+        U.append(data['U']); T.append(data['T']); H0.append(data['H0'])
         E.append(data['E']); params = data['params'][()]
         Wmin.append(params['Wmin']); Wmax.append(params['Wmax'])
-        Emin.append(params['Emin']); Emax.append(params['Emax']); H0.append(params['H0'])
+        Emin.append(params['Emin']); Emax.append(params['Emax'])
         Wlevels.append(linspace(Wmin[-1], Wmax[-1], args.clevels)); Wticks.append(linspace(Wmin[-1], Wmax[-1], 10))
         rho_min.append(params['rho_min']); rho_max.append(params['rho_max'])
         phi_min.append(params['phi_min']); phi_max.append(params['phi_max'])
@@ -63,7 +66,7 @@ pvdp = [linspace(p1i, p2i, Npi, endpoint=False, retstep=True) for (p1i,p2i,Npi) 
 dx = [a[1] for a in xvdx]
 dp = [a[1] for a in pvdp]
 xxpp = [mgrid[x1i:x2i-dxi:Nxi*1j, p1i:p2i-dpi:Npi*1j] for (x1i,x2i,dxi,Nxi,p1i,p2i,dpi,Npi) in zip(x1,x2,dx,Nx,p1,p2,dp,Np)]
-Hlevels =  [sort(append(linspace(hmin, hmax, 10),h0)) for (hmin,hmax,h0) in zip(Hmin,Hmax,H0)]
+Hlevels =  [unique(append(linspace(hmin, hmax, 10),h0)) for (hmin,hmax,h0) in zip(Hmin,Hmax,H0)]
 
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
@@ -73,12 +76,17 @@ time_steps = len(t_longest)
 nsol = len(t)
 norm = [MidpointNormalize(midpoint=0.0) for _ in range(nsol)]
 
-fig, axes = plt.subplots(nsol, 3, figsize=(args.framew/100,args.frameh/100), dpi=100)
+if Wonly:
+    fig, axes = plt.subplots(nsol, 1, figsize=(args.framew/100,args.frameh/100), dpi=100)
+else:
+    fig, axes = plt.subplots(nsol, 3, figsize=(args.framew/100,args.frameh/100), dpi=100)
 if nsol == 1: axes = [axes]
 
 s = 0
 c_artists,h_artists,U_artists,T_artists,rho_init_artists,phi_init_artists = ([] for _ in range(6))
 for ax in axes:
+    if Wonly:
+        ax = [ax]
     xx,pp = xxpp[s][0],xxpp[s][1]
     xv = xvdx[s][0]
     pv = pvdp[s][0]
@@ -95,21 +103,22 @@ for ax in axes:
     ax[0].set_xlim([x1[s],x2[s]-dx[s]])
     ax[0].set_ylim([p1[s],p2[s]-dp[s]])
 
-    ax[1].set_title(r"$\rho(x,t), E_0=$ % 6.3f, $E_{min}=$% 6.3f, $E_{max}=$% 6.3f" % (E[s][0],Emin[s],Emax[s]))
-    rho_init_artists += [ax[1].plot(xv, rho[s][0], color='green', label=r'$\rho_0(x)$')[0]]
-    U_artists += [ax[1].plot(xv, U[s], color='black', label='$U(x)$')[0]]
-    ax[1].legend(prop=dict(size=12),loc=1)
-    ax[1].set_xlabel('$x$')
-    ax[1].set_xlim([x1[s],x2[s]-dx[s]])
-    ax[1].set_ylim([1.02*rho_min[s],1.02*rho_max[s]])
+    if not Wonly:
+        ax[1].set_title(r"$\rho(x,t), E_0=$ % 6.3f, $E_{min}=$% 6.3f, $E_{max}=$% 6.3f" % (E[s][0],Emin[s],Emax[s]))
+        rho_init_artists += [ax[1].plot(xv, rho[s][0], color='green', label=r'$\rho_0(x)$')[0]]
+        U_artists += [ax[1].plot(xv, U[s], color='black', label='$U(x)$')[0]]
+        ax[1].legend(prop=dict(size=12),loc=1)
+        ax[1].set_xlabel('$x$')
+        ax[1].set_xlim([x1[s],x2[s]-dx[s]])
+        ax[1].set_ylim([1.02*rho_min[s],1.02*rho_max[s]])
 
-    ax[2].set_title(r"$\varphi(p,t)$")
-    phi_init_artists += [ax[2].plot(pv, phi[s][0], color='green', label=r'$\varphi_0(p)$')[0]]
-    T_artists += [ax[2].plot(pv, T[s], color='blue', label='$T(p)$')[0]]
-    ax[2].legend(prop=dict(size=12),loc=1)
-    ax[2].set_xlabel('$p$')
-    ax[2].set_xlim([p1[s],p2[s]-dp[s]])
-    ax[2].set_ylim([1.02*phi_min[s],1.02*phi_max[s]])
+        ax[2].set_title(r"$\varphi(p,t)$")
+        phi_init_artists += [ax[2].plot(pv, phi[s][0], color='green', label=r'$\varphi_0(p)$')[0]]
+        T_artists += [ax[2].plot(pv, T[s], color='blue', label='$T(p)$')[0]]
+        ax[2].legend(prop=dict(size=12),loc=1)
+        ax[2].set_xlabel('$p$')
+        ax[2].set_xlim([p1[s],p2[s]-dp[s]])
+        ax[2].set_ylim([1.02*phi_min[s],1.02*phi_max[s]])
     s += 1
 
 fig.tight_layout()
@@ -117,7 +126,7 @@ if not ofilename: fig.show()
 
 progress = ProgressBar(time_steps, msg="Preloading" if preload else "Playing back")
 
-def animate(k):
+def animate_all(k):
     s = 0
     artists = []
     for ax in axes:
@@ -138,13 +147,32 @@ def animate(k):
         phi_minus = ax[2].fill_between(pv, 0, phi_now, where=phi_now<0, color='blue', interpolate=False, animated=True)
         text_artist = ax[1].text(0.05, 0.8, "E=% 6.3f\nt=% 6.4f" % (E[s][time_index],t[s][time_index]), transform=ax[1].transAxes, animated=True)
         artists.extend(c_artists[s].collections + h_artists[s].collections +
-                        [U_artists[s],T_artists[s],rho_init_artists[s],rho_artist,rho_plus,rho_minus,
-                         phi_init_artists[s],phi_artist,phi_plus,phi_minus,text_artist])
+                    [U_artists[s],T_artists[s],rho_init_artists[s],rho_artist,rho_plus,rho_minus,
+                     phi_init_artists[s],phi_artist,phi_plus,phi_minus,text_artist])
         s += 1
     progress.update(k)
     return artists
 
-anim_running = False
+def animate_Wonly(k):
+    s = 0
+    artists = []
+    for ax in axes:
+        if s == s_longest:
+            time_index = k
+        else: # find an element in t[s] closest to the current time value (i.e. t_longest[k])
+            time_index = abs(t[s] - t_longest[k]).argmin()
+        if not preload:
+            for c in c_artists[s].collections: c.remove()
+        c_artists[s] = ax.contourf(xx, pp, W[s][time_index], levels=Wlevels[s], norm=norm[s], cmap=cm.bwr, animated=True)
+        artists.extend(c_artists[s].collections + h_artists[s].collections)
+        s += 1
+    progress.update(k)
+    return artists
+
+if Wonly:
+   animate = animate_Wonly
+else:
+   animate = animate_all
 
 def keypress(event):
     global anim_running
@@ -153,6 +181,7 @@ def keypress(event):
             anim.event_source.stop() if anim_running else anim.event_source.start()
             anim_running ^= True
 
+anim_running = False
 fig.canvas.mpl_connect('key_press_event', keypress)
 
 if preload:

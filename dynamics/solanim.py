@@ -7,7 +7,7 @@
 import matplotlib as mplt
 import matplotlib.pyplot as plt
 from matplotlib import cm
-from numpy import load, linspace, mgrid, memmap
+from numpy import load, linspace, mgrid, memmap, append, unique
 from argparse import ArgumentParser as argp
 
 # our own modules
@@ -18,6 +18,7 @@ mplt.rc('font', family='serif', size=11)
 
 p = argp(description="Quantum Infodynamics Tools - Solution Animator")
 p.add_argument("-s", action="append", help="Solution data filename (multiple OK)", dest="sfilenames", required=True, default=[])
+p.add_argument("-W",  action="store_true", help="Animate W(x,p,t) only", dest="Wonly")
 p.add_argument("-c", action="store", help="Number of contour levels of W(x,p,t) to plot (default 100)", dest="clevels", type=int, default=100)
 p.add_argument("-P", action="store", help="Number of parts to split the time range into", dest="nparts", type=int, default=1)
 p.add_argument("-p", action="store", help="The part number to process in this instance", dest="part", type=int, default=1)
@@ -26,7 +27,7 @@ p.add_argument("-fw", action="store", help="Frame width in pixels (default 1920)
 p.add_argument("-fh", action="store", help="Frame height in pixels (default 1080)", dest="frameh", type=int, default=1080)
 args = p.parse_args()
 
-(framedir,nparts,part,framew,frameh) = (args.framedir,args.nparts,args.part,args.framew,args.frameh)
+(framedir,Wonly,nparts,part,framew,frameh) = (args.framedir,args.Wonly,args.nparts,args.part,args.framew,args.frameh)
 
 def pr_exit(str):
     print("ERROR:" + str)
@@ -35,12 +36,12 @@ def pr_exit(str):
 if nparts <= 0: pr_exit("Number of parts must be positive, but %d <= 0" % nparts)
 if part <= 0 or part > nparts: pr_exit("The part number must lie between 1 and %d,  but %d <= 0" % (nparts, part))
 
-(t,Nt,W,rho,phi,Wmin,Wmax,rho_min,rho_max,phi_min,phi_max,descr,
-  Wlevels,Wticks,Wfilenames,x1,x2,Nx,p1,p2,Np,H,Hmin,Hmax) = ([] for _ in range(24))
+(t,Nt,W,rho,phi,Wmin,Wmax,rho_min,rho_max,phi_min,phi_max,descr,H0,
+  Wlevels,Wticks,Wfilenames,x1,x2,Nx,p1,p2,Np,H,Hmin,Hmax) = ([] for _ in range(25))
 
 for sfilename in args.sfilenames:
     with load(sfilename + '.npz') as data:
-        t.append(data['t']); rho.append(data['rho']); phi.append(data['phi']); H.append(data['H'])
+        t.append(data['t']); rho.append(data['rho']); phi.append(data['phi']); H.append(data['H']); H0.append(data['H0'])
         params = data['params'][()]
         Wmin.append(params['Wmin']); Wmax.append(params['Wmax'])
         Wlevels.append(linspace(Wmin[-1], Wmax[-1], args.clevels)); Wticks.append(linspace(Wmin[-1], Wmax[-1], 10))
@@ -58,7 +59,7 @@ pvdp = [linspace(p1i, p2i, Npi, endpoint=False, retstep=True) for (p1i,p2i,Npi) 
 dx = [a[1] for a in xvdx]
 dp = [a[1] for a in pvdp]
 xxpp = [mgrid[x1i:x2i-dxi:Nxi*1j, p1i:p2i-dpi:Npi*1j] for (x1i,x2i,dxi,Nxi,p1i,p2i,dpi,Npi) in zip(x1,x2,dx,Nx,p1,p2,dp,Np)]
-Hlevels =  [linspace(hmin, hmax, 10) for (hmin,hmax) in zip(Hmin,Hmax)]
+Hlevels =  [unique(append(linspace(hmin, hmax, 10),h0)) for (hmin,hmax,h0) in zip(Hmin,Hmax,H0)]
 
 def fmt(x, pos):
     return "%3.2f" % x
@@ -84,12 +85,17 @@ total_frames = len(time_range)
 print(prog_prefix + "processing %d frames" % total_frames)
 frames = 0
 for k in time_range:
-    fig, axes = plt.subplots(nsol, 3, figsize=(framew/100,frameh/100), dpi=100)
+    if Wonly:
+        fig, axes = plt.subplots(nsol, 1, figsize=(framew/100,frameh/100), dpi=100)
+    else:
+        fig, axes = plt.subplots(nsol, 3, figsize=(framew/100,frameh/100), dpi=100)
     
     s = 0
     if nsol == 1: axes_list = [axes]
     else: axes_list = axes
     for ax in axes_list:
+        if Wonly:
+            ax = [ax]
         xx,pp = xxpp[s][0],xxpp[s][1]
         xv = xvdx[s][0]
         pv = pvdp[s][0]
@@ -108,26 +114,27 @@ for k in time_range:
         ax[0].set_xlim([x1[s],x2[s]-dx[s]])
         ax[0].set_ylim([p1[s],p2[s]-dp[s]])
 
-        ax[1].set_title(r"Spatial density $\rho(x,t)$")
-        rho_now = rho[s][time_index]
-        ax[1].plot(xv, rho_now, color='black')
-        ax[1].fill_between(xv, 0, rho_now, where=rho_now>0, color='red', interpolate=True)
-        ax[1].fill_between(xv, 0, rho_now, where=rho_now<0, color='blue', interpolate=True)
-        ax[1].set_ylabel(r'$\rho$')
-        ax[1].set_xlabel('$x$')
-        ax[1].set_xlim([x1[s],x2[s]-dx[s]])
-        ax[1].text(0.8, 0.8, "t=% 6.3f" % t[s][time_index], transform=ax[1].transAxes)
-        ax[1].set_ylim([1.02*rho_min[s],1.02*rho_max[s]])
+        if not Wonly:
+            ax[1].set_title(r"Spatial density $\rho(x,t)$")
+            rho_now = rho[s][time_index]
+            ax[1].plot(xv, rho_now, color='black')
+            ax[1].fill_between(xv, 0, rho_now, where=rho_now>0, color='red', interpolate=True)
+            ax[1].fill_between(xv, 0, rho_now, where=rho_now<0, color='blue', interpolate=True)
+            ax[1].set_ylabel(r'$\rho$')
+            ax[1].set_xlabel('$x$')
+            ax[1].set_xlim([x1[s],x2[s]-dx[s]])
+            ax[1].text(0.8, 0.8, "t=% 6.3f" % t[s][time_index], transform=ax[1].transAxes)
+            ax[1].set_ylim([1.02*rho_min[s],1.02*rho_max[s]])
 
-        ax[2].set_title(r"Momentum density $\varphi(p,t)$")
-        phi_now = phi[s][time_index]
-        ax[2].plot(pv, phi_now, color='black')
-        ax[2].fill_between(pv, 0, phi_now, where=phi_now>0, color='red', interpolate=True)
-        ax[2].fill_between(pv, 0, phi_now, where=phi_now<0, color='blue', interpolate=True)
-        ax[2].set_ylabel(r'$\varphi$')
-        ax[2].set_xlabel('$p$')
-        ax[2].set_xlim([p1[s],p2[s]-dp[s]])
-        ax[2].set_ylim([1.02*phi_min[s],1.02*phi_max[s]])
+            ax[2].set_title(r"Momentum density $\varphi(p,t)$")
+            phi_now = phi[s][time_index]
+            ax[2].plot(pv, phi_now, color='black')
+            ax[2].fill_between(pv, 0, phi_now, where=phi_now>0, color='red', interpolate=True)
+            ax[2].fill_between(pv, 0, phi_now, where=phi_now<0, color='blue', interpolate=True)
+            ax[2].set_ylabel(r'$\varphi$')
+            ax[2].set_xlabel('$p$')
+            ax[2].set_xlim([p1[s],p2[s]-dp[s]])
+            ax[2].set_ylim([1.02*phi_min[s],1.02*phi_max[s]])
         s += 1
 
     plt.tight_layout()

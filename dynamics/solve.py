@@ -4,16 +4,16 @@
    License: GPL
 """
 
-from numpy import linspace, mgrid, pi, newaxis, exp, real, savez, amin, amax, sum, abs, memmap, sqrt, sign
+from numpy import linspace, mgrid, pi, newaxis, exp, real, savez, amin, amax, sum, abs, memmap, sqrt, sign, zeros, array
 import argparse as arg
 from time import time
 
 p = arg.ArgumentParser(description="Quantum Infodynamics Tools - Equations Solver")
 p.add_argument("-d",  action="store", help="Description text", dest="descr", required=True)
-p.add_argument("-x0", action="store", help="Initial wave packet's x-coordinate", dest="x0", type=float, required=True)
-p.add_argument("-p0", action="store", help="Initial wave packet's p-coordinate", dest="p0", type=float, required=True)
-p.add_argument("-sigmax", action="store", help="Initial wave packet's x-deviation", dest="sigmax", type=float, required=True)
-p.add_argument("-sigmap", action="store", help="Initial wave packet's p-deviation ", dest="sigmap", type=float, required=True)
+p.add_argument("-x0", action="append", help="Initial packet's x-coordinate (multiple OK)", dest="x0", type=float, required=True, default=[])
+p.add_argument("-p0", action="append", help="Initial packet's p-coordinate (multiple OK)", dest="p0", type=float, required=True, default=[])
+p.add_argument("-sigmax", action="append", help="Initial packet's σx (multiple OK)", dest="sigmax", type=float, required=True, default=[])
+p.add_argument("-sigmap", action="append", help="Initial packet's σp (multiple OK)", dest="sigmap", type=float, required=True, default=[])
 p.add_argument("-x1", action="store", help="Starting coordinate", dest="x1", type=float, required=True)
 p.add_argument("-x2", action="store", help="Final coordinate", dest="x2", type=float, required=True)
 p.add_argument("-Nx", action="store", help="Number of points in x direction", dest="Nx", type=int, required=True)
@@ -33,8 +33,9 @@ args = p.parse_args()
 sfilename = args.sfilename
 Wfilename = sfilename + '_W.npz'
 
-(descr,x0,p0,sigmax,sigmap,x1,x2,Nx,p1,p2,Np,t1,t2,tol,mass) = (args.descr,args.x0,args.p0,args.sigmax,args.sigmap,
-                                    args.x1,args.x2,args.Nx,args.p1,args.p2,args.Np,args.t1,args.t2, args.tol,args.mass)
+(descr,x1,x2,Nx,p1,p2,Np,t1,t2,tol,mass) = (args.descr,args.x1,args.x2,args.Nx,args.p1,args.p2,args.Np,args.t1,args.t2,args.tol,args.mass)
+
+(x0,p0,sigmax,sigmap) = map(array, (args.x0, args.p0, args.sigmax, args.sigmap))
 
 def pr_msg(str):
     print(descr + ": " + str)
@@ -43,10 +44,16 @@ def pr_exit(str):
     pr_msg("ERROR: " + str)
     exit()
 
+if Nx & (Nx-1): pr_msg("WARNING: Nx=%d is not a power 2, FFT may be slowed down" % Nx)
+if Np & (Np-1): pr_msg("WARNING: Np=%d is not a power 2, FFT may be slowed down" % Np)
+
+assert tol > 0 and mass > 0 and x2 > x1 and p2 > p1 and Nx > 0 and Np > 0
+npoints = len(x0)
+assert p0.shape == (npoints,) and sigmax.shape == (npoints,) and sigmap.shape == (npoints,)
+
 Umod = __import__(args.srcU) # load the physical model (U(x) and dUdx(x) definitions)
 
-# auto-select FFT implementation: pyfftw is the fastest and numpy is the slowest
-try:
+try: # auto-select FFT implementation: pyfftw is the fastest and numpy is the slowest
     import pyfftw
 except ImportError:
     pr_msg("WARNING: pyfftw not available, trying scipy")
@@ -62,18 +69,6 @@ else:
     from pyfftw.interfaces.numpy_fft import fft, fftshift, ifftshift, ifft
     pyfftw.interfaces.cache.enable()
     pyfftw.interfaces.cache.set_keepalive_time(10)
-
-if tol <= 0: pr_exit("Tolerance must be positive, but %f <=0" % tol)
-if mass < 0: pr_exit("Mass cannot be negative, but %f < 0" % mass)
-if x2 <= x1: pr_exit("x2 must be greater than x1, but %f <= %f" %(x2,x1))
-if p2 <= p1: pr_exit("p2 must be greater than p1, but %f <= %f" %(p2,p1))
-if t2 <= t1: pr_exit("t2 must be greater than t1, but %f <= %f" %(t2,t1))
-if Nx <= 0: pr_exit("Nx must be positive, but %d <= 0" % Nx)
-if Np <= 0: pr_exit("Np must be positive, but %d <= 0" % Np)
-if sigmax <= 0: pr_exit("sigmax must be positive, but %f <= 0" % sigmax)
-if sigmap <= 0: pr_exit("sigmap must be positive, but %f <= 0" % sigmap)
-if Nx & (Nx-1): print("WARNING: Nx=%d is not a power 2, FFT may be slowed down" % Nx)
-if Np & (Np-1): print("WARNING: Np=%d is not a power 2, FFT may be slowed down" % Np)
 
 # construct the mesh grid for evaluating f0(x,p), U(x), dUdx(x), T(p), dTdp(p)
 xv,dx = linspace(x1, x2, Nx, endpoint=False, retstep=True)
@@ -105,7 +100,8 @@ def qd(f, x, dx):
     #hbar = 1.0545718e-34 # Planck's constant in J*s (SI)
     return (f(x+1j*hbar*dx/2.) - f(x-1j*hbar*dx/2.))/(1j*hbar)
 
-c = 137.03604 # speed of light in a.u.
+#c = 137.03604 # speed of light in a.u.
+c = 1.0 # speed of light in 'natural units'
 
 def dTdp_rel(p):
     if mass == 0.0:
@@ -150,7 +146,12 @@ def adjust_step(cur_dt, Winit, maxtries=15):
 
 t_start = time()
 dt = (t2-t1)/20. # the first very rough guess of time step
-W = [fftshift(gauss(xx,pp,x0,p0,sigmax,sigmap))]
+Winit = zeros((Nx,Np))
+for (ax0,ap0,asigmax,asigmap) in zip(x0, p0, sigmax, sigmap):
+    Winit += gauss(xx,pp,ax0,ap0,asigmax,asigmap)
+Winit /= npoints
+
+W = [fftshift(Winit)]
 tv = [t1]
 t = t1
 Nt = 1
@@ -181,12 +182,12 @@ if args.relat: # so we can compare it with the non-relativistic kinetic energy
     Tv -= Erest
 
 params = {'Wmin': amin(W), 'Wmax': amax(W), 'rho_min': amin(rho), 'rho_max': amax(rho),
-          'Hmin': amin(H), 'Hmax': amax(H), 'Emin': amin(E), 'Emax': amax(E), 'H0': T(p0) + Umod.U(x0),
+          'Hmin': amin(H), 'Hmax': amax(H), 'Emin': amin(E), 'Emax': amax(E),
           'phi_min': amin(phi), 'phi_max': amax(phi), 'tol': tol, 'Wfilename': Wfilename, 'Nt': Nt,
           'x1': x1, 'x2': x2, 'Nx': Nx, 'p1': p1, 'p2': p2, 'Np': Np, 'descr': descr}
 
 t_start = time()
-savez(sfilename, t=tv, rho=rho, phi=phi, H=H, U=Uv, T=Tv, E=E, params=params)
+savez(sfilename, t=tv, rho=rho, phi=phi, H=H, U=Uv, T=Tv, E=E, H0=T(p0)+Umod.U(x0), params=params)
 fp = memmap(Wfilename, dtype='float64', mode='w+', shape=(Nt, Nx, Np))
 fp[:] = W[:]
 del fp # causes the flush of memmap
