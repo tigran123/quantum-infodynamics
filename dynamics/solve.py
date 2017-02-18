@@ -47,7 +47,7 @@ def pr_exit(str):
 if Nx & (Nx-1): pr_msg("WARNING: Nx=%d is not a power 2, FFT may be slowed down" % Nx)
 if Np & (Np-1): pr_msg("WARNING: Np=%d is not a power 2, FFT may be slowed down" % Np)
 
-assert tol > 0 and mass > 0 and x2 > x1 and p2 > p1 and Nx > 0 and Np > 0
+assert tol > 0 and mass >= 0 and x2 > x1 and p2 > p1 and Nx > 0 and Np > 0
 npoints = len(x0)
 assert p0.shape == (npoints,) and sigmax.shape == (npoints,) and sigmap.shape == (npoints,)
 
