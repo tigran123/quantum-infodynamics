@@ -238,7 +238,7 @@ params = {'Wmin': amin(W), 'Wmax': amax(W), 'rho_min': amin(rho), 'rho_max': ama
 
 t_start = time()
 savez(sfilename, t=tv, rho=rho, phi=phi, H=H, U=Uv, T=Tv, E=E, H0=T(px0,py0)+Umod.U(x0,y0), params=params)
-fp = memmap(Wfilename, dtype='float64', mode='w+', shape=(Nt, Nx, Np))
+fp = memmap(Wfilename, dtype='float64', mode='w+', shape=(Nt, Nx, Ny, Npx, Npy))
 fp[:] = W[:]
 del fp # causes the flush of memmap
 pr_msg("solution saved in %.1fs" % (time() - t_start))
