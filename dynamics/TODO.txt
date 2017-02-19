@@ -1,6 +1,7 @@
 The list of things to do
 ------------------------
 
-* Investigate single and dual potential wells
+* Implement 2D (phase space 4D) solver as a separate utility solve4D.py
 
-* Start work on the 2-dimensional solver
+* Try the native pyfftw allocation and plan preparation and see if it makes things faster
+
