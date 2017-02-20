@@ -137,11 +137,11 @@ def draw_frame(W, Wexact, k):
     ax1.set_ylim([y1,y2-dy])
     ax1.set_title("Spatial density (EXACT)")
 
-    ax2.imshow(phi_exact.T, origin='lower', interpolation='none', extent=[x1,x2-dx,y1,y2-dy],vmin=amin(phi_exact), vmax=amax(phi_exact))
-    ax2.set_xlabel('x')
-    ax2.set_ylabel('y')
-    ax2.set_xlim([x1,x2-dx])
-    ax2.set_ylim([y1,y2-dy])
+    ax2.imshow(phi_exact.T, origin='lower', interpolation='none', extent=[px1,px2-dpx,py1,py2-dpy],vmin=amin(phi_exact), vmax=amax(phi_exact))
+    ax2.set_xlabel('Px')
+    ax2.set_ylabel('Py')
+    ax2.set_xlim([px1,px2-dpx])
+    ax2.set_ylim([py1,py2-dpy])
     ax2.set_title("Momentum density (EXACT)")
 
     ax3.imshow(rho.T, origin='lower', interpolation='none', extent=[x1,x2-dx,y1,y2-dy],vmin=amin(rho), vmax=amax(rho))
@@ -151,11 +151,11 @@ def draw_frame(W, Wexact, k):
     ax3.set_ylim([y1,y2-dy])
     ax3.set_title("Spatial density (NUMERIC)")
 
-    ax4.imshow(phi.T, origin='lower', interpolation='none', extent=[x1,x2-dx,y1,y2-dy],vmin=amin(phi), vmax=amax(phi))
+    ax2.imshow(phi.T, origin='lower', interpolation='none', extent=[px1,px2-dpx,py1,py2-dpy],vmin=amin(phi_exact), vmax=amax(phi_exact))
     ax4.set_xlabel('x')
     ax4.set_ylabel('y')
-    ax4.set_xlim([x1,x2-dx])
-    ax4.set_ylim([y1,y2-dy])
+    ax2.set_xlim([px1,px2-dpx])
+    ax2.set_ylim([py1,py2-dpy])
     ax4.set_title("Momentum density (NUMERIC)")
 
     plt.tight_layout()
