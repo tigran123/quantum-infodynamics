@@ -86,7 +86,7 @@ else:
 
 # construct the mesh grid for evaluating f0(x,y,px,py), U(x,y), dUdx(x,y), dUdy(x,y), T(px,py), dTdpx(px,py), dTdpy(px,py)
 xv,dx = linspace(x1, x2, Nx, endpoint=False, retstep=True)
-yv,dy = linspace(y1, y2, Nx, endpoint=False, retstep=True)
+yv,dy = linspace(y1, y2, Ny, endpoint=False, retstep=True)
 pxv,dpx = linspace(px1, px2, Npx, endpoint=False, retstep=True)
 pyv,dpy = linspace(py1, py2, Npx, endpoint=False, retstep=True)
 xgrid,ygrid,pxgrid,pygrid = mgrid[x1:x2-dx:Nx*1j,y1:y2-dy:Ny*1j,px1:px2-dpx:Npx*1j,py1:py2-dpy:Npy*1j]
@@ -108,7 +108,7 @@ lamxv = linspace(-lamx_amp, lamx_amp - dlamx, Nx)
 
 dlamy = 2.*pi/(y2-y1)
 lamy_amp = dlamy*Ny/2.
-lamyv = linspace(-lamy_amp, lamy_amp - dlamy, Nx)
+lamyv = linspace(-lamy_amp, lamy_amp - dlamy, Ny)
 
 # now shift them all to center zero frequency
 X = fftshift(xv)[:,newaxis,newaxis,newaxis]
