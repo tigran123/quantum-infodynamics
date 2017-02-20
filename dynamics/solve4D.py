@@ -88,7 +88,7 @@ else:
 xv,dx = linspace(x1, x2, Nx, endpoint=False, retstep=True)
 yv,dy = linspace(y1, y2, Ny, endpoint=False, retstep=True)
 pxv,dpx = linspace(px1, px2, Npx, endpoint=False, retstep=True)
-pyv,dpy = linspace(py1, py2, Npx, endpoint=False, retstep=True)
+pyv,dpy = linspace(py1, py2, Npy, endpoint=False, retstep=True)
 xgrid,ygrid,pxgrid,pygrid = mgrid[x1:x2-dx:Nx*1j,y1:y2-dy:Ny*1j,px1:px2-dpx:Npx*1j,py1:py2-dpy:Npy*1j]
 xx,yy = mgrid[x1:x2-dx:Nx*1j,y1:y2-dy:Ny*1j]
 
