@@ -180,22 +180,13 @@ def qd(f, x, dx, y, dy, z, dz):
 c = 1.0 # speed of light in 'natural units'
 
 def dTdpx_rel(px, py, pz):
-    if mass == 0.0:
-        return c*abs(px)/sqrt(px**2 + py**2 + pz**2)
-    else:
-        return c*px/sqrt(px**2 + py**2 + pz**2 + mass**2*c**2)
+    return c*px/sqrt(px**2 + py**2 + pz**2 + mass**2*c**2)
 
 def dTdpy_rel(px, py, pz):
-    if mass == 0.0:
-        return c*abs(py)/sqrt(px**2 + py**2 + pz**2)
-    else:
-        return c*py/sqrt(px**2 + py**2 + pz**2 + mass**2*c**2)
+    return c*py/sqrt(px**2 + py**2 + pz**2 + mass**2*c**2)
 
 def dTdpz_rel(px, py, pz):
-    if mass == 0.0:
-        return c*abs(pz)/sqrt(px**2 + py**2 + pz**2)
-    else:
-        return c*pz/sqrt(px**2 + py**2 + pz**2 + mass**2*c**2)
+    return c*pz/sqrt(px**2 + py**2 + pz**2 + mass**2*c**2)
 
 if args.relat:
     T = lambda px, py, pz: c*sqrt(px**2 + py**2 + pz**2 + mass**2*c**2)
@@ -251,46 +242,41 @@ for (ax0,ay0,az0,apx0,apy0,apz0,asigmax,asigmay,asigmaz,asigmapx,asigmapy,asigma
     Winit += gauss(xgrid, ygrid, zgrid, pxgrid, pygrid, pzgrid, ax0, ay0, az0, apx0, apy0, apz0, asigmax, asigmay, asigmaz, asigmapx, asigmapy, asigmapz)
 Winit /= npoints
 
-W = [fftshift(Winit)]
+rho = []
+phi = []
+W = fftshift(Winit)
 tv = [t1]
 t = t1
 Nt = 1
 while t <= t2:
     if Nt%300 == 299: pr_msg("step %d"%Nt)
     if Nt%20 == 1:
-        (Wnext, new_dt, expU, expT) = adjust_step(dt, W[-1])
-        W.append(Wnext)
+        (W, new_dt, expU, expT) = adjust_step(dt, W)
         if new_dt != dt:
             est_steps = (t2-t)//new_dt + 1
             pr_msg("step %d, dt %.4f -> %.4f, ~%d steps left" %(Nt,dt,new_dt,est_steps))
             dt = new_dt
     else:
-        W.append(solve_spectral(W[-1], expU, expT))
+        W = solve_spectral(W, expU, expT)
+    Ws = ifftshift(W)
+    rho.append(sum(Ws, axis=(3,4,5))*dpx*dpy*dpz)
+    phi.append(sum(Ws, axis=(0,1,2))*dx*dy*dz)
     t += dt
     Nt += 1
     tv.append(t)
 
 pr_msg("solved in %.1fs, %d steps" % (time() - t_start, Nt))
 
-W = ifftshift(W, axes=(1,2,3,4,5,6))
-rho = sum(W, axis=(4,5,6))*dpx*dpy*dpz
-phi = sum(W, axis=(1,2,3))*dx*dy*dz
-E = sum(H*W,axis=(1,2,3,4,5,6))*dx*dy*dz*dpx*dpy*dpz
-
-if args.relat: # so we can compare it with the non-relativistic kinetic energy
-    Erest = mass*c**2
-    E -= Erest
-
 params = {'Wmin': amin(W), 'Wmax': amax(W), 'rho_min': amin(rho), 'rho_max': amax(rho),
-          'Hmin': amin(H), 'Hmax': amax(H), 'Emin': amin(E), 'Emax': amax(E),
+          'Hmin': amin(H), 'Hmax': amax(H), 
           'phi_min': amin(phi), 'phi_max': amax(phi), 'tol': tol, 'Wfilename': Wfilename, 'Nt': Nt,
           'x1': x1, 'x2': x2, 'Nx': Nx, 'y1': y1, 'y2': y2, 'Ny': Ny, 'z1': z1, 'z2': z2, 'Nz': Nz,
           'px1': px1, 'px2': px2, 'Npx': Npx, 'py1': py1, 'py2': py2, 'Npy': Npy, 'pz1': pz1, 'pz2': pz2, 'Npz': Npz,
           'descr': descr}
 
 t_start = time()
-savez(sfilename, t=tv, rho=rho, phi=phi, H=H, E=E, H0=T(px0,py0,pz0)+Umod.U(x0,y0,z0), params=params)
-fp = memmap(Wfilename, dtype='float64', mode='w+', shape=(Nt, Nx, Ny, Nz, Npx, Npy, Npz))
-fp[:] = W[:]
-del fp # causes the flush of memmap
+savez(sfilename, t=tv, rho=rho, phi=phi, H=H, H0=T(px0,py0,pz0)+Umod.U(x0,y0,z0), params=params)
+#fp = memmap(Wfilename, dtype='float64', mode='w+', shape=(Nt, Nx, Ny, Nz, Npx, Npy, Npz))
+#fp[:] = W[:]
+#del fp # causes the flush of memmap
 pr_msg("solution saved in %.1fs" % (time() - t_start))

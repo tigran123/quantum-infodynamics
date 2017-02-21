@@ -134,16 +134,10 @@ def qd(f, x, dx, y, dy):
 c = 1.0 # speed of light in 'natural units'
 
 def dTdpx_rel(px, py):
-    if mass == 0.0:
-        return c*abs(px)/sqrt(px**2 + py**2)
-    else:
-        return c*px/sqrt(px**2 + py**2 + mass**2*c**2)
+    return c*px/sqrt(px**2 + py**2 + mass**2*c**2)
 
 def dTdpy_rel(px, py):
-    if mass == 0.0:
-        return c*abs(py)/sqrt(px**2 + py**2)
-    else:
-        return c*py/sqrt(px**2 + py**2 + mass**2*c**2)
+    return c*py/sqrt(px**2 + py**2 + mass**2*c**2)
 
 if args.relat:
     T = lambda px, py: c*sqrt(px**2 + py**2 + mass**2*c**2)
