@@ -179,20 +179,11 @@ def qd(f, x, dx, y, dy, z, dz):
 #c = 137.03604 # speed of light in a.u.
 c = 1.0 # speed of light in 'natural units'
 
-def dTdpx_rel(px, py, pz):
-    return c*px/sqrt(px**2 + py**2 + pz**2 + mass**2*c**2)
-
-def dTdpy_rel(px, py, pz):
-    return c*py/sqrt(px**2 + py**2 + pz**2 + mass**2*c**2)
-
-def dTdpz_rel(px, py, pz):
-    return c*pz/sqrt(px**2 + py**2 + pz**2 + mass**2*c**2)
-
 if args.relat:
     T = lambda px, py, pz: c*sqrt(px**2 + py**2 + pz**2 + mass**2*c**2)
-    dTdpx = dTdpx_rel
-    dTdpy = dTdpy_rel
-    dTdpz = dTdpz_rel
+    dTdpx = lambda px, py, pz: c*px/sqrt(px**2 + py**2 + pz**2 + mass**2*c**2)
+    dTdpy = lambda px, py, pz: c*py/sqrt(px**2 + py**2 + pz**2 + mass**2*c**2)
+    dTdpz = lambda px, py, pz: c*pz/sqrt(px**2 + py**2 + pz**2 + mass**2*c**2)
 else:
     T = lambda px, py, pz: (px**2 + py**2 + pz**2)/(2.*mass)
     dTdpx = lambda px, py, pz: px/mass
@@ -203,10 +194,10 @@ if args.classical:
     dU = Umod.dUdx(X,Y,Z)*1j*ThetaX + Umod.dUdy(X,Y,Z)*1j*ThetaY + Umod.dUdz(X,Y,Z)*1j*ThetaZ
     dT = -1j*(dTdpx(Px,Py,Pz)*LamX + dTdpy(Px,Py,Pz)*LamY + dTdpz(Px,Py,Pz)*LamZ)/2.
 else:
-    dU = qd(Umod.U, X, 1j*ThetaX, Y, 1j*ThetaY, Z, 1j*ThetaZ)
-    dT = qd(T, Px, -1j*LamX, Py, -1j*LamY, Pz, -1j*LamZ)/2.
+    dU = qd(Umod.U, X,   1j*ThetaX, Y,  1j*ThetaY, Z,  1j*ThetaZ)
+    dT = qd(T,      Px, -1j*LamX,  Py, -1j*LamY,  Pz, -1j*LamZ)/2.
 
-H = T(pxgrid,pygrid,pzgrid)+Umod.U(xgrid,ygrid,zgrid)
+H = T(pxgrid,pygrid,pzgrid) + Umod.U(xgrid,ygrid,zgrid)
 
 def solve_spectral(Winit, expU, expT):
     B = fftn(Winit, axes=(0,1,2)) # (x,y,z,px,py,pz) -> (λx,λy,λz,px,py,pz)
