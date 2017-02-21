@@ -1,5 +1,4 @@
 workdir=$(mktemp -d ${TMPDIR:-/tmp}/solanim.XXXX)
-mkdir -p $workdir/frames
 
 SOLQR=$workdir/solqr
 SOLCR=$workdir/solcr
@@ -15,10 +14,12 @@ python3 solve.py -d "Quantum Non-relativistic Oscillator" $PARAMS -tol 0.01 -s $
 python3 solve.py -c -d "Classical Non-relativistic Oscillator" $PARAMS -tol 0.01 -s $SOLCN &
 wait
 
+#mkdir -p $workdir/frames
 #python3 solanim.py -P 4 -p 1 -d $workdir/frames -s $SOLQR -s $SOLCR -s $SOLQN -s $SOLCN &
 #python3 solanim.py -P 4 -p 2 -d $workdir/frames -s $SOLQR -s $SOLCR -s $SOLQN -s $SOLCN &
 #python3 solanim.py -P 4 -p 3 -d $workdir/frames -s $SOLQR -s $SOLCR -s $SOLQN -s $SOLCN &
 #python3 solanim.py -P 4 -p 4 -d $workdir/frames -s $SOLQR -s $SOLCR -s $SOLQN -s $SOLCN &
 #wait
 #ffmpeg -loglevel quiet -y -r 25 -f image2 -i $workdir/frames/%05d.png -f mp4 -q:v 0 -vcodec libx264 -r 25 $MOVIE_FILE
+
 python3 solplay.py -o $MOVIE_FILE -s $SOLQR -s $SOLCR -s $SOLQN -s $SOLCN
