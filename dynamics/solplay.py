@@ -117,14 +117,26 @@ if not ofilename: fig.show()
 
 progress = ProgressBar(time_steps, msg="Preloading" if preload else "Playing back")
 
+frame = 0
+
+def next_frame():
+    global frame
+    frame += 1
+    if frame == time_steps: frame = 0
+
+def prev_frame():
+    global frame
+    frame -= 1
+    if frame == -1: frame = time_steps - 1
+
 def animate_all(k):
     s = 0
     artists = []
     for ax in axes:
         if s == s_longest:
-            time_index = k
+            time_index = frame
         else: # find an element in t[s] closest to the current time value (i.e. t_longest[k])
-            time_index = abs(t[s] - t_longest[k]).argmin()
+            time_index = abs(t[s] - t_longest[frame]).argmin()
         if not preload:
             for c in c_artists[s].collections: c.remove()
         c_artists[s] = ax[0].contourf(xx, pp, W[s][time_index], levels=Wlevels[s], norm=norm[s], cmap=cm.bwr, animated=True)
@@ -141,7 +153,8 @@ def animate_all(k):
                     [U_artists[s],T_artists[s],rho_init_artists[s],rho_artist,rho_plus,rho_minus,
                      phi_init_artists[s],phi_artist,phi_plus,phi_minus,text_artist])
         s += 1
-    progress.update(k)
+    if preload: progress.update(frame)
+    if anim_running: next_frame()
     return artists
 
 def animate_Wonly(k):
@@ -149,38 +162,38 @@ def animate_Wonly(k):
     artists = []
     for ax in axes:
         if s == s_longest:
-            time_index = k
-        else: # find an element in t[s] closest to the current time value (i.e. t_longest[k])
-            time_index = abs(t[s] - t_longest[k]).argmin()
+            time_index = frame
+        else: # find an element in t[s] closest to the current time value (i.e. t_longest[frame])
+            time_index = abs(t[s] - t_longest[frame]).argmin()
         if not preload:
             for c in c_artists[s].collections: c.remove()
         c_artists[s] = ax.contourf(xx, pp, W[s][time_index], levels=Wlevels[s], norm=norm[s], cmap=cm.bwr, animated=True)
         artists.extend(c_artists[s].collections + h_artists[s].collections)
         s += 1
-    progress.update(k)
+    if preload: progress.update(frame)
+    if anim_running: next_frame()
     return artists
 
-if Wonly:
-   animate = animate_Wonly
-else:
-   animate = animate_all
+animate = animate_Wonly if Wonly else animate_all
 
 def keypress(event):
     global anim_running
-    if event.key == ' ': # SPACE: pause and resume animation
-        if anim and anim.event_source:
+    if event.key == ' ':
+        if preload and anim and anim.event_source:
             anim.event_source.stop() if anim_running else anim.event_source.start()
-            anim_running ^= True
+        anim_running ^= True
+    elif event.key == 't' and not anim_running: next_frame()
+    elif event.key == 'T' and not anim_running: prev_frame()
 
-anim_running = False
+anim_running = True
 fig.canvas.mpl_connect('key_press_event', keypress)
 
 if preload:
     t_start = time()
-    anim = animation.ArtistAnimation(fig, [animate(k) for k in range(time_steps)], interval=0, repeat_delay = 1000, blit=True)
+    anim = animation.ArtistAnimation(fig, [animate(k) for k in range(time_steps)], interval=0, repeat_delay = 0, blit=True)
     print(" OK [%.1fs]" % (time()-t_start))
 else:
-    anim = animation.FuncAnimation(fig, animate, frames=time_steps, interval=0, repeat_delay = 1000, blit=True)
+    anim = animation.FuncAnimation(fig, animate, frames=time_steps, interval=0, repeat_delay = 0, blit=True)
 
 if ofilename:
     t_start = time()
@@ -188,5 +201,4 @@ if ofilename:
     anim.save(ofilename, fps=fps, extra_args=['-vcodec', 'libx264'])
     print("OK [%.1fs]" % (time()-t_start))
 else:
-    anim_running = True
     plt.show()
