@@ -19,7 +19,7 @@ mplt.rc('font', family='serif', size=11)
 p = argp(description="Quantum Infodynamics Tools - Solution Animator")
 p.add_argument("-s", action="append", help="Solution data filename (multiple OK)", dest="sfilenames", required=True, default=[])
 p.add_argument("-W",  action="store_true", help="Animate W(x,p,t) only", dest="Wonly")
-p.add_argument("-c", action="store", help="Number of contour levels of W(x,p,t) to plot (default 100)", dest="clevels", type=int, default=100)
+p.add_argument("-c", action="store", help="Number of contour levels of W(x,p,t) to plot (default 20)", dest="clevels", type=int, default=20)
 p.add_argument("-P", action="store", help="Number of parts to split the time range into", dest="nparts", type=int, default=1)
 p.add_argument("-p", action="store", help="The part number to process in this instance", dest="part", type=int, default=1)
 p.add_argument("-d", action="store", help="Frames directory", dest="framedir", required=True)
@@ -37,12 +37,13 @@ if nparts <= 0: pr_exit("Number of parts must be positive, but %d <= 0" % nparts
 if part <= 0 or part > nparts: pr_exit("The part number must lie between 1 and %d,  but %d <= 0" % (nparts, part))
 
 (t,Nt,W,rho,phi,Wmin,Wmax,rho_min,rho_max,phi_min,phi_max,descr,H0,
-  Wlevels,Wticks,Wfilenames,x1,x2,Nx,p1,p2,Np,H,Hmin,Hmax) = ([] for _ in range(25))
+  Wlevels,Wticks,Wfilenames,x1,x2,Nx,p1,p2,Np,H,Hmin,Hmax,E,Emin,Emax) = ([] for _ in range(28))
 
 for sfilename in args.sfilenames:
     with load(sfilename + '.npz') as data:
         t.append(data['t']); rho.append(data['rho']); phi.append(data['phi']); H.append(data['H']); H0.append(data['H0'])
         params = data['params'][()]
+        E.append(data['E']); Emin.append(params['Emin']); Emax.append(params['Emax'])
         Wmin.append(params['Wmin']); Wmax.append(params['Wmax'])
         Wlevels.append(linspace(Wmin[-1], Wmax[-1], args.clevels)); Wticks.append(linspace(Wmin[-1], Wmax[-1], 10))
         rho_min.append(params['rho_min']); rho_max.append(params['rho_max'])
@@ -115,7 +116,7 @@ for k in time_range:
         ax[0].set_ylim([p1[s],p2[s]-dp[s]])
 
         if not Wonly:
-            ax[1].set_title(r"Spatial density $\rho(x,t)$")
+            ax[1].set_title(r"$\rho(x,t), E_0=$ % 6.3f, $E_{min}=$% 6.3f, $E_{max}=$% 6.3f" % (E[s][0],Emin[s],Emax[s]))
             rho_now = rho[s][time_index]
             ax[1].plot(xv, rho_now, color='black')
             ax[1].plot(xv, rho[s][0], color='green', label=r'$\rho_0(x)$')
@@ -125,7 +126,7 @@ for k in time_range:
             ax[1].set_ylabel(r'$\rho$')
             ax[1].set_xlabel('$x$')
             ax[1].set_xlim([x1[s],x2[s]-dx[s]])
-            ax[1].text(0.8, 0.8, "t=% 6.3f" % t[s][time_index], transform=ax[1].transAxes)
+            ax[1].text(0.05, 0.8, "E=% 6.3f\nt=% 6.4f" % (E[s][time_index],t[s][time_index]), transform=ax[1].transAxes)
             ax[1].set_ylim([1.02*rho_min[s],1.02*rho_max[s]])
 
             ax[2].set_title(r"Momentum density $\varphi(p,t)$")
