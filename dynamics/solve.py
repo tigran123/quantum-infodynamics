@@ -96,8 +96,8 @@ def gauss(x, p, x0, p0, sigmax, sigmap):
     return Z*exp(-((x-x0)**2/(2.*sigmax**2)+(p-p0)**2/(2.*sigmap**2)))
 
 def qd(f, x, dx):
-    hbar = 1.0 # Planck's constant in a.u.
-    #hbar = 1.0545718e-34 # Planck's constant in J*s (SI)
+    """qdf(x,dx) --- quantum differential of function f(x) at a point x on the increment dx"""
+    hbar = 1.0 # Planck's constant enters the theory _only_ via quantum differential
     return (f(x+1j*hbar*dx/2.) - f(x-1j*hbar*dx/2.))/(1j*hbar)
 
 #c = 137.03604 # speed of light in a.u.

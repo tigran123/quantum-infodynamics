@@ -1,5 +1,5 @@
 """
-   solve.py --- Quantum Infodynamics Solver in Four-Dimensional Phase Space
+   solve4D.py --- Quantum Infodynamics Solver in Four-Dimensional Phase Space
    Author: Tigran Aivazian <aivazian.tigran@gmail.com>
    License: GPL
 """
@@ -8,7 +8,7 @@ from numpy import linspace, mgrid, pi, newaxis, exp, real, savez, amin, amax, su
 import argparse as arg
 from time import time
 
-p = arg.ArgumentParser(description="Quantum Infodynamics Tools - Equations Solver")
+p = arg.ArgumentParser(description="Quantum Infodynamics Tools - 4D Equations Solver")
 p.add_argument("-d",  action="store", help="Description text", dest="descr", required=True)
 p.add_argument("-x0", action="append", help="Initial packet's x-coordinate (multiple OK)", dest="x0", type=float, required=True, default=[])
 p.add_argument("-y0", action="append", help="Initial packet's y-coordinate (multiple OK)", dest="y0", type=float, required=True, default=[])
@@ -43,8 +43,11 @@ args = p.parse_args()
 sfilename = args.sfilename
 Wfilename = sfilename + '_W.npz'
 
-(descr,x1,x2,Nx,y1,y2,Ny,px1,px2,Npx,py1,py2,Npy,t1,t2,tol,mass) = (args.descr,args.x1,args.x2,args.Nx,args.y1,args.y2,args.Ny,
-                      args.px1,args.px2,args.Npx,args.py1,args.py2,args.Npy,args.t1,args.t2,args.tol,args.mass)
+(descr,x1, x2, Nx, y1, y2, Ny,
+       px1,px2,Npx,py1,py2,Npy,
+       t1,t2,tol,mass) = (args.descr, args.x1, args.x2, args.Nx, args.y1, args.y2, args.Ny,
+                                      args.px1,args.px2,args.Npx,args.py1,args.py2,args.Npy,
+                                      args.t1,args.t2,args.tol,args.mass)
 
 (x0,y0,px0,py0,sigmax,sigmay,sigmapx,sigmapy) = map(array, (args.x0, args.y0, args.px0, args.py0,
                                                     args.sigmax, args.sigmay, args.sigmapx, args.sigmapy))
@@ -63,7 +66,7 @@ if Npy & (Npy-1): pr_msg("WARNING: Npy=%d is not a power 2, FFT may be slowed do
 
 assert tol > 0 and mass >= 0 and x2 > x1 and y2 > y1 and px2 > px1 and py2 > py1 and Nx > 0 and Ny > 0 and Npx > 0 and Npy > 0
 npoints = len(x0)
-assert y0.shape == (npoints,) and px0.shape == (npoints,) and py0.shape == (npoints,) and sigmax.shape == (npoints,) and sigmapx.shape == (npoints,)
+assert y0.shape == (npoints,) and px0.shape == (npoints,) and py0.shape == (npoints,) and sigmax.shape == (npoints,) and sigmay.shape == (npoints,) and sigmapx.shape == (npoints,) and sigmapy.shape == (npoints,)
 
 Umod = __import__(args.srcU) # load the physical model
 
@@ -72,11 +75,11 @@ try: # auto-select FFT implementation: pyfftw is the fastest and numpy is the sl
 except ImportError:
     pr_msg("WARNING: pyfftw not available, trying scipy")
     try:
-        from scipy.fftpack import fftshift, ifftshift, fft, ifft
+        from scipy.fftpack import fftshift, ifftshift, fft2, ifft2
     except ImportError:
         pr_msg("WARNING: scipy.fftpack not available, trying numpy")
         try:
-            from numpy.fft import ifftshift, fftshift, fft, ifft
+            from numpy.fft import ifftshift, fftshift, fft2, ifft2
         except ImportError:
             pr_exit("No FFT implementation available, tried: pyfftw, scipy, numpy")
 else:
@@ -89,8 +92,7 @@ xv,dx = linspace(x1, x2, Nx, endpoint=False, retstep=True)
 yv,dy = linspace(y1, y2, Ny, endpoint=False, retstep=True)
 pxv,dpx = linspace(px1, px2, Npx, endpoint=False, retstep=True)
 pyv,dpy = linspace(py1, py2, Npy, endpoint=False, retstep=True)
-xgrid,ygrid,pxgrid,pygrid = mgrid[x1:x2-dx:Nx*1j,y1:y2-dy:Ny*1j,px1:px2-dpx:Npx*1j,py1:py2-dpy:Npy*1j]
-xx,yy = mgrid[x1:x2-dx:Nx*1j,y1:y2-dy:Ny*1j]
+xx,yy,ppx,ppy = mgrid[x1:x2-dx:Nx*1j,y1:y2-dy:Ny*1j,px1:px2-dpx:Npx*1j,py1:py2-dpy:Npy*1j]
 
 # ranges in Fourier image spaces (thetax is conjugated to px)
 dthetax = 2.*pi/(px2-px1)
@@ -116,10 +118,10 @@ Y = fftshift(yv)[newaxis,:,newaxis,newaxis]
 Px = fftshift(pxv)[newaxis,newaxis,:,newaxis]
 Py = fftshift(pyv)[newaxis,newaxis,newaxis,:]
 
-ThetaX = fftshift(thetaxv)[newaxis,newaxis,:,newaxis]
-ThetaY = fftshift(thetayv)[newaxis,newaxis,newaxis,:]
 LamX = fftshift(lamxv)[:,newaxis,newaxis,newaxis]
 LamY = fftshift(lamyv)[newaxis,:,newaxis,newaxis]
+ThetaX = fftshift(thetaxv)[newaxis,newaxis,:,newaxis]
+ThetaY = fftshift(thetayv)[newaxis,newaxis,newaxis,:]
 
 def gauss(x, y, px, py, x0, y0, px0, py0, sigmax, sigmay, sigmapx, sigmapy):
     Z = 1./(4.*pi**2*sigmax*sigmay*sigmapx*sigmapy)
@@ -149,9 +151,7 @@ else:
     dU = qd(Umod.U, X,  1j*ThetaX, Y,  1j*ThetaY)
     dT = qd(T,     Px, -1j*LamX,  Py, -1j*LamY)/2.
 
-Uv = Umod.U(xv,yv)
-Tv = T(pxv,pyv)
-H = T(pxgrid,pygrid)+Umod.U(xgrid,ygrid)
+H = T(ppx,ppy) + Umod.U(xx,yy)
 
 def solve_spectral(Winit, expU, expT):
     B = fft2(Winit, axes=(0,1)) # (x,y,px,py) -> (λx,λy,px,py)
@@ -184,7 +184,7 @@ t_start = time()
 dt = (t2-t1)/20. # the first very rough guess of time step
 Winit = zeros((Nx,Ny,Npx,Npy))
 for (ax0,ay0,apx0,apy0,asigmax,asigmay,asigmapx,asigmapy) in zip(x0, y0, px0, py0, sigmax, sigmay, sigmapx, sigmapy):
-    Winit += gauss(xgrid, ygrid, pxgrid, pygrid, ax0, ay0, apx0, apy0, asigmax, asigmay, asigmapx, asigmapy)
+    Winit += gauss(xx, yy, ppx, ppy, ax0, ay0, apx0, apy0, asigmax, asigmay, asigmapx, asigmapy)
 Winit /= npoints
 
 W = [fftshift(Winit)]
@@ -225,7 +225,7 @@ params = {'Wmin': amin(W), 'Wmax': amax(W), 'rho_min': amin(rho), 'rho_max': ama
           'descr': descr}
 
 t_start = time()
-savez(sfilename, t=tv, rho=rho, phi=phi, H=H, U=Uv, T=Tv, E=E, H0=T(px0,py0)+Umod.U(x0,y0), params=params)
+savez(sfilename, t=tv, rho=rho, phi=phi, H=H, E=E, H0=T(px0,py0)+Umod.U(x0,y0), params=params)
 fp = memmap(Wfilename, dtype='float64', mode='w+', shape=(Nt, Nx, Ny, Npx, Npy))
 fp[:] = W[:]
 del fp # causes the flush of memmap
