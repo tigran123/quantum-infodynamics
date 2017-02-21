@@ -19,18 +19,9 @@ p.add_argument("-fw", action="store", help="Frame width in pixels [1920]", dest=
 p.add_argument("-fh", action="store", help="Frame height in pixels [1080]", dest="frameh", type=int, default=1080)
 args = p.parse_args()
 
-Wonly = args.Wonly
-
-fps = args.fps
-if fps <= 0:
-   print("fps must be non-negative")
-   exit()
-
-ofilename = args.ofilename
-if ofilename:
-   preload = True
-else:
-   preload = args.preload
+Wonly, fps, ofilename, preload = args.Wonly, args.fps, args.ofilename, args.preload
+if ofilename: preload = True
+assert fps > 0
 
 import matplotlib.pyplot as plt
 from matplotlib import cm, animation
