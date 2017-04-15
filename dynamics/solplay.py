@@ -67,10 +67,7 @@ time_steps = len(t_longest)
 nsol = len(t)
 norm = [MidpointNormalize(midpoint=0.0) for _ in range(nsol)]
 
-if Wonly:
-    fig, axes = plt.subplots(nsol, 1, figsize=(args.framew/100,args.frameh/100), dpi=100)
-else:
-    fig, axes = plt.subplots(nsol, 3, figsize=(args.framew/100,args.frameh/100), dpi=100)
+fig, axes = plt.subplots(nsol, 1 if Wonly else 3, figsize=(args.framew/100,args.frameh/100), dpi=100)
 if nsol == 1: axes = [axes]
 
 s = 0
