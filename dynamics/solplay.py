@@ -166,6 +166,7 @@ def animate_Wonly(k):
             time_index = abs(t[s] - t_longest[frame]).argmin()
         if not preload:
             for c in c_artists[s].collections: c.remove()
+        xx,pp = xxpp[s][0],xxpp[s][1]
         c_artists[s] = ax.contourf(xx, pp, W[s][time_index], levels=Wlevels[s], norm=norm[s], cmap=cm.bwr, animated=True)
         artists.extend(c_artists[s].collections + h_artists[s].collections)
         s += 1
