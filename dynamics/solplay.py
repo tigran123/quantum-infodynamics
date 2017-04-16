@@ -136,6 +136,8 @@ def animate_all(k):
             time_index = abs(t[s] - t_longest[frame]).argmin()
         if not preload:
             for c in c_artists[s].collections: c.remove()
+        xx,pp = xxpp[s][0],xxpp[s][1]
+        xv,pv = xvdx[s][0],pvdp[s][0]
         c_artists[s] = ax[0].contourf(xx, pp, W[s][time_index], levels=Wlevels[s], norm=norm[s], cmap=cm.bwr, animated=True)
         rho_now = rho[s][time_index]
         rho_artist, = ax[1].plot(xv, rho_now, color='black', animated=True)
