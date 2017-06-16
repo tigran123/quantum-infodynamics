@@ -14,7 +14,7 @@ p.add_argument("-o", action="store", help="Output animation to the file", dest="
 p.add_argument("-r", action="store", help="Number of frames per second [25]", dest="fps", type=int, default=25)
 p.add_argument("-W",  action="store_true", help="Animate W(x,p,t) only", dest="Wonly")
 p.add_argument("-l",  action="store_true", help="Pre-load solution data before animation", dest="preload")
-p.add_argument("-c", action="store", help="Number of contour levels of W(x,p,t) to plot [20]", dest="clevels", type=int, default=20)
+p.add_argument("-c", action="store", help="Number of contour levels of W(x,p,t) to plot [100]", dest="clevels", type=int, default=100)
 p.add_argument("-fw", action="store", help="Frame width in pixels [1920]", dest="framew", type=int, default=1920)
 p.add_argument("-fh", action="store", help="Frame height in pixels [1080]", dest="frameh", type=int, default=1080)
 args = p.parse_args()
@@ -98,7 +98,7 @@ for ax in axes:
         ax[1].legend(prop=dict(size=12),loc=1)
         ax[1].set_xlabel('$x$')
         ax[1].set_xlim([x1[s],x2[s]-dx[s]])
-        ax[1].set_ylim([1.02*rho_min[s],1.02*rho_max[s]])
+        ax[1].set_ylim([min(-1,1.02*rho_min[s]),1.02*rho_max[s]])
 
         ax[2].set_title(r"$\varphi(p,t)$")
         phi_init_artists += [ax[2].plot(pv, phi[s][0], color='green', label=r'$\varphi_0(p)$')[0]]
