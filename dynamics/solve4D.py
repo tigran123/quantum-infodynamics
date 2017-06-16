@@ -165,7 +165,7 @@ def solve_spectral(Winit, expU, expT):
     B = ifft2(B, axes=(0,1)) # (λx,λy,px,py) -> (x,y,px,py)
     return real(B) # to avoid python warning
 
-def adjust_step(cur_dt, Winit, maxtries=15):
+def adjust_step(cur_dt, Winit):
     tries = 0
     dt = cur_dt
     while True:
@@ -176,7 +176,7 @@ def adjust_step(cur_dt, Winit, maxtries=15):
         expUn = exp(0.5*dt*dU)
         expTn = exp(0.5*dt*dT)
         W2 = solve_spectral(solve_spectral(Winit, expUn, expTn), expUn, expTn)
-        if amax(abs(W2 - W1)) <= tol or tries > maxtries: break
+        if amax(abs(W2 - W1)) <= tol or tries > 15: break
         dt *= 0.7
     return (W1, dt, expU, expT)
 
@@ -187,46 +187,49 @@ for (ax0,ay0,apx0,apy0,asigmax,asigmay,asigmapx,asigmapy) in zip(x0, y0, px0, py
     Winit += gauss(xx, yy, ppx, ppy, ax0, ay0, apx0, apy0, asigmax, asigmay, asigmapx, asigmapy)
 Winit /= npoints
 
-W = [fftshift(Winit)]
+dmux = dx*dy
+dmup = dpx*dpy
+dmu = dmux*dmup
+W = fftshift(Winit)
+rho = [sum(Winit, axis=(2,3))*dmup]
+phi = [sum(Winit, axis=(0,1))*dmux]
+
+Energy = sum(H*Winit)*dmu
+if args.relat: # so we can compare it with the non-relativistic kinetic energy
+    Energy -= mass*c**2
+E = [Energy]
+
 tv = [t1]
 t = t1
 Nt = 1
 while t <= t2:
     if Nt%300 == 299: pr_msg("step %d"%Nt)
     if Nt%20 == 1:
-        (Wnext, new_dt, expU, expT) = adjust_step(dt, W[-1])
-        W.append(Wnext)
+        (W, new_dt, expU, expT) = adjust_step(dt, W)
         if new_dt != dt:
-            est_steps = (t2-t)//new_dt + 1
-            pr_msg("step %d, dt %.4f -> %.4f, ~%d steps left" %(Nt,dt,new_dt,est_steps))
+            pr_msg("step %d, dt %.4f -> %.4f, ~%d steps left" % (Nt, dt, new_dt, (t2-t)//new_dt + 1))
             dt = new_dt
     else:
-        W.append(solve_spectral(W[-1], expU, expT))
+        W = solve_spectral(W, expU, expT)
+    Wp = ifftshift(W)
+    rho.append(sum(Wp, axis=(2,3))*dmup)
+    phi.append(sum(Wp, axis=(0,1))*dmux)
+    Energy = sum(H*Wp)*dmu
+    if args.relat: # so we can compare it with the non-relativistic kinetic energy
+        Energy -= mass*c**2
+    E.append(Energy)
     t += dt
     Nt += 1
     tv.append(t)
 
 pr_msg("solved in %.1fs, %d steps" % (time() - t_start, Nt))
 
-W = ifftshift(W, axes=(1,2,3,4))
-rho = sum(W, axis=(3,4))*dpx*dpy
-phi = sum(W, axis=(1,2))*dx*dy
-E = sum(H*W,axis=(1,2,3,4))*dx*dy*dpx*dpy
-if args.relat: # so we can compare it with the non-relativistic kinetic energy
-    Erest = mass*c**2
-    E -= Erest
-    Tv -= Erest
-
-params = {'Wmin': amin(W), 'Wmax': amax(W), 'rho_min': amin(rho), 'rho_max': amax(rho),
-          'Hmin': amin(H), 'Hmax': amax(H), 'Emin': amin(E), 'Emax': amax(E),
-          'phi_min': amin(phi), 'phi_max': amax(phi), 'tol': tol, 'Wfilename': Wfilename, 'Nt': Nt,
+params = {'rho_min': amin(rho), 'rho_max': amax(rho), 'Hmin': amin(H), 'Hmax': amax(H), 'Emin': amin(E), 'Emax': amax(E),
+          'phi_min': amin(phi), 'phi_max': amax(phi), 'tol': tol, 'Nt': Nt,
           'x1': x1, 'x2': x2, 'Nx': Nx, 'y1': y1, 'y2': y2, 'Ny': Ny, 
           'px1': px1, 'px2': px2, 'Npx': Npx, 'py1': py1, 'py2': py2, 'Npy': Npy,
           'descr': descr}
 
 t_start = time()
 savez(sfilename, t=tv, rho=rho, phi=phi, H=H, E=E, H0=T(px0,py0)+Umod.U(x0,y0), params=params)
-fp = memmap(Wfilename, dtype='float64', mode='w+', shape=(Nt, Nx, Ny, Npx, Npy))
-fp[:] = W[:]
-del fp # causes the flush of memmap
 pr_msg("solution saved in %.1fs" % (time() - t_start))
