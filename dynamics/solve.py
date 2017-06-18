@@ -26,7 +26,7 @@ p.add_argument("-u",  action="store", help="Python source of U(x) and U'(x)", de
 p.add_argument("-s",  action="store", help="Solution file name", dest="sfilename", required=True)
 p.add_argument("-c",  action="store_true", help="Use classical (non-quantum) propagator", dest="classical")
 p.add_argument("-r",  action="store_true", help="Use relativistic dynamics", dest="relat")
-p.add_argument("-m",  action="store", help="Rest mass in a.u. (default=1.0)", type=float, dest="mass", default=1.0)
+p.add_argument("-m",  action="store", help="Rest mass in a.u. (default=1.0)", type=complex, dest="mass", default=1.0)
 p.add_argument("-tol", action="store", help="Absolute error tolerance", dest="tol", type=float, required=True)
 args = p.parse_args()
 
@@ -47,7 +47,7 @@ def pr_exit(str):
 if Nx & (Nx-1): pr_msg("WARNING: Nx=%d is not a power 2, FFT may be slowed down" % Nx)
 if Np & (Np-1): pr_msg("WARNING: Np=%d is not a power 2, FFT may be slowed down" % Np)
 
-assert tol > 0 and mass >= 0 and x2 > x1 and p2 > p1 and Nx > 0 and Np > 0
+assert tol > 0 and x2 > x1 and p2 > p1 and Nx > 0 and Np > 0
 npoints = len(x0)
 assert p0.shape == (npoints,) and sigmax.shape == (npoints,) and sigmap.shape == (npoints,)
 
@@ -176,10 +176,6 @@ W = ifftshift(W, axes=(1,2))
 rho = sum(W, axis=2)*dp
 phi = sum(W, axis=1)*dx
 E = sum(H*W,axis=(1,2))*dx*dp
-if args.relat: # so we can compare it with the non-relativistic kinetic energy
-    Erest = mass*c**2
-    E -= Erest
-    Tv -= Erest
 
 params = {'Wmin': amin(W), 'Wmax': amax(W), 'rho_min': amin(rho), 'rho_max': amax(rho),
           'Hmin': amin(H), 'Hmax': amax(H), 'Emin': amin(E), 'Emax': amax(E),
