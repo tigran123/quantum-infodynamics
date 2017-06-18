@@ -12,6 +12,7 @@ p = argp(description="Quantum Infodynamics Tools - Solution Playback")
 p.add_argument("-s", action="append", help="Solution data filename (multiple OK)", dest="sfilenames", required=True, default=[])
 p.add_argument("-o", action="store", help="Output animation to the file", dest="ofilename")
 p.add_argument("-r", action="store", help="Number of frames per second [25]", dest="fps", type=int, default=25)
+p.add_argument("-np",  action="store_true", help="Do not plot momentum distribution", dest="nophi")
 p.add_argument("-W",  action="store_true", help="Animate W(x,p,t) only", dest="Wonly")
 p.add_argument("-l",  action="store_true", help="Pre-load solution data before animation", dest="preload")
 p.add_argument("-c", action="store", help="Number of contour levels of W(x,p,t) to plot [100]", dest="clevels", type=int, default=100)
@@ -19,7 +20,7 @@ p.add_argument("-fw", action="store", help="Frame width in pixels [1920]", dest=
 p.add_argument("-fh", action="store", help="Frame height in pixels [1080]", dest="frameh", type=int, default=1080)
 args = p.parse_args()
 
-Wonly, fps, ofilename, preload = args.Wonly, args.fps, args.ofilename, args.preload
+Wonly, fps, ofilename, preload, nophi = args.Wonly, args.fps, args.ofilename, args.preload, args.nophi
 if ofilename: preload = True
 assert fps > 0
 
@@ -67,7 +68,15 @@ time_steps = len(t_longest)
 nsol = len(t)
 norm = [MidpointNormalize(midpoint=0.0) for _ in range(nsol)]
 
-fig, axes = plt.subplots(nsol, 1 if Wonly else 3, figsize=(args.framew/100,args.frameh/100), dpi=100)
+if Wonly:
+    nplots = 1
+else:
+    if nophi:
+        nplots = 2
+    else:
+        nplots = 3
+
+fig, axes = plt.subplots(nsol, nplots, figsize=(args.framew/100,args.frameh/100), dpi=100)
 if nsol == 1: axes = [axes]
 
 s = 0
@@ -100,13 +109,14 @@ for ax in axes:
         ax[1].set_xlim([x1[s],x2[s]-dx[s]])
         ax[1].set_ylim([min(-1,1.02*rho_min[s]),1.02*rho_max[s]])
 
-        ax[2].set_title(r"$\varphi(p,t)$")
-        phi_init_artists += [ax[2].plot(pv, phi[s][0], color='green', label=r'$\varphi_0(p)$')[0]]
-        T_artists += [ax[2].plot(pv, T[s], color='blue', label='$T(p)$')[0]]
-        ax[2].legend(prop=dict(size=12),loc=1)
-        ax[2].set_xlabel('$p$')
-        ax[2].set_xlim([p1[s],p2[s]-dp[s]])
-        ax[2].set_ylim([1.02*phi_min[s],1.02*phi_max[s]])
+        if not nophi:
+            ax[2].set_title(r"$\varphi(p,t)$")
+            phi_init_artists += [ax[2].plot(pv, phi[s][0], color='green', label=r'$\varphi_0(p)$')[0]]
+            T_artists += [ax[2].plot(pv, T[s], color='blue', label='$T(p)$')[0]]
+            ax[2].legend(prop=dict(size=12),loc=1)
+            ax[2].set_xlabel('$p$')
+            ax[2].set_xlim([p1[s],p2[s]-dp[s]])
+            ax[2].set_ylim([1.02*phi_min[s],1.02*phi_max[s]])
     s += 1
 
 fig.tight_layout()
@@ -143,14 +153,15 @@ def animate_all(k):
         rho_artist, = ax[1].plot(xv, rho_now, color='black', animated=True)
         rho_plus = ax[1].fill_between(xv, 0, rho_now, where=rho_now>0, color='red', interpolate=False, animated=True)
         rho_minus = ax[1].fill_between(xv, 0, rho_now, where=rho_now<0, color='blue', interpolate=False, animated=True)
-        phi_now = phi[s][time_index]
-        phi_artist, = ax[2].plot(pv, phi_now, color='black', animated=True)
-        phi_plus = ax[2].fill_between(pv, 0, phi_now, where=phi_now>0, color='red', interpolate=False, animated=True)
-        phi_minus = ax[2].fill_between(pv, 0, phi_now, where=phi_now<0, color='blue', interpolate=False, animated=True)
         text_artist = ax[1].text(0.05, 0.8, "E=% 6.3f\nt=% 6.4f" % (E[s][time_index],t[s][time_index]), transform=ax[1].transAxes, animated=True)
+        if not nophi:
+            phi_now = phi[s][time_index]
+            phi_artist, = ax[2].plot(pv, phi_now, color='black', animated=True)
+            phi_plus = ax[2].fill_between(pv, 0, phi_now, where=phi_now>0, color='red', interpolate=False, animated=True)
+            phi_minus = ax[2].fill_between(pv, 0, phi_now, where=phi_now<0, color='blue', interpolate=False, animated=True)
+            artists.extend([T_artists[s], phi_init_artists[s],phi_artist,phi_plus,phi_minus])
         artists.extend(c_artists[s].collections + h_artists[s].collections +
-                    [U_artists[s],T_artists[s],rho_init_artists[s],rho_artist,rho_plus,rho_minus,
-                     phi_init_artists[s],phi_artist,phi_plus,phi_minus,text_artist])
+                    [U_artists[s],rho_init_artists[s],rho_artist,rho_plus,rho_minus, text_artist])
         s += 1
     if preload: progress.update(frame)
     if anim_running: next_frame()
