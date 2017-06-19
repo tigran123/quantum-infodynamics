@@ -19,6 +19,7 @@ mplt.rc('font', family='serif', size=11)
 p = argp(description="Quantum Infodynamics Tools - Solution Animator")
 p.add_argument("-s", action="append", help="Solution data filename (multiple OK)", dest="sfilenames", required=True, default=[])
 p.add_argument("-W",  action="store_true", help="Animate W(x,p,t) only", dest="Wonly")
+p.add_argument("-np",  action="store_true", help="Do not plot momentum distribution", dest="nophi")
 p.add_argument("-c", action="store", help="Number of contour levels of W(x,p,t) to plot (default 100)", dest="clevels", type=int, default=100)
 p.add_argument("-P", action="store", help="Number of parts to split the time range into", dest="nparts", type=int, default=1)
 p.add_argument("-p", action="store", help="The part number to process in this instance", dest="part", type=int, default=1)
@@ -27,7 +28,7 @@ p.add_argument("-fw", action="store", help="Frame width in pixels (default 1920)
 p.add_argument("-fh", action="store", help="Frame height in pixels (default 1080)", dest="frameh", type=int, default=1080)
 args = p.parse_args()
 
-(framedir,Wonly,nparts,part,framew,frameh) = (args.framedir,args.Wonly,args.nparts,args.part,args.framew,args.frameh)
+framedir,Wonly,nparts,part,framew,frameh,nophi = args.framedir,args.Wonly,args.nparts,args.part,args.framew,args.frameh,args.nophi
 
 def pr_exit(str):
     print("ERROR:" + str)
@@ -85,12 +86,16 @@ prog_prefix = "solanim: %d of %d: " %(part, nparts)
 total_frames = len(time_range)
 print(prog_prefix + "processing %d frames" % total_frames)
 frames = 0
-for k in time_range:
-    if Wonly:
-        fig, axes = plt.subplots(nsol, 1, figsize=(framew/100,frameh/100), dpi=100)
+if Wonly:
+    nplots = 1
+else:
+    if nophi:
+        nplots = 2
     else:
-        fig, axes = plt.subplots(nsol, 3, figsize=(framew/100,frameh/100), dpi=100)
-    
+        nplots = 3
+
+for k in time_range:
+    fig, axes = plt.subplots(nsol, nplots, figsize=(framew/100,frameh/100), dpi=100)
     s = 0
     if nsol == 1: axes_list = [axes]
     else: axes_list = axes
@@ -129,17 +134,18 @@ for k in time_range:
             ax[1].text(0.05, 0.8, "E=% 6.3f\nt=% 6.4f" % (E[s][time_index],t[s][time_index]), transform=ax[1].transAxes)
             ax[1].set_ylim([1.02*rho_min[s],1.02*rho_max[s]])
 
-            ax[2].set_title(r"Momentum density $\varphi(p,t)$")
-            phi_now = phi[s][time_index]
-            ax[2].plot(pv, phi_now, color='black')
-            ax[2].plot(pv, phi[s][0], color='green', label=r'$\varphi_0(p)$')
-            ax[2].legend(prop=dict(size=12),loc=1)
-            ax[2].fill_between(pv, 0, phi_now, where=phi_now>0, color='red', interpolate=True)
-            ax[2].fill_between(pv, 0, phi_now, where=phi_now<0, color='blue', interpolate=True)
-            ax[2].set_ylabel(r'$\varphi$')
-            ax[2].set_xlabel('$p$')
-            ax[2].set_xlim([p1[s],p2[s]-dp[s]])
-            ax[2].set_ylim([1.02*phi_min[s],1.02*phi_max[s]])
+            if not nophi:
+                ax[2].set_title(r"Momentum density $\varphi(p,t)$")
+                phi_now = phi[s][time_index]
+                ax[2].plot(pv, phi_now, color='black')
+                ax[2].plot(pv, phi[s][0], color='green', label=r'$\varphi_0(p)$')
+                ax[2].legend(prop=dict(size=12),loc=1)
+                ax[2].fill_between(pv, 0, phi_now, where=phi_now>0, color='red', interpolate=True)
+                ax[2].fill_between(pv, 0, phi_now, where=phi_now<0, color='blue', interpolate=True)
+                ax[2].set_ylabel(r'$\varphi$')
+                ax[2].set_xlabel('$p$')
+                ax[2].set_xlim([p1[s],p2[s]-dp[s]])
+                ax[2].set_ylim([1.02*phi_min[s],1.02*phi_max[s]])
         s += 1
 
     plt.tight_layout()
