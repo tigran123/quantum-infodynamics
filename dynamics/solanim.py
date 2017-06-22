@@ -84,7 +84,7 @@ time_range = split(list(range(time_steps)), nparts, part)
 prog_prefix = "solanim: %d of %d: " %(part, nparts)
 
 total_frames = len(time_range)
-print(prog_prefix + "processing %d frames" % total_frames)
+print(prog_prefix + "processing %d out of %d frames" % (total_frames, time_steps))
 frames = 0
 if Wonly:
     nplots = 1
