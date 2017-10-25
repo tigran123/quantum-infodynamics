@@ -1,5 +1,4 @@
-workdir=$(mktemp -d ${TMPDIR:-/tmp}/solanim.XXXX)
-workdir=/tmp/harmonic-oscillator
+workdir=$TMPDIR/harmonic-oscillator
 rm -rf $workdir ; mkdir -p $workdir/frames
 
 SOLQR=$workdir/solqr

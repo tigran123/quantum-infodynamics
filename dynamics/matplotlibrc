@@ -1,2 +1,2 @@
-backend				: TkAgg
+backend				: agg
 axes.grid           : True   # display grid or not
