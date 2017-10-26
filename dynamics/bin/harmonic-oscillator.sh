@@ -5,7 +5,6 @@ SOLQR=$workdir/solqr
 SOLCR=$workdir/solcr
 SOLQN=$workdir/solqn
 SOLCN=$workdir/solcn
-nproc=$(nproc)
 FPS=20
 
 MOVIE_FILE=harmonic-oscillator.mp4
@@ -17,6 +16,7 @@ python3 solve.py -d "Quantum Non-relativistic Oscillator" $PARAMS -tol 0.01 -s $
 python3 solve.py -c -d "Classical Non-relativistic Oscillator" $PARAMS -tol 0.01 -s $SOLCN &
 wait
 
+nproc=$(nproc)
 for ((i=1; i <= $nproc; i++));
 do
     python3 solanim.py -P $nproc -p $i -np -d $workdir/frames -s $SOLQR -s $SOLCR -s $SOLQN -s $SOLCN &
@@ -24,4 +24,5 @@ done
 wait
 ffmpeg -loglevel quiet -y -r $FPS -f image2 -i $workdir/frames/%05d.png -f mp4 -q:v 0 -vcodec libx264 -r $FPS $MOVIE_FILE
 
+# this is much slower, especially on systems with many processors
 #python3 solplay.py -o $MOVIE_FILE -s $SOLQR -s $SOLCR -s $SOLQN -s $SOLCN
