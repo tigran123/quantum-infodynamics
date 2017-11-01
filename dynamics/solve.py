@@ -157,13 +157,13 @@ tv = [t1]
 t = t1
 Nt = 1
 while t <= t2:
-    if Nt%300 == 299: pr_msg("step %d"%Nt)
+    if Nt%100 == 0: pr_msg("%5d steps" % Nt)
     if Nt%20 == 1:
         (Wnext, new_dt, expU, expT) = adjust_step(dt, W[-1])
         W.append(Wnext)
         if new_dt != dt:
             est_steps = (t2-t)//new_dt + 1
-            pr_msg("step %d, dt %.4f -> %.4f, ~%d steps left" %(Nt,dt,new_dt,est_steps))
+            pr_msg("step %d, dt=%.4f -> %.4f, ~%d steps left" %(Nt,dt,new_dt,est_steps))
             dt = new_dt
     else:
         W.append(solve_spectral(W[-1], expU, expT))
