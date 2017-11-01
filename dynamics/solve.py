@@ -27,13 +27,14 @@ p.add_argument("-s",  action="store", help="Solution file name", dest="sfilename
 p.add_argument("-c",  action="store_true", help="Use classical (non-quantum) propagator", dest="classical")
 p.add_argument("-r",  action="store_true", help="Use relativistic dynamics", dest="relat")
 p.add_argument("-m",  action="store", help="Rest mass in a.u. (default=1.0)", type=complex, dest="mass", default=1.0)
+p.add_argument("-N",  action="store", help="Initial number of time steps (default=100)", dest="N", type=int, default=100)
 p.add_argument("-tol", action="store", help="Absolute error tolerance", dest="tol", type=float, required=True)
 args = p.parse_args()
 
 sfilename = args.sfilename
 Wfilename = sfilename + '_W.npz'
 
-(descr,x1,x2,Nx,p1,p2,Np,t1,t2,tol,mass) = (args.descr,args.x1,args.x2,args.Nx,args.p1,args.p2,args.Np,args.t1,args.t2,args.tol,args.mass)
+(descr,x1,x2,Nx,p1,p2,Np,t1,t2,tol,mass,N) = (args.descr,args.x1,args.x2,args.Nx,args.p1,args.p2,args.Np,args.t1,args.t2,args.tol,args.mass,args.N)
 
 (x0,p0,sigmax,sigmap) = map(array, (args.x0, args.p0, args.sigmax, args.sigmap))
 
@@ -145,7 +146,7 @@ def adjust_step(cur_dt, Winit, maxtries=15):
     return (W1, dt, expU, expT)
 
 t_start = time()
-dt = (t2-t1)/20. # the first very rough guess of time step
+dt = (t2-t1)/N # the first very rough guess of time step
 Winit = zeros((Nx,Np))
 for (ax0,ap0,asigmax,asigmap) in zip(x0, p0, sigmax, sigmap):
     Winit += gauss(xx,pp,ax0,ap0,asigmax,asigmap)
