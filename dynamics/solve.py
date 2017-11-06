@@ -12,8 +12,8 @@ p = arg.ArgumentParser(description="Quantum Infodynamics Tools - Equations Solve
 p.add_argument("-d",  action="store", help="Description text", dest="descr", required=True)
 p.add_argument("-x0", action="append", help="Initial packet's x-coordinate (multiple OK)", dest="x0", type=float, required=True, default=[])
 p.add_argument("-p0", action="append", help="Initial packet's p-coordinate (multiple OK)", dest="p0", type=float, required=True, default=[])
-p.add_argument("-sigmax", action="append", help="Initial packet's σx (multiple OK)", dest="sigmax", type=float, required=True, default=[])
-p.add_argument("-sigmap", action="append", help="Initial packet's σp (multiple OK)", dest="sigmap", type=float, required=True, default=[])
+p.add_argument("-sigmax", action="append", help="Initial packet's sigmax (multiple OK)", dest="sigmax", type=float, required=True, default=[])
+p.add_argument("-sigmap", action="append", help="Initial packet's sigma (multiple OK)", dest="sigmap", type=float, required=True, default=[])
 p.add_argument("-x1", action="store", help="Starting coordinate", dest="x1", type=float, required=True)
 p.add_argument("-x2", action="store", help="Final coordinate", dest="x2", type=float, required=True)
 p.add_argument("-Nx", action="store", help="Number of points in x direction", dest="Nx", type=int, required=True)
@@ -119,15 +119,15 @@ Tv = T(pv)
 H = T(pp)+Umod.U(xx)
 
 def solve_spectral(Winit, expU, expT):
-    B = fft(Winit, axis=0) # (x,p) -> (λ,p)
+    B = fft(Winit, axis=0) # (x,p) -> (lambda,p)
     B *= expT
-    B = ifft(B, axis=0) # (λ,p) -> (x,p)
-    B = fft(B, axis=1) # (x,p) -> (x,θ)
+    B = ifft(B, axis=0) # (lambda,p) -> (x,p)
+    B = fft(B, axis=1) # (x,p) -> (x,theta)
     B *= expU
-    B = ifft(B, axis=1) # (x,θ) -> (x,p)
-    B = fft(B, axis=0) # (x,p) -> (λ,p)
+    B = ifft(B, axis=1) # (x,theta) -> (x,p)
+    B = fft(B, axis=0) # (x,p) -> (lambda,p)
     B *= expT
-    B = ifft(B, axis=0) # (λ,p) -> (x,p)
+    B = ifft(B, axis=0) # (lambda,p) -> (x,p)
     return real(B) # to avoid python warning
 
 def adjust_step(cur_dt, Winit, maxtries=15):
