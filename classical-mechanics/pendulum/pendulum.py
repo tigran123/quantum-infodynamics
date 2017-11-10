@@ -1,0 +1,82 @@
+"""
+  Mathematical Pendulum Simulator (Python Class Definition)
+  Author: Tigran Aivazian <aivazian.tigran@gmail.com>
+  This program was written in 2017 and placed in public domain.
+
+  origin
+   |\
+     \
+   |  \
+       \
+   |    \
+         \ L
+   |      \
+           \
+   |--phi-> \
+             \
+   |          \
+               \
+   |            \
+                 O M
+   |
+"""
+
+from numpy import sin, cos, cumsum, pi
+from scipy.integrate import odeint
+
+class Pendulum:
+    """Pendulum Class --- model of a mathematical pendulum
+       We use Lagrangian dynamics in variables (phi, phidot = dphi/dt)
+    """
+    def __init__(self,
+                 phi0    = pi, # initial angle phi, in radians
+                 phidot0 =  0.0,  # initial angular velocity = dphi/dt, in radian/s
+                 L       =  1.0,  # length of pendulum in m
+                 M       =  1.0,  # mass of pendulum in kg
+                 G       =  9.81, # standard gravity in m/s^2
+                 origin  = (0, 0)): # coordinates of the suspension point
+        self.phi = phi0
+        self.phidot = phidot0
+        self.L = L
+        self.M = M
+        self.G = G
+        self.origin = origin
+        self.t = 0.0 # elapsed time of simulation in s
+
+    def position(self):
+        """Return the current position of the pendulum"""
+        L = self.L
+        phi = self.phi
+        x = cumsum([self.origin[0], L*sin(phi)])
+        y = cumsum([self.origin[1], -L*cos(phi)])
+        return (x,y)
+
+    def energy(self):
+        """Return the total energy (Kinetic+Potential) of the current state"""
+        M = self.M
+        L = self.L
+        G = self.G
+        T = 0.5*M*L**2*self.phidot**2
+        U = -M*G*L*cos(self.phi)
+        return T+U
+
+    def Hamiltonian(self, phi, phidot):
+        M = self.M
+        L = self.L
+        G = self.G
+        T = 0.5*M*L**2*phidot**2
+        U = -M*G*L*cos(phi)
+        return T + U
+
+    def derivs(self, state, t):
+        """Return the derivatives, i.e. the rhs of the ODE of motion"""
+        return [state[1], -self.G*sin(state[0])/self.L]
+
+    def step(self, dt):
+        """Evolve the system by time step given by dt"""
+        t = self.t
+        self.phi,self.phidot = odeint(self.derivs, [self.phi,self.phidot], [t, t + dt])[1]
+        # the phase space is a cylinder, so we must wrap around phi to remain in [-pi, pi]
+        if self.phi >= pi: self.phi -= 2*pi
+        elif self.phi <= -pi: self.phi += 2*pi
+        self.t += dt
