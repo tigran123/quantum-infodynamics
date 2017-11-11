@@ -51,16 +51,8 @@ class Pendulum:
         y = cumsum([self.origin[1], -L*cos(phi)])
         return (x,y)
 
-    def energy(self):
-        """Return the total energy (Kinetic+Potential) of the current state"""
-        M = self.M
-        L = self.L
-        G = self.G
-        T = 0.5*M*L**2*self.phidot**2
-        U = -M*G*L*cos(self.phi)
-        return T+U
-
     def Hamiltonian(self, phi, phidot):
+        """Return the total energy (Kinetic+Potential) of the specified state"""
         M = self.M
         L = self.L
         G = self.G
@@ -68,15 +60,18 @@ class Pendulum:
         U = -M*G*L*cos(phi)
         return T + U
 
+    def energy(self):
+        """Return the total energy (Kinetic+Potential) of the current state"""
+        return self.Hamiltonian(self.phi, self.phidot)
+
     def derivs(self, state, t):
-        """Return the derivatives, i.e. the rhs of the ODE of motion"""
+        """Return the RHS of the ODEs of motion"""
         return [state[1], -self.G*sin(state[0])/self.L]
 
     def step(self, dt):
         """Evolve the system by time step given by dt"""
         t = self.t
         self.phi,self.phidot = odeint(self.derivs, [self.phi,self.phidot], [t, t + dt])[1]
-        # the phase space is a cylinder, so we must wrap around phi to remain in [-pi, pi]
-        if self.phi >= pi: self.phi -= 2*pi
-        elif self.phi <= -pi: self.phi += 2*pi
+        if self.phi >= pi: self.phi -= 2*pi    # the phase space is a cylinder, so we must wrap ...
+        elif self.phi <= -pi: self.phi += 2*pi # ... phi around to remain within [-pi, pi]
         self.t += dt
