@@ -42,7 +42,7 @@ def animate(i):
     return line1, line2, line3, time_text, energy1_text, energy2_text, energy3_text, points
 
 pend1 = Pendulum(phi0=pi, phidot0=3)
-pend2 = Pendulum(phi0=0.9*pi)
+pend2 = Pendulum(phi0=pi)
 pend3 = Pendulum(phi0=pi/6)
 
 fig,(ax1,ax2) = plt.subplots(2, 1)
