@@ -23,22 +23,27 @@ def animate(i):
     pend1.step(dt)
     pend2.step(dt)
     pend3.step(dt)
+    pend4.step(dt)
     line1.set_data(pend1.position())
     line2.set_data(pend2.position())
     line3.set_data(pend3.position())
+    line4.set_data(pend4.position())
     time_text.set_text('Time = %.1f s, FPS=%.1f' % (pend1.t, fps))
     energy1_text.set_text('E = %.3f J' % pend1.energy())
     energy2_text.set_text('E = %.3f J' % pend2.energy())
     energy3_text.set_text('E = %.3f J' % pend3.energy())
+    energy4_text.set_text('E = %.3f J' % pend4.energy())
 
     points.set_offsets([[pend1.phi, pend1.phidot],
                       [pend2.phi, pend2.phidot],
-                      [pend3.phi, pend3.phidot]])
-    return line1, line2, line3, time_text, energy1_text, energy2_text, energy3_text, points
+                      [pend3.phi, pend3.phidot],
+                      [pend4.phi, pend4.phidot]])
+    return line1, line2, line3, line4, time_text, energy1_text, energy2_text, energy3_text, energy4_text, points
 
 pend1 = Pendulum(phi=pi, phidot=3, L=1.0)
 pend2 = Pendulum(phi=pi, L=0.9)
-pend3 = Pendulum(phi=pi/6, L=0.4)
+pend3 = Pendulum(phi=pi/3, L=0.6)
+pend4 = Pendulum(phi=0.9*pi/3, L=0.6)
 
 fig,(ax1,ax2) = plt.subplots(2, 1, figsize=(19.2,10.8), dpi=100)
 fig.canvas.set_window_title("Mathematical Pendulum Simulator v0.1")
@@ -54,10 +59,12 @@ ax1.set_ylim([-space_range,space_range])
 line1, = ax1.plot([], [], 'o-', lw=2, color='b')
 line2, = ax1.plot([], [], 'o-', lw=2, color='r')
 line3, = ax1.plot([], [], 'o-', lw=2, color='g')
+line4, = ax1.plot([], [], 'o-', lw=2, color='m')
 time_text = ax1.text(0.02, 0.95, '', transform=ax1.transAxes)
 energy1_text = ax1.text(0.02, 0.90, '', transform=ax1.transAxes, color='b')
 energy2_text = ax1.text(0.02, 0.85, '', transform=ax1.transAxes, color='r')
 energy3_text = ax1.text(0.02, 0.80, '', transform=ax1.transAxes, color='g')
+energy4_text = ax1.text(0.02, 0.75, '', transform=ax1.transAxes, color='m')
 
 ax2.set_title("Phase Space")
 ax2.set_xlabel(r"$\varphi$")
@@ -68,7 +75,7 @@ phidot_range = 10.0
 phidot_points = 200
 ax2.set_xlim([-phi_range,phi_range])
 ax2.set_ylim([-phidot_range,phidot_range])
-points = ax2.scatter([],[], color=['b','r','g'])
+points = ax2.scatter([],[], color=['b','r','g','m'])
 phim,phidotm = mgrid[-phi_range:phi_range:phi_points*1j,-phidot_range:phidot_range:phidot_points*1j]
 
 cn1 = ax2.contour(phim, phidotm, pend1.Hamiltonian(phim,phidotm), levels=pend1.energy(), linewidths=0.8, colors='b')
@@ -77,8 +84,10 @@ cn2 = ax2.contour(phim, phidotm, pend2.Hamiltonian(phim,phidotm), levels=pend2.e
 plt.clabel(cn2, fontsize=9, inline=False)
 cn3 = ax2.contour(phim, phidotm, pend3.Hamiltonian(phim,phidotm), levels=pend3.energy(), linewidths=0.8, colors='g')
 plt.clabel(cn3, fontsize=9, inline=False)
+cn4 = ax2.contour(phim, phidotm, pend4.Hamiltonian(phim,phidotm), levels=pend4.energy(), linewidths=0.8, colors='m')
+plt.clabel(cn4, fontsize=9, inline=False)
 
-ani = animation.FuncAnimation(fig, animate, blit=True, interval=0, frames=500)
+ani = animation.FuncAnimation(fig, animate, blit=True, interval=0, frames=5000)
 start = time()
 
 #ani.save('pendulum.mp4', fps=30, extra_args=['-vcodec', 'libx264'])
