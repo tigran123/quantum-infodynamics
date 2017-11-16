@@ -29,14 +29,14 @@ class Pendulum:
        We use Lagrangian dynamics in variables (phi, phidot = dphi/dt)
     """
     def __init__(self,
-                 phi0    = pi, # initial angle phi, in radians
-                 phidot0 =  0.0,  # initial angular velocity = dphi/dt, in radian/s
-                 L       =  1.0,  # length of pendulum in m
-                 M       =  1.0,  # mass of pendulum in kg
-                 G       =  9.81, # standard gravity in m/s^2
-                 origin  = (0, 0)): # coordinates of the suspension point
-        self.phi = phi0
-        self.phidot = phidot0
+                 phi    = pi, # initial angle phi, in radians
+                 phidot =  0.0,  # initial angular velocity = dphi/dt, in radian/s
+                 L      =  1.0,  # length of pendulum in m
+                 M      =  1.0,  # mass of pendulum in kg
+                 G      =  9.81, # standard gravity in m/s^2
+                 origin = (0, 0)): # coordinates of the suspension point
+        self.phi = phi
+        self.phidot = phidot
         self.L = L
         self.M = M
         self.G = G

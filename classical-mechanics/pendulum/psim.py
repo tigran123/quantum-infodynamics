@@ -41,11 +41,12 @@ def animate(i):
                       [pend3.phi, pend3.phidot]]) 
     return line1, line2, line3, time_text, energy1_text, energy2_text, energy3_text, points
 
-pend1 = Pendulum(phi0=pi, phidot0=3)
-pend2 = Pendulum(phi0=pi)
-pend3 = Pendulum(phi0=pi/6)
+pend1 = Pendulum(phi=pi, phidot=3)
+pend2 = Pendulum(phi=pi)
+pend3 = Pendulum(phi=pi/6)
 
-fig,(ax1,ax2) = plt.subplots(2, 1)
+# for saving the animation fig,(ax1,ax2) = plt.subplots(2, 1, figsize=(19.2,10.8), dpi=100)
+fig,(ax1,ax2) = plt.subplots(2, 1, figsize=(19.2,10.8), dpi=100)
 fig.canvas.set_window_title("Mathematical Pendulum Simulator v0.1")
 
 ax1.set_aspect('equal')
@@ -84,5 +85,6 @@ Hlevels = unique(append(linspace(-9,20,8), extra_values))
 cn = ax2.contour(phim, phidotm, H, levels=Hlevels, linewidths=0.8, colors='k')
 plt.clabel(cn, fontsize=9, inline=False)
 
-ani = animation.FuncAnimation(fig, animate, blit=True, init_func=init, interval=0)
+ani = animation.FuncAnimation(fig, animate, blit=True, init_func=init, interval=0, frames=5000)
+#ani.save('pendulum.mp4', fps=30, extra_args=['-vcodec', 'libx264'])
 plt.show()
