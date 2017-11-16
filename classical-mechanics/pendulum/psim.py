@@ -10,7 +10,6 @@ from pendulum import Pendulum
 from numpy import pi, mgrid
 
 def animate(i):
-    global pend1, pend2, pend3, points
     dt = 0.005
     pend1.step(dt)
     pend2.step(dt)
