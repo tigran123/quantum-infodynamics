@@ -56,10 +56,13 @@ ax2.set_title("Phase Space")
 ax2.set_xlabel(r"$\varphi$")
 ax2.set_ylabel(r"$\dot{\varphi}$")
 phi_range = 1.1*pi
+phi_points = 200
+phidot_range = 10.0
+phidot_points = 200
 ax2.set_xlim([-phi_range,phi_range])
-ax2.set_ylim([-10,10])
+ax2.set_ylim([-phidot_range,phidot_range])
 points = ax2.scatter([],[], color=['b','r','g'])
-phim,phidotm = mgrid[-phi_range:phi_range:200j,-20:20:200j]
+phim,phidotm = mgrid[-phi_range:phi_range:phi_points*1j,-phidot_range:phidot_range:phidot_points*1j]
 
 cn1 = ax2.contour(phim, phidotm, pend1.Hamiltonian(phim,phidotm), levels=pend1.energy(), linewidths=0.8, colors='b')
 plt.clabel(cn1, fontsize=9, inline=False)
