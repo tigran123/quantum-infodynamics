@@ -68,13 +68,11 @@ energy3_text = ax1.text(0.02, 0.80, '', transform=ax1.transAxes, color='g')
 ax2.set_title("Phase Space")
 ax2.set_xlabel(r"$\varphi$")
 ax2.set_ylabel(r"$\dot{\varphi}$")
-phirange = 1.1*pi
-ax2.set_xlim([-phirange,phirange])
+phi_range = 1.1*pi
+ax2.set_xlim([-phi_range,phi_range])
 ax2.set_ylim([-10,10])
 points = ax2.scatter([],[], color=['b','r','g'])
-phiv = linspace(-phirange, phirange, 200)
-phidotv = linspace(-10, 10, 200)
-phim,phidotm = mgrid[-phirange:phirange:200j,-20:20:200j]
+phim,phidotm = mgrid[-phi_range:phi_range:200j,-20:20:200j]
 H = pend1.Hamiltonian(phim, phidotm)
 
 # include the separatrix and the phase curves of our particles
