@@ -8,24 +8,32 @@ import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 from pendulum import Pendulum
 from numpy import pi, mgrid
+from time import time
+
+frames = 0
+fps = 0
 
 def animate(i):
+    global frames, fps
+    if frames%100 == 0:
+        now = time()
+        fps = frames/(now - start)
+    frames += 1
     dt = 0.005
     pend1.step(dt)
     pend2.step(dt)
     pend3.step(dt)
-    
-    line1.set_data(*pend1.position())
-    line2.set_data(*pend2.position())
-    line3.set_data(*pend3.position())
-    time_text.set_text('Time = %.1f s' % pend1.t)
+    line1.set_data(pend1.position())
+    line2.set_data(pend2.position())
+    line3.set_data(pend3.position())
+    time_text.set_text('Time = %.1f s, FPS=%.1f' % (pend1.t, fps))
     energy1_text.set_text('E = %.3f J' % pend1.energy())
     energy2_text.set_text('E = %.3f J' % pend2.energy())
     energy3_text.set_text('E = %.3f J' % pend3.energy())
 
     points.set_offsets([[pend1.phi, pend1.phidot],
                       [pend2.phi, pend2.phidot],
-                      [pend3.phi, pend3.phidot]]) 
+                      [pend3.phi, pend3.phidot]])
     return line1, line2, line3, time_text, energy1_text, energy2_text, energy3_text, points
 
 pend1 = Pendulum(phi=pi, phidot=3, L=1.0)
@@ -71,5 +79,7 @@ cn3 = ax2.contour(phim, phidotm, pend3.Hamiltonian(phim,phidotm), levels=pend3.e
 plt.clabel(cn3, fontsize=9, inline=False)
 
 ani = animation.FuncAnimation(fig, animate, blit=True, interval=0, frames=500)
+start = time()
+
 #ani.save('pendulum.mp4', fps=30, extra_args=['-vcodec', 'libx264'])
 plt.show()

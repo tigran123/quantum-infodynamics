@@ -21,7 +21,7 @@
    |
 """
 
-from numpy import sin, cos, cumsum, pi
+from numpy import sin, cos, pi
 from scipy.integrate import odeint
 
 class Pendulum:
@@ -47,9 +47,9 @@ class Pendulum:
         """Return the current position of the pendulum"""
         L = self.L
         phi = self.phi
-        x = cumsum([self.origin[0], L*sin(phi)])
-        y = cumsum([self.origin[1], -L*cos(phi)])
-        return (x,y)
+        x = self.origin[0] + L*sin(phi)
+        y = self.origin[1] - L*cos(phi)
+        return [[self.origin[0], x], [self.origin[1],y]]
 
     def Hamiltonian(self, phi, phidot):
         """Return the total energy (Kinetic+Potential) of the specified state"""
