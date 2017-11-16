@@ -7,21 +7,9 @@
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 from pendulum import Pendulum
-from numpy import pi, linspace, mgrid, append, unique
-
-def init():
-    """initialize animation"""
-    line1.set_data([], [])
-    line2.set_data([], [])
-    line3.set_data([], [])
-    time_text.set_text('')
-    energy1_text.set_text('')
-    energy2_text.set_text('')
-    energy3_text.set_text('')
-    return line1, line2, line3, time_text, energy1_text, energy2_text, energy3_text
+from numpy import pi, mgrid
 
 def animate(i):
-    """perform animation step"""
     global pend1, pend2, pend3, points
     dt = 0.005
     pend1.step(dt)
@@ -41,11 +29,10 @@ def animate(i):
                       [pend3.phi, pend3.phidot]]) 
     return line1, line2, line3, time_text, energy1_text, energy2_text, energy3_text, points
 
-pend1 = Pendulum(phi=pi, phidot=3)
-pend2 = Pendulum(phi=pi)
-pend3 = Pendulum(phi=pi/6)
+pend1 = Pendulum(phi=pi, phidot=3, L=1.0)
+pend2 = Pendulum(phi=pi, L=0.9)
+pend3 = Pendulum(phi=pi/6, L=0.4)
 
-# for saving the animation fig,(ax1,ax2) = plt.subplots(2, 1, figsize=(19.2,10.8), dpi=100)
 fig,(ax1,ax2) = plt.subplots(2, 1, figsize=(19.2,10.8), dpi=100)
 fig.canvas.set_window_title("Mathematical Pendulum Simulator v0.1")
 
@@ -73,16 +60,14 @@ ax2.set_xlim([-phi_range,phi_range])
 ax2.set_ylim([-10,10])
 points = ax2.scatter([],[], color=['b','r','g'])
 phim,phidotm = mgrid[-phi_range:phi_range:200j,-20:20:200j]
-H = pend1.Hamiltonian(phim, phidotm)
 
-# include the separatrix and the phase curves of our particles
-extra_values = [pend1.Hamiltonian(pi,0), pend1.energy(), pend2.energy(), pend3.energy()]
-Hlevels = unique(append(linspace(-9,20,8), extra_values))
+cn1 = ax2.contour(phim, phidotm, pend1.Hamiltonian(phim,phidotm), levels=pend1.energy(), linewidths=0.8, colors='b')
+plt.clabel(cn1, fontsize=9, inline=False)
+cn2 = ax2.contour(phim, phidotm, pend2.Hamiltonian(phim,phidotm), levels=pend2.energy(), linewidths=0.8, colors='r')
+plt.clabel(cn2, fontsize=9, inline=False)
+cn3 = ax2.contour(phim, phidotm, pend3.Hamiltonian(phim,phidotm), levels=pend3.energy(), linewidths=0.8, colors='g')
+plt.clabel(cn3, fontsize=9, inline=False)
 
-#import pdb ; pdb.set_trace()
-cn = ax2.contour(phim, phidotm, H, levels=Hlevels, linewidths=0.8, colors='k')
-plt.clabel(cn, fontsize=9, inline=False)
-
-ani = animation.FuncAnimation(fig, animate, blit=True, init_func=init, interval=0, frames=5000)
+ani = animation.FuncAnimation(fig, animate, blit=True, interval=0, frames=500)
 #ani.save('pendulum.mp4', fps=30, extra_args=['-vcodec', 'libx264'])
 plt.show()
