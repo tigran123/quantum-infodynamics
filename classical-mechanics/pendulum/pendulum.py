@@ -70,11 +70,10 @@ class Pendulum:
 
     def derivs(self, state, t):
         """Return the RHS of the ODEs of motion"""
-        # to prevent numerical errors near separatrix (phi = +/-pi)
         return [state[1], 0.0 if abs(state[0]) == pi else -self.G*sin(state[0])/self.L]
 
     def step(self, dt):
-        """Evolve the system by time step given by dt"""
+        """Evolve the system by time step dt"""
         t = self.t
         self.phi,self.phidot = odeint(self.derivs, [self.phi,self.phidot], [t, t + dt])[1]
         if self.phi > pi: self.phi -= 2*pi    # the phase space is a cylinder, so we must wrap ...
