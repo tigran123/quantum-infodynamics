@@ -34,13 +34,17 @@ class Pendulum:
                  L      =  1.0,  # length of pendulum in m
                  M      =  1.0,  # mass of pendulum in kg
                  G      =  9.81, # standard gravity in m/s^2
+                 color  = 'k',   # boring black colour by default :)
                  origin = (0, 0)): # coordinates of the suspension point
         self.phi = phi
         self.phidot = phidot
         self.L = L
         self.M = M
         self.G = G
+        self.color = color # colour to paint this pendulum
         self.origin = origin
+        self.line = None # matplotlib line artist for this pendulum
+        self.energy_text = None # matplotlib text artist for the energy value
         self.t = 0.0 # elapsed time of simulation in s
 
     def position(self):
