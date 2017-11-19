@@ -43,6 +43,7 @@ class Pendulum:
         self.G = G
         self.color = color # colour to paint this pendulum
         self.origin = origin
+        self.cs = None # matplotlib contour set artist for this pendulum
         self.line = None # matplotlib line artist for this pendulum
         self.energy_text = None # matplotlib text artist for the energy value
         self.t = 0.0 # elapsed time of simulation in s

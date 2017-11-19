@@ -28,7 +28,14 @@ def keypress(event):
         dt = -abs(dt)
         ani.event_source.start()
         anim_running = False
-
+    elif event.key == "delete":
+        if pendulums:
+            p = pendulums[-1]
+            p.line.remove()
+            del(p.line)
+            p.energy_text.remove()
+            del(p.energy_text)
+            pendulums.pop()
 
 def animate(i):
     global t
@@ -53,7 +60,7 @@ pendulums = [Pendulum(phi=pi, phidot=3, L=1.0, color='b'),
              Pendulum(phi=pi/3, L=0.6, color='g'),
              Pendulum(phi=0.9*pi/3, L=0.6, color='m')]
 
-fig,(ax1,ax2) = plt.subplots(2, 1, figsize=(19.2,10.8), dpi=100)
+fig,(ax1,ax2) = plt.subplots(1, 2, figsize=(19.2,10.8), dpi=100)
 fig.canvas.set_window_title("Mathematical Pendulum Simulator v0.2")
 
 ax1.set_aspect('equal')
@@ -84,12 +91,13 @@ for p in pendulums:
     p.line, = ax1.plot([], [], 'o-', lw=2, color=p.color)
     p.energy_text = ax1.text(0.02, texty, '', transform=ax1.transAxes, color=p.color)
     texty -= 0.05
-    cn = ax2.contour(phim, phidotm, p.Hamiltonian(phim,phidotm), levels=p.energy(), linewidths=0.8, colors=p.color)
-    plt.clabel(cn, fontsize=9, inline=False)
+    p.cs = ax2.contour(phim, phidotm, p.Hamiltonian(phim,phidotm), levels=p.energy(), linewidths=0.8, colors=p.color)
+    p.cs.clabel(fontsize=9, inline=False)
 points = ax2.scatter([],[], color=colors)
 
 fig.canvas.mpl_connect('key_press_event', keypress)
-ani = animation.FuncAnimation(fig, animate, blit=True, interval=0, frames=1000)
+ani = animation.FuncAnimation(fig, animate, blit=True, interval=0, frames=2000)
+fig.tight_layout()
 
 #ani.save('pendulum.mp4', fps=30, extra_args=['-vcodec', 'libx264'])
 plt.show()
