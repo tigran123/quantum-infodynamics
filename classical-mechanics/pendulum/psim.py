@@ -30,11 +30,13 @@ def keypress(event):
         anim_running = False
     elif event.key == "delete":
         if pendulums:
+            ani.event_source.stop()
             p = pendulums.pop()
             p.line.remove()
             del(p.line)
             p.energy_text.remove()
             del(p.energy_text)
+            ani.event_source.start()
 
 def animate(i):
     global t
