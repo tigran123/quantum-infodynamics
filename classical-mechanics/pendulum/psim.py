@@ -26,15 +26,15 @@ def keypress(event):
         ani.event_source.stop() if anim_running else ani.event_source.start()
         anim_running = not anim_running
     elif event.key == '.':
-        ani.event_source.start()
         dt = abs(dt)
         evolve_system(dt)
         anim_running = False
+        ani.event_source.start()
     elif event.key == ',':
         dt = -abs(dt)
         evolve_system(dt)
-        ani.event_source.start()
         anim_running = False
+        ani.event_source.start()
     elif event.key == "delete":
         if pendulums:
             ani.event_source.stop()
@@ -53,7 +53,7 @@ def animate(i):
         p.line.set_data(p.position())
         p.energy_text.set_text(r'E = %.3f J, $\varphi$=%.3f' % (p.energy(), p.phi))
     points.set_offsets(offsets)
-    if i != 0 and anim_running: # don't evolve on the 0'th frame because animate(0) is called THREE times by matplotlib!
+    if i != 0 and anim_running: # ignore 0'th frame because animate(0) is called THRICE by matplotlib!
        evolve_system(dt)
     return tuple(p.line for p in pendulums) + tuple(p.energy_text for p in pendulums) + (time_text, points)
     # the commented version below is about 15% more efficient, but 10 times more unreadable
