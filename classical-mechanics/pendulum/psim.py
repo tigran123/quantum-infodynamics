@@ -48,7 +48,6 @@ def keypress(event):
 def animate(i):
     global t
 
-    print("animate(%d)" %i)
     if not anim_running: ani.event_source.stop()
     time_text.set_text('Time = %.3f s' % t)
     offsets = []
