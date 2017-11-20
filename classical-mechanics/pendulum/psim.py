@@ -14,6 +14,11 @@ dt = 0.005 # ODE integration fixed timestep
 anim_running = False # change to True to start the animation immediately
 print("Loading simulation in the %s state..." % ("RUNNING" if anim_running else "STOPPED"))
 
+def evolve_system(dt):
+    global t
+    for p in pendulums: p.step(dt)
+    t += dt
+
 def keypress(event):
     global anim_running, dt
 
@@ -23,9 +28,11 @@ def keypress(event):
     elif event.key == '.':
         ani.event_source.start()
         dt = abs(dt)
+        evolve_system(dt)
         anim_running = False
     elif event.key == ',':
         dt = -abs(dt)
+        evolve_system(dt)
         ani.event_source.start()
         anim_running = False
     elif event.key == "delete":
@@ -41,6 +48,7 @@ def keypress(event):
 def animate(i):
     global t
 
+    print("animate(%d)" %i)
     if not anim_running: ani.event_source.stop()
     time_text.set_text('Time = %.3f s' % t)
     offsets = []
@@ -49,9 +57,8 @@ def animate(i):
         p.line.set_data(p.position())
         p.energy_text.set_text(r'E = %.3f J, $\varphi$=%.3f' % (p.energy(), p.phi))
     points.set_offsets(offsets)
-    if i != 0: # don't evolve on the 0'th frame because animate(0) is called THREE times by matplotlib!
-       for p in pendulums: p.step(dt)
-       t += dt
+    if i != 0 and anim_running: # don't evolve on the 0'th frame because animate(0) is called THREE times by matplotlib!
+       evolve_system(dt)
     return tuple(p.line for p in pendulums) + tuple(p.energy_text for p in pendulums) + (time_text, points)
     # the commented version below is about 15% more efficient, but 10 times more unreadable
     # return sum(tuple((p.line,p.energy_text) for p in pendulums),()) + (time_text, points)
