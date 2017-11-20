@@ -6,8 +6,8 @@
 
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
-from pendulum import Pendulum
 from numpy import pi, mgrid
+from pendulum import Pendulum
 
 t = 0.0 # global simulation time (has to be the same for all pendulums)
 dt = 0.005 # ODE integration fixed timestep
@@ -39,10 +39,7 @@ def keypress(event):
         if pendulums:
             ani.event_source.stop()
             p = pendulums.pop()
-            p.line.remove()
-            del(p.line)
-            p.energy_text.remove()
-            del(p.energy_text)
+            p.free()
             ani.event_source.start()
 
 def animate(i):

@@ -80,3 +80,10 @@ class Pendulum:
         if self.phi > pi: self.phi -= 2*pi    # the phase space is a cylinder, so we must wrap ...
         elif self.phi < -pi: self.phi += 2*pi # ... phi around to remain within [-pi, pi]
         self.t += dt
+
+    def free(self):
+        """Free the resources held by this instance"""
+        self.line.remove()
+        del(self.line)
+        self.energy_text.remove()
+        del(self.energy_text)
