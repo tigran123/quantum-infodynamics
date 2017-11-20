@@ -106,5 +106,5 @@ fig.canvas.mpl_connect('key_press_event', keypress)
 ani = animation.FuncAnimation(fig, animate, blit=True, interval=0, frames=2000)
 fig.tight_layout()
 
-#ani.save('pendulum.mp4', fps=30, extra_args=['-vcodec', 'libx264'])
+#anim_running = True ; ani.save('pendulum.mp4', fps=30, extra_args=['-vcodec', 'libx264'])
 plt.show()
