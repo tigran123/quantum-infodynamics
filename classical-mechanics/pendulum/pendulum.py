@@ -87,3 +87,7 @@ class Pendulum:
         del(self.line)
         self.energy_text.remove()
         del(self.energy_text)
+        while True:
+             try: self.cs.pop_label()
+             except IndexError: break
+        for c in self.cs.collections: c.remove()

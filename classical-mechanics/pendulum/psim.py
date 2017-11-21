@@ -40,6 +40,8 @@ def keypress(event):
             ani.event_source.stop()
             p = pendulums.pop()
             p.free()
+            ani._handle_resize()
+            ani._end_redraw(None)
             ani.event_source.start()
 
 def animate(i):
