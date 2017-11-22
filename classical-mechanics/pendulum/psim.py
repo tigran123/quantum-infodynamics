@@ -10,7 +10,7 @@ import sys
 import matplotlib.animation as animation
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
-from matplotlib.backends.qt_compat import QtWidgets, QtCore
+from matplotlib.backends.qt_compat import QtWidgets, QtCore, QtGui
 from numpy import pi, mgrid
 from pendulum import Pendulum
 
@@ -18,6 +18,10 @@ QMessageBox = QtWidgets.QMessageBox
 QMainWindow = QtWidgets.QMainWindow
 QApplication = QtWidgets.QApplication
 Qt = QtCore.Qt
+QSettings = QtCore.QSettings
+QIcon = QtGui.QIcon
+
+ICON = "Logo.jpg"
 
 t = 0.0 # global simulation time (has to be the same for all pendulums)
 dt = 0.005 # ODE integration fixed timestep
@@ -66,23 +70,50 @@ class PlotWindow(QMainWindow):
         self.canvas.mpl_connect('key_press_event', keypress)
         self.ani = animation.FuncAnimation(self.fig, animate, blit=True, interval=0, frames=200)
         self.setWindowTitle("Output Window")
+        self.setWindowIcon(QIcon(ICON))
         self.resize(int(self.fig.bbox.width), int(self.fig.bbox.height))
+        settings = QSettings("QuantumInfodynamics.com", "MathematicalPendulum_PlotWindow")
+        if not settings.value("geometry") == None:
+            self.restoreGeometry(settings.value("geometry"))
+        if not settings.value("windowState") == None:
+            self.restoreGeometry(settings.value("windowState"))
         self.canvas.setFocusPolicy(Qt.StrongFocus)
         self.canvas.setFocus()
         self.setCentralWidget(self.canvas)
         self.show()
 
+    def closeEvent(self, event): # this doesn't catch the press on the Quit button
+        reply = QMessageBox.warning(self, 'Warning', "Are you sure you want to quit?",
+                                     QMessageBox.Yes | QMessageBox.No, QMessageBox.Yes)
+        if reply == QMessageBox.Yes:
+            settings = QSettings("QuantumInfodynamics.com", "MathematicalPendulum_PlotWindow")
+            settings.setValue("geometry", self.saveGeometry())
+            settings.setValue("windowState", self.saveState())
+            event.accept()
+            main_exit()
+        else:
+            event.ignore()
+
 class ControlWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Mathematical Pendulum Simulator v0.3 (Qt)")
-        self.resize(640, 480)
+        self.setWindowIcon(QIcon(ICON))
+        #self.resize(640, 480)
+        settings = QSettings("QuantumInfodynamics.com", "MathematicalPendulum_ControlWindow")
+        if not settings.value("geometry") == None:
+            self.restoreGeometry(settings.value("geometry"))
+        if not settings.value("windowState") == None:
+            self.restoreGeometry(settings.value("windowState"))
         self.show()
 
     def closeEvent(self, event): # this doesn't catch the press on the Quit button
-        reply = QMessageBox.warning(self, 'Warning', "Are you sure you want to quit?", 
+        reply = QMessageBox.warning(self, 'Warning', "Are you sure you want to quit?",
                                      QMessageBox.Yes | QMessageBox.No, QMessageBox.Yes)
         if reply == QMessageBox.Yes:
+            settings = QSettings("QuantumInfodynamics.com", "MathematicalPendulum_ControlWindow")
+            settings.setValue("geometry", self.saveGeometry())
+            settings.setValue("windowState", self.saveState())
             event.accept()
             main_exit()
         else:
