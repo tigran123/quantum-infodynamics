@@ -1,11 +1,16 @@
+#!/usr/local/bin/python3
+
 """
   Mathematical Pendulum Simulator (main program)
   Author: Tigran Aivazian <aivazian.tigran@gmail.com>
   This program was written in 2017 and placed in public domain.
 """
 
-import matplotlib.pyplot as plt
+import sys
 import matplotlib.animation as animation
+from matplotlib.figure import Figure
+from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+from matplotlib.backends.qt_compat import QtWidgets, QtCore
 from numpy import pi, mgrid
 from pendulum import Pendulum
 
@@ -60,19 +65,21 @@ def animate(i):
     if i != 0 and anim_running: evolve_pendulums(dt)
 
     return tuple(p.line for p in pendulums) + tuple(p.energy_text for p in pendulums) + (time_text, points)
-    # the commented version below is about 15% more efficient, but 10 times more unreadable
-    # return sum(tuple((p.line,p.energy_text) for p in pendulums),()) + (time_text, points)
 
 pendulums = [Pendulum(phi=pi, phidot=3, L=1.0, color='b'),
              Pendulum(phi=pi, L=0.9, color='r'),
              Pendulum(phi=pi/3, L=0.6, color='g'),
              Pendulum(phi=0.9*pi/3, L=0.6, color='m')]
 
-fig,(ax1,ax2) = plt.subplots(1, 2, figsize=(19.2,10.8), dpi=100)
-fig.canvas.set_window_title("Mathematical Pendulum Simulator v0.2")
+app = QtWidgets.QApplication(sys.argv)
+win = QtWidgets.QMainWindow()
+fig = Figure(figsize=(19.2,10.8), dpi=100)
+canvas = FigureCanvas(fig)
+ax1 = fig.add_subplot(121)
+ax2 = fig.add_subplot(122)
 
 ax1.set_aspect('equal')
-ax1.set_title("Mathematical Pendulum Simulator v0.2")
+ax1.set_title("Mathematical Pendulum")
 ax1.set_xlabel("$x$ (m)")
 ax1.set_ylabel("$y$ (m)")
 space_range = 1.5*max(p.L for p in pendulums)
@@ -103,9 +110,14 @@ for p in pendulums:
     p.cs.clabel(fontsize=9, inline=False)
 points = ax2.scatter([],[], color=colors)
 
-fig.canvas.mpl_connect('key_press_event', keypress)
-ani = animation.FuncAnimation(fig, animate, blit=True, interval=0, frames=2000)
-fig.tight_layout()
+canvas.mpl_connect('key_press_event', keypress)
+ani = animation.FuncAnimation(fig, animate, blit=True, interval=0, frames=200)
+#fig.tight_layout(); anim_running = True ; ani.save('pendulum.mp4', fps=30, extra_args=['-vcodec', 'libx264'])
 
-#anim_running = True ; ani.save('pendulum.mp4', fps=30, extra_args=['-vcodec', 'libx264'])
-plt.show()
+win.resize(int(fig.bbox.width), int(fig.bbox.height))
+win.setWindowTitle("Mathematical Pendulum Simulator v0.3 (Qt)")
+canvas.setFocusPolicy(QtCore.Qt.StrongFocus)
+canvas.setFocus()
+win.setCentralWidget(canvas)
+win.show()
+sys.exit(app.exec_())
