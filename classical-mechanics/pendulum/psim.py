@@ -16,7 +16,10 @@ from pendulum import Pendulum
 
 QMessageBox = QtWidgets.QMessageBox
 QMainWindow = QtWidgets.QMainWindow
+QWidget = QtWidgets.QWidget
 QApplication = QtWidgets.QApplication
+QPushButton = QtWidgets.QPushButton
+QGridLayout = QtWidgets.QGridLayout
 Qt = QtCore.Qt
 QSettings = QtCore.QSettings
 QIcon = QtGui.QIcon
@@ -102,7 +105,54 @@ class PlotWindow(NamedWindow):
 class ControlWindow(NamedWindow):
     def __init__(self):
         super().__init__("control", "Mathematical Pendulum Simulator v0.3 (Qt)")
+        self.controls = QWidget()
+        self.grid = QGridLayout()
+        self.setCentralWidget(self.controls)
+        self.controls.setLayout(self.grid)
+
+        self.startbtn = QPushButton("Start", self)
+        self.stopbtn = QPushButton("Stop", self)
+        self.stopbtn.setEnabled(False)
+        self.stepfbtn = QPushButton("Step Forward", self)
+        self.stepbbtn = QPushButton("Step Back", self)
+
+        self.startbtn.clicked.connect(self.start_animation)
+        self.stopbtn.clicked.connect(self.stop_animation)
+        self.stepfbtn.clicked.connect(self.step_forward)
+        self.stepbbtn.clicked.connect(self.step_backward)
+        self.grid.addWidget(self.startbtn, 0, 0)
+        self.grid.addWidget(self.stopbtn, 0, 1)
+        self.grid.addWidget(self.stepfbtn, 0, 2)
+        self.grid.addWidget(self.stepbbtn, 0, 3)
         self.show()
+
+    def start_animation(self):
+        global anim_running
+        anim_running = True
+        winp.ani.event_source.start()
+        self.startbtn.setEnabled(False)
+        self.stopbtn.setEnabled(True)
+
+    def stop_animation(self):
+        global anim_running
+        anim_running = False
+        winp.ani.event_source.stop()
+        self.startbtn.setEnabled(True)
+        self.stopbtn.setEnabled(False)
+
+    def step_forward(self):
+        global anim_running, dt
+        dt = abs(dt)
+        evolve_pendulums(dt)
+        anim_running = False
+        winp.ani.event_source.start()
+
+    def step_backward(self):
+        global anim_running, dt
+        dt = -abs(dt)
+        evolve_pendulums(dt)
+        anim_running = False
+        winp.ani.event_source.start()
 
 def evolve_pendulums(dt):
     global t
