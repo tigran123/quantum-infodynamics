@@ -27,14 +27,39 @@ t = 0.0 # global simulation time (has to be the same for all pendulums)
 dt = 0.005 # ODE integration fixed timestep
 anim_running = False # change to True to start the animation immediately
 
-def main_exit():
-    print("Exiting the application")
-    sys.exit()
-
-class PlotWindow(QMainWindow):
-    def __init__(self):
+class NamedWindow(QMainWindow):
+    """NamedWindow is based on QMainWindow and allow the user to specify the name to be used
+       as a key for saving/restoring the window state on exit/starup.
+    """
+    def __init__(self, name="Unnamed", descr="Unknown"):
         super().__init__()
-        self.fig = Figure(figsize=(19.2,10.8), dpi=100)
+        self.name = name
+        self.descr = descr
+        self.settings = QSettings("QuantumInfodynamics.com", "MathematicalPendulum_" + self.name)
+        self.setWindowIcon(QIcon(ICON))
+        self.setWindowTitle(self.descr)
+        if not self.settings.value("geometry") == None:
+            self.restoreGeometry(self.settings.value("geometry"))
+        if not self.settings.value("windowState") == None:
+            self.restoreGeometry(self.settings.value("windowState"))
+
+    def closeEvent(self, event):
+        reply = QMessageBox.warning(self, 'Warning', "Are you sure you want to quit?",
+                                     QMessageBox.Yes | QMessageBox.No, QMessageBox.Yes)
+        if reply == QMessageBox.Yes:
+            settings = QSettings("QuantumInfodynamics.com", "MathematicalPendulum_" + self.name)
+            settings.setValue("geometry", self.saveGeometry())
+            settings.setValue("windowState", self.saveState())
+            event.accept()
+            print("Exiting the application")
+            sys.exit()
+        else:
+            event.ignore()
+
+class PlotWindow(NamedWindow):
+    def __init__(self):
+        super().__init__("plot", "Plotting Window")
+        self.fig = Figure()
         self.canvas = FigureCanvas(self.fig)
         self.ax1 = self.fig.add_subplot(121)
         self.ax2 = self.fig.add_subplot(122)
@@ -69,55 +94,15 @@ class PlotWindow(QMainWindow):
         self.points = self.ax2.scatter([],[], color=colors)
         self.canvas.mpl_connect('key_press_event', keypress)
         self.ani = animation.FuncAnimation(self.fig, animate, blit=True, interval=0, frames=200)
-        self.setWindowTitle("Output Window")
-        self.setWindowIcon(QIcon(ICON))
-        self.resize(int(self.fig.bbox.width), int(self.fig.bbox.height))
-        settings = QSettings("QuantumInfodynamics.com", "MathematicalPendulum_PlotWindow")
-        if not settings.value("geometry") == None:
-            self.restoreGeometry(settings.value("geometry"))
-        if not settings.value("windowState") == None:
-            self.restoreGeometry(settings.value("windowState"))
         self.canvas.setFocusPolicy(Qt.StrongFocus)
         self.canvas.setFocus()
         self.setCentralWidget(self.canvas)
         self.show()
 
-    def closeEvent(self, event): # this doesn't catch the press on the Quit button
-        reply = QMessageBox.warning(self, 'Warning', "Are you sure you want to quit?",
-                                     QMessageBox.Yes | QMessageBox.No, QMessageBox.Yes)
-        if reply == QMessageBox.Yes:
-            settings = QSettings("QuantumInfodynamics.com", "MathematicalPendulum_PlotWindow")
-            settings.setValue("geometry", self.saveGeometry())
-            settings.setValue("windowState", self.saveState())
-            event.accept()
-            main_exit()
-        else:
-            event.ignore()
-
-class ControlWindow(QMainWindow):
+class ControlWindow(NamedWindow):
     def __init__(self):
-        super().__init__()
-        self.setWindowTitle("Mathematical Pendulum Simulator v0.3 (Qt)")
-        self.setWindowIcon(QIcon(ICON))
-        #self.resize(640, 480)
-        settings = QSettings("QuantumInfodynamics.com", "MathematicalPendulum_ControlWindow")
-        if not settings.value("geometry") == None:
-            self.restoreGeometry(settings.value("geometry"))
-        if not settings.value("windowState") == None:
-            self.restoreGeometry(settings.value("windowState"))
+        super().__init__("control", "Mathematical Pendulum Simulator v0.3 (Qt)")
         self.show()
-
-    def closeEvent(self, event): # this doesn't catch the press on the Quit button
-        reply = QMessageBox.warning(self, 'Warning', "Are you sure you want to quit?",
-                                     QMessageBox.Yes | QMessageBox.No, QMessageBox.Yes)
-        if reply == QMessageBox.Yes:
-            settings = QSettings("QuantumInfodynamics.com", "MathematicalPendulum_ControlWindow")
-            settings.setValue("geometry", self.saveGeometry())
-            settings.setValue("windowState", self.saveState())
-            event.accept()
-            main_exit()
-        else:
-            event.ignore()
 
 def evolve_pendulums(dt):
     global t
@@ -128,55 +113,55 @@ def keypress(event):
     global anim_running, dt
 
     if event.key == ' ':
-        win1.ani.event_source.stop() if anim_running else win1.ani.event_source.start()
+        winp.ani.event_source.stop() if anim_running else winp.ani.event_source.start()
         anim_running = not anim_running
     elif event.key == '+':
-        win1.ax1.set_xlim([-2,2])
-        win1.ax1.set_ylim([-2,2])
-        win1.canvas.draw()
-        win1.ani._handle_resize()
-        win1.ani._end_redraw(None)
+        winp.ax1.set_xlim([-2,2])
+        winp.ax1.set_ylim([-2,2])
+        winp.canvas.draw()
+        winp.ani._handle_resize()
+        winp.ani._end_redraw(None)
     elif event.key == '-':
-        win1.ax1.set_xlim([-1,1])
-        win1.ax1.set_ylim([-1,1])
-        win1.canvas.draw()
-        win1.ani._handle_resize()
-        win1.ani._end_redraw(None)
+        winp.ax1.set_xlim([-1,1])
+        winp.ax1.set_ylim([-1,1])
+        winp.canvas.draw()
+        winp.ani._handle_resize()
+        winp.ani._end_redraw(None)
     elif event.key == '.':
         dt = abs(dt)
         evolve_pendulums(dt)
         anim_running = False
-        win1.ani.event_source.start()
+        winp.ani.event_source.start()
     elif event.key == ',':
         dt = -abs(dt)
         evolve_pendulums(dt)
         anim_running = False
-        win1.ani.event_source.start()
+        winp.ani.event_source.start()
     elif event.key == "delete":
         if pendulums:
-            win1.ani.event_source.stop()
+            winp.ani.event_source.stop()
             p = pendulums.pop()
             p.free()
-            win1.ani._handle_resize()
-            win1.ani._end_redraw(None)
-            win1.ani.event_source.start()
+            winp.ani._handle_resize()
+            winp.ani._end_redraw(None)
+            winp.ani.event_source.start()
 
 def animate(i):
     global t
 
-    if not anim_running: win1.ani.event_source.stop()
-    win1.time_text.set_text('Time = %.3f s' % t)
+    if not anim_running: winp.ani.event_source.stop()
+    winp.time_text.set_text('Time = %.3f s' % t)
     offsets = []
     for p in pendulums:
         offsets.append([p.phi, p.phidot])
         p.line.set_data(p.position())
         p.energy_text.set_text(r'E = %.3f J, $\varphi$=%.3f' % (p.energy(), p.phi))
-    win1.points.set_offsets(offsets)
+    winp.points.set_offsets(offsets)
 
     # ignore 0'th frame because animate(0) is called THRICE by matplotlib!
     if i != 0 and anim_running: evolve_pendulums(dt)
 
-    return tuple(p.line for p in pendulums) + tuple(p.energy_text for p in pendulums) + (win1.time_text, win1.points)
+    return tuple(p.line for p in pendulums) + tuple(p.energy_text for p in pendulums) + (winp.time_text, winp.points)
 
 pendulums = [Pendulum(phi=pi, phidot=3, L=1.0, color='b'),
              Pendulum(phi=pi, L=0.9, color='r'),
@@ -184,8 +169,8 @@ pendulums = [Pendulum(phi=pi, phidot=3, L=1.0, color='b'),
              Pendulum(phi=0.9*pi/3, L=0.6, color='m')]
 
 app = QApplication(sys.argv)
-win1 = PlotWindow()
-win2 = ControlWindow()
+winp = PlotWindow()
+winc = ControlWindow()
 
-#win1.fig.tight_layout(); anim_running = True ; win1.ani.save('pendulum.mp4', fps=30, extra_args=['-vcodec', 'libx264'])
+#winp.fig.tight_layout(); anim_running = True ; winp.ani.save('pendulum.mp4', fps=30, extra_args=['-vcodec', 'libx264'])
 sys.exit(app.exec_())
