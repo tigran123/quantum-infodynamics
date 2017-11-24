@@ -44,7 +44,7 @@ class NamedWindow(QMainWindow):
         if not self.settings.value("geometry") == None:
             self.restoreGeometry(self.settings.value("geometry"))
         if not self.settings.value("windowState") == None:
-            self.restoreGeometry(self.settings.value("windowState"))
+            self.restoreState(self.settings.value("windowState"))
 
     def closeEvent(self, event):
         reply = QMessageBox.warning(self, 'Warning', "Are you sure you want to quit?",
