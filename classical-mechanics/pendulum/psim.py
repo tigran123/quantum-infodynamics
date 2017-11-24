@@ -24,7 +24,7 @@ Qt = QtCore.Qt
 QSettings = QtCore.QSettings
 QIcon = QtGui.QIcon
 
-ICON = "Logo.jpg"
+ICON = "icons/Logo.jpg"
 
 t = 0.0 # global simulation time (has to be the same for all pendulums)
 dt = 0.005 # ODE integration fixed timestep
