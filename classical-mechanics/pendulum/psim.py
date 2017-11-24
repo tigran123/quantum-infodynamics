@@ -110,6 +110,10 @@ class ControlWindow(NamedWindow):
         self.setCentralWidget(self.controls)
         self.controls.setLayout(self.grid)
 
+        self.statusbar = self.statusBar()
+        self.statusbar.showMessage("Program loaded")
+        self.statusbar.setStyleSheet('QStatusBar{border-top: 1px outset grey;}')
+
         self.startbtn = QPushButton("Start", self)
         self.stopbtn = QPushButton("Stop", self)
         self.stopbtn.setEnabled(False)
@@ -132,6 +136,9 @@ class ControlWindow(NamedWindow):
         winp.ani.event_source.start()
         self.startbtn.setEnabled(False)
         self.stopbtn.setEnabled(True)
+        self.stepfbtn.setEnabled(False)
+        self.stepbbtn.setEnabled(False)
+        self.statusbar.showMessage("Animation running")
 
     def stop_animation(self):
         global anim_running
@@ -139,6 +146,9 @@ class ControlWindow(NamedWindow):
         winp.ani.event_source.stop()
         self.startbtn.setEnabled(True)
         self.stopbtn.setEnabled(False)
+        self.stepfbtn.setEnabled(True)
+        self.stepbbtn.setEnabled(True)
+        self.statusbar.showMessage("Animation stopped")
 
     def step_forward(self):
         global anim_running, dt
@@ -146,6 +156,9 @@ class ControlWindow(NamedWindow):
         evolve_pendulums(dt)
         anim_running = False
         winp.ani.event_source.start()
+        self.startbtn.setEnabled(True)
+        self.stopbtn.setEnabled(False)
+        self.statusbar.showMessage("Animation frame forward")
 
     def step_backward(self):
         global anim_running, dt
@@ -153,6 +166,9 @@ class ControlWindow(NamedWindow):
         evolve_pendulums(dt)
         anim_running = False
         winp.ani.event_source.start()
+        self.startbtn.setEnabled(True)
+        self.stopbtn.setEnabled(False)
+        self.statusbar.showMessage("Animation frame backward")
 
 def evolve_pendulums(dt):
     global t
