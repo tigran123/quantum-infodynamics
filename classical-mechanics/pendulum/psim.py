@@ -17,6 +17,7 @@ from pendulum import Pendulum
 QMessageBox = QtWidgets.QMessageBox
 QMainWindow = QtWidgets.QMainWindow
 QWidget = QtWidgets.QWidget
+QLCDNumber = QtWidgets.QLCDNumber
 QApplication = QtWidgets.QApplication
 QPushButton = QtWidgets.QPushButton
 QGridLayout = QtWidgets.QGridLayout
@@ -73,9 +74,6 @@ class PlotWindow(NamedWindow):
         space_range = 2.0
         self.ax1.set_xlim([-space_range,space_range])
         self.ax1.set_ylim([-space_range,space_range])
-        texty = 0.95
-        self.time_text = self.ax1.text(0.02, texty, '', transform=self.ax1.transAxes)
-        texty -= 0.05
         self.ax2.set_title("Phase Space (SPACE = pause/resume, './,' = step forward/backward)")
         self.ax2.set_xlabel(r"$\varphi$ (rad)")
         self.ax2.set_ylabel(r"$\dot{\varphi}$ (rad/s)")
@@ -87,6 +85,7 @@ class PlotWindow(NamedWindow):
         self.ax2.set_ylim([-self.phidot_range, self.phidot_range])
         phim,phidotm = mgrid[-self.phi_range:self.phi_range:self.phi_points*1j,-self.phidot_range:self.phidot_range:self.phidot_points*1j]
         colors = []
+        texty = 0.95
         for p in pendulums:
             colors.append(p.color)
             p.line, = self.ax1.plot([], [], 'o-', lw=2, color=p.color)
@@ -110,6 +109,9 @@ class ControlWindow(NamedWindow):
         self.setCentralWidget(self.controls)
         self.controls.setLayout(self.grid)
 
+        self.time_lcd = QLCDNumber(self)
+        self.time_lcd.setDigitCount(8)
+
         self.statusbar = self.statusBar()
         self.statusbar.showMessage("Program loaded")
         self.statusbar.setStyleSheet('QStatusBar{border-top: 1px outset grey;}')
@@ -128,6 +130,7 @@ class ControlWindow(NamedWindow):
         self.grid.addWidget(self.stopbtn, 0, 1)
         self.grid.addWidget(self.stepfbtn, 0, 2)
         self.grid.addWidget(self.stepbbtn, 0, 3)
+        self.grid.addWidget(self.time_lcd, 1, 0)
         self.show()
 
     def start_animation(self):
@@ -153,7 +156,7 @@ class ControlWindow(NamedWindow):
     def step_forward(self):
         global anim_running, dt
         dt = abs(dt)
-        evolve_pendulums(dt)
+        evolve_pendulums()
         anim_running = False
         winp.ani.event_source.start()
         self.startbtn.setEnabled(True)
@@ -163,14 +166,14 @@ class ControlWindow(NamedWindow):
     def step_backward(self):
         global anim_running, dt
         dt = -abs(dt)
-        evolve_pendulums(dt)
+        evolve_pendulums()
         anim_running = False
         winp.ani.event_source.start()
         self.startbtn.setEnabled(True)
         self.stopbtn.setEnabled(False)
         self.statusbar.showMessage("Animation frame backward")
 
-def evolve_pendulums(dt):
+def evolve_pendulums():
     global t
     for p in pendulums: p.evolve(t, t+dt)
     t += dt
@@ -195,12 +198,12 @@ def keypress(event):
         winp.ani._end_redraw(None)
     elif event.key == '.':
         dt = abs(dt)
-        evolve_pendulums(dt)
+        evolve_pendulums()
         anim_running = False
         winp.ani.event_source.start()
     elif event.key == ',':
         dt = -abs(dt)
-        evolve_pendulums(dt)
+        evolve_pendulums()
         anim_running = False
         winp.ani.event_source.start()
     elif event.key == "delete":
@@ -213,10 +216,8 @@ def keypress(event):
             winp.ani.event_source.start()
 
 def animate(i):
-    global t
-
     if not anim_running: winp.ani.event_source.stop()
-    winp.time_text.set_text('Time = %.3f s' % t)
+    winc.time_lcd.display('%.3f' % t)
     offsets = []
     for p in pendulums:
         offsets.append([p.phi, p.phidot])
@@ -225,9 +226,9 @@ def animate(i):
     winp.points.set_offsets(offsets)
 
     # ignore 0'th frame because animate(0) is called THRICE by matplotlib!
-    if i != 0 and anim_running: evolve_pendulums(dt)
+    if i != 0 and anim_running: evolve_pendulums()
 
-    return tuple(p.line for p in pendulums) + tuple(p.energy_text for p in pendulums) + (winp.time_text, winp.points)
+    return tuple(p.line for p in pendulums) + tuple(p.energy_text for p in pendulums) + (winp.points,)
 
 pendulums = [Pendulum(phi=pi, phidot=3, L=1.0, color='b'),
              Pendulum(phi=pi, L=0.9, color='r'),
