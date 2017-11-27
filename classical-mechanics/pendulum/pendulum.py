@@ -46,7 +46,6 @@ class Pendulum:
         self.cs = None # matplotlib contour set artist for this pendulum
         self.line = None # matplotlib line artist for this pendulum
         self.energy_text = None # matplotlib text artist for the energy value
-        self.t = 0.0 # elapsed time of simulation in s
 
     def position(self):
         """Return the current position of the pendulum"""
@@ -73,13 +72,11 @@ class Pendulum:
         """Return the RHS of the ODEs of motion"""
         return [state[1], 0.0 if abs(state[0]) == pi else -self.G*sin(state[0])/self.L]
 
-    def step(self, dt):
-        """Evolve the system by time step dt"""
-        t = self.t
-        self.phi,self.phidot = odeint(self.derivs, [self.phi,self.phidot], [t, t + dt])[1]
+    def evolve(self, t1, t2):
+        """Evolve the pendulum from the moment of time t1 to t2"""
+        self.phi,self.phidot = odeint(self.derivs, [self.phi,self.phidot], [t1, t2])[1]
         if self.phi > pi: self.phi -= 2*pi    # the phase space is a cylinder, so we must wrap ...
         elif self.phi < -pi: self.phi += 2*pi # ... phi around to remain within [-pi, pi]
-        self.t += dt
 
     def free(self):
         """Free the resources held by this instance"""

@@ -172,7 +172,7 @@ class ControlWindow(NamedWindow):
 
 def evolve_pendulums(dt):
     global t
-    for p in pendulums: p.step(dt)
+    for p in pendulums: p.evolve(t, t+dt)
     t += dt
 
 def keypress(event):
