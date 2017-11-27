@@ -17,7 +17,10 @@ from pendulum import Pendulum
 QMessageBox = QtWidgets.QMessageBox
 QMainWindow = QtWidgets.QMainWindow
 QWidget = QtWidgets.QWidget
+QTabWidget = QtWidgets.QTabWidget
+QAction = QtWidgets.QAction
 QLCDNumber = QtWidgets.QLCDNumber
+QLabel = QtWidgets.QLabel
 QApplication = QtWidgets.QApplication
 QPushButton = QtWidgets.QPushButton
 QGridLayout = QtWidgets.QGridLayout
@@ -25,11 +28,16 @@ Qt = QtCore.Qt
 QSettings = QtCore.QSettings
 QIcon = QtGui.QIcon
 
+PROGRAM = "Mathematical Pendulum Simulator v0.3 (Qt)"
 ICON = "icons/Logo.jpg"
 
 t = 0.0 # global simulation time (has to be the same for all pendulums)
 dt = 0.005 # ODE integration fixed timestep
 anim_running = False # change to True to start the animation immediately
+
+def main_exit():
+    print("main_exit(): Exiting the application")
+    sys.exit()
 
 class NamedWindow(QMainWindow):
     """NamedWindow is based on QMainWindow and allow the user to specify the name to be used
@@ -103,18 +111,50 @@ class PlotWindow(NamedWindow):
 
 class ControlWindow(NamedWindow):
     def __init__(self):
-        super().__init__("control", "Mathematical Pendulum Simulator v0.3 (Qt)")
+        super().__init__("control", PROGRAM)
+
+        self.tabs = QTabWidget()
         self.controls = QWidget()
+        self.pend1 = QWidget()
+        self.pend2 = QWidget()
+        self.tabs.addTab(self.controls, "Main Controls")
+        self.tabs.addTab(self.pend1, "Pendulum 1")
+        self.tabs.addTab(self.pend2, "Pendulum 2")
+        self.setCentralWidget(self.tabs)
+
         self.grid = QGridLayout()
-        self.setCentralWidget(self.controls)
         self.controls.setLayout(self.grid)
+
+        self.menubar = self.menuBar()
+        self.menubar.setNativeMenuBar(False)
+        self.fileMenu = self.menubar.addMenu('File')
+        self.helpMenu = self.menubar.addMenu('Help')
+
+        self.exitAct = QAction(QIcon('icons/exit.png'), 'E&xit', self)
+        self.exitAct.setShortcut('Ctrl+Q')
+        self.exitAct.setStatusTip("Exit the program")
+        self.exitAct.triggered.connect(app.quit)
+        self.fileMenu.addAction(self.exitAct)
+
+        self.aboutAct = QAction(QIcon('icons/about.png'), '&About', self)
+        self.aboutAct.setStatusTip("Information about the program")
+        self.aboutAct.triggered.connect(self.about)
+        self.helpMenu.addAction(self.aboutAct)
+
+        self.aboutQtAct = QAction(QIcon('icons/qt.png'), 'About &Qt', self)
+        self.aboutQtAct.setStatusTip("Information about the Qt version")
+        self.aboutQtAct.triggered.connect(self.aboutQt)
+        self.helpMenu.addAction(self.aboutQtAct)
 
         self.time_lcd = QLCDNumber(self)
         self.time_lcd.setDigitCount(8)
+        self.time_lcd.setSegmentStyle(QLCDNumber.Flat)
+        self.time_lcd.setStyleSheet('QLCDNumber {background: #8CB398;}')
 
         self.statusbar = self.statusBar()
-        self.statusbar.showMessage("Program loaded")
-        self.statusbar.setStyleSheet('QStatusBar{border-top: 1px outset grey;}')
+        self.statusbar.setStyleSheet('QStatusBar {border-top: 1px outset grey;}')
+        self.status_msg = QLabel('Program ready')
+        self.statusbar.addPermanentWidget(self.status_msg) # to prevent hovering over menubar from clearing status
 
         self.startbtn = QPushButton("Start", self)
         self.stopbtn = QPushButton("Stop", self)
@@ -141,7 +181,7 @@ class ControlWindow(NamedWindow):
         self.stopbtn.setEnabled(True)
         self.stepfbtn.setEnabled(False)
         self.stepbbtn.setEnabled(False)
-        self.statusbar.showMessage("Animation running")
+        self.status_msg.setText("Animation running")
 
     def stop_animation(self):
         global anim_running
@@ -151,7 +191,7 @@ class ControlWindow(NamedWindow):
         self.stopbtn.setEnabled(False)
         self.stepfbtn.setEnabled(True)
         self.stepbbtn.setEnabled(True)
-        self.statusbar.showMessage("Animation stopped")
+        self.status_msg.setText("Animation stopped")
 
     def step_forward(self):
         global anim_running, dt
@@ -161,7 +201,7 @@ class ControlWindow(NamedWindow):
         winp.ani.event_source.start()
         self.startbtn.setEnabled(True)
         self.stopbtn.setEnabled(False)
-        self.statusbar.showMessage("Animation frame forward")
+        self.status_msg.setText("Animation frame forward")
 
     def step_backward(self):
         global anim_running, dt
@@ -171,7 +211,13 @@ class ControlWindow(NamedWindow):
         winp.ani.event_source.start()
         self.startbtn.setEnabled(True)
         self.stopbtn.setEnabled(False)
-        self.statusbar.showMessage("Animation frame backward")
+        self.status_msg.setText("Animation frame backward")
+
+    def about(self):
+        QMessageBox.about(self, PROGRAM, "<p>Computer simulations of mathematical pendulums.</p><p>To make a suggestion or to report a bug, please visit our github repository at: <A HREF='https://github.com/tigran123/quantum-infodynamics'>https://github.com/tigran123/quantum-infodynamics</A></p>")
+
+    def aboutQt(self):
+        QMessageBox.aboutQt(self, PROGRAM)
 
 def evolve_pendulums():
     global t
@@ -236,6 +282,7 @@ pendulums = [Pendulum(phi=pi, phidot=3, L=1.0, color='b'),
              Pendulum(phi=0.9*pi/3, L=0.6, color='m')]
 
 app = QApplication(sys.argv)
+app.aboutToQuit.connect(main_exit)
 winp = PlotWindow()
 winc = ControlWindow()
 
