@@ -1,7 +1,7 @@
 """
   Mathematical Pendulum Simulator (Python Class Definition)
   Author: Tigran Aivazian <aivazian.tigran@gmail.com>
-  This program was written in 2017 and placed in public domain.
+  Released under GPLv3, 2017.
 
   origin
    |\

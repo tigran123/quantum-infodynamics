@@ -3,7 +3,7 @@
 """
   Mathematical Pendulum Simulator (main program)
   Author: Tigran Aivazian <aivazian.tigran@gmail.com>
-  This program was written in 2017 and placed in public domain.
+  Released under GPLv3, 2017
 """
 
 import sys
