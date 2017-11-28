@@ -118,9 +118,9 @@ class ControlWindow(NamedWindow):
         self.controls = QWidget()
         self.pend1 = QWidget()
         self.pend2 = QWidget()
-        self.tabs.addTab(self.controls, "Main Controls")
-        self.tabs.addTab(self.pend1, "Pendulum 1")
-        self.tabs.addTab(self.pend2, "Pendulum 2")
+        self.tabs.addTab(self.controls, "Control &Panel")
+        self.tabs.addTab(self.pend1, "Pendulum &1")
+        self.tabs.addTab(self.pend2, "Pendulum &2")
         self.setCentralWidget(self.tabs)
 
         self.grid = QGridLayout()
