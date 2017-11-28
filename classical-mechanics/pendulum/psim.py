@@ -1,10 +1,10 @@
 #!/usr/local/bin/python3
 
-"""
+'''
   Mathematical Pendulum Simulator (main program)
   Author: Tigran Aivazian <aivazian.tigran@gmail.com>
   Released under GPLv3, 2017
-"""
+'''
 
 import sys
 import matplotlib.animation as animation
@@ -29,63 +29,63 @@ Qt = QtCore.Qt
 QSettings = QtCore.QSettings
 QIcon = QtGui.QIcon
 
-PROGRAM = "Mathematical Pendulum Simulator v0.3 (Qt)"
-ICON = "icons/Logo.jpg"
+PROGRAM = 'Mathematical Pendulum Simulator v0.3 (Qt)'
+ICON = 'icons/Logo.jpg'
 
 t = 0.0 # global simulation time (has to be the same for all pendulums)
 dt = 0.005 # ODE integration fixed timestep
 anim_running = False # change to True to start the animation immediately
 
 def main_exit():
-    print("main_exit(): Exiting the application")
+    print('main_exit(): Exiting the application')
     sys.exit()
 
 class NamedWindow(QMainWindow):
-    """NamedWindow is based on QMainWindow and allow the user to specify the name to be used
+    '''NamedWindow is based on QMainWindow and allow the user to specify the name to be used
        as a key for saving/restoring the window state on exit/starup.
-    """
-    def __init__(self, name="Unnamed", descr="Unknown"):
+    '''
+    def __init__(self, name='Unnamed', descr='Unknown'):
         super().__init__()
         self.name = name
         self.descr = descr
-        self.settings = QSettings("QuantumInfodynamics.com", "MathematicalPendulum_" + self.name)
+        self.settings = QSettings('QuantumInfodynamics.com', 'MathematicalPendulum_' + self.name)
         self.setWindowIcon(QIcon(ICON))
         self.setWindowTitle(self.descr)
-        if not self.settings.value("geometry") == None:
-            self.restoreGeometry(self.settings.value("geometry"))
-        if not self.settings.value("windowState") == None:
-            self.restoreState(self.settings.value("windowState"))
+        if not self.settings.value('geometry') == None:
+            self.restoreGeometry(self.settings.value('geometry'))
+        if not self.settings.value('windowState') == None:
+            self.restoreState(self.settings.value('windowState'))
 
     def closeEvent(self, event):
-        reply = QMessageBox.warning(self, 'Warning', "Are you sure you want to quit?",
+        reply = QMessageBox.warning(self, 'Warning', 'Are you sure you want to quit?',
                                      QMessageBox.Yes | QMessageBox.No, QMessageBox.Yes)
         if reply == QMessageBox.Yes:
-            settings = QSettings("QuantumInfodynamics.com", "MathematicalPendulum_" + self.name)
-            settings.setValue("geometry", self.saveGeometry())
-            settings.setValue("windowState", self.saveState())
+            settings = QSettings('QuantumInfodynamics.com', 'MathematicalPendulum_' + self.name)
+            settings.setValue('geometry', self.saveGeometry())
+            settings.setValue('windowState', self.saveState())
             event.accept()
-            print("Exiting the application")
+            print('Exiting the application')
             sys.exit()
         else:
             event.ignore()
 
 class PlotWindow(NamedWindow):
     def __init__(self):
-        super().__init__("plot", "Plotting Window")
+        super().__init__('plot', 'Plotting Window')
         self.fig = Figure()
         self.canvas = FigureCanvas(self.fig)
         self.ax1 = self.fig.add_subplot(121)
         self.ax2 = self.fig.add_subplot(122)
         self.ax1.set_aspect('equal')
-        self.ax1.set_title("Mathematical Pendulum")
-        self.ax1.set_xlabel("$x$ (m)")
-        self.ax1.set_ylabel("$y$ (m)")
+        self.ax1.set_title('Mathematical Pendulum')
+        self.ax1.set_xlabel('$x$ (m)')
+        self.ax1.set_ylabel('$y$ (m)')
         space_range = 2.0
         self.ax1.set_xlim([-space_range,space_range])
         self.ax1.set_ylim([-space_range,space_range])
-        self.ax2.set_title("Phase Space (SPACE = pause/resume, './,' = step forward/backward)")
-        self.ax2.set_xlabel(r"$\varphi$ (rad)")
-        self.ax2.set_ylabel(r"$\dot{\varphi}$ (rad/s)")
+        self.ax2.set_title('Phase Space Trajectories')
+        self.ax2.set_xlabel(r'$\varphi$ (rad)')
+        self.ax2.set_ylabel(r'$\dot{\varphi}$ (rad/s)')
         self.phi_range = 1.1*pi
         self.phi_points = 200
         self.phidot_range = 10.0
@@ -112,15 +112,15 @@ class PlotWindow(NamedWindow):
 
 class ControlWindow(NamedWindow):
     def __init__(self):
-        super().__init__("control", PROGRAM)
+        super().__init__('control', PROGRAM)
 
         self.tabs = QTabWidget()
         self.controls = QWidget()
         self.pend1 = QWidget()
         self.pend2 = QWidget()
-        self.tabs.addTab(self.controls, "Control &Panel")
-        self.tabs.addTab(self.pend1, "Pendulum &1")
-        self.tabs.addTab(self.pend2, "Pendulum &2")
+        self.tabs.addTab(self.controls, 'Control &Panel')
+        self.tabs.addTab(self.pend1, 'Pendulum &1')
+        self.tabs.addTab(self.pend2, 'Pendulum &2')
         self.setCentralWidget(self.tabs)
 
         self.grid = QGridLayout()
@@ -134,23 +134,23 @@ class ControlWindow(NamedWindow):
 
         self.exitAction = QAction(QIcon('icons/exit.png'), 'E&xit', self)
         self.exitAction.setShortcut('Ctrl+Q')
-        self.exitAction.setStatusTip("Exit the program")
+        self.exitAction.setStatusTip('Exit the program')
         self.exitAction.triggered.connect(app.quit)
         self.fileMenu.addAction(self.exitAction)
 
         self.tooltipsAction = QAction('Show &tooltips', self, checkable=True, checked=False)
-        self.tooltipsAction.setStatusTip("Toggle showing tooltip popups")
+        self.tooltipsAction.setStatusTip('Toggle showing tooltip popups')
         self.tooltips_enabled = False
         self.tooltipsAction.triggered.connect(self.tooltips_toggle)
         self.viewMenu.addAction(self.tooltipsAction)
 
         self.aboutAction = QAction(QIcon('icons/about.png'), '&About', self)
-        self.aboutAction.setStatusTip("Information about the program")
+        self.aboutAction.setStatusTip('Information about the program')
         self.aboutAction.triggered.connect(self.about)
         self.helpMenu.addAction(self.aboutAction)
 
         self.aboutQtAction = QAction(QIcon('icons/qt.png'), 'About &Qt', self)
-        self.aboutQtAction.setStatusTip("Information about the Qt version")
+        self.aboutQtAction.setStatusTip('Information about the Qt version')
         self.aboutQtAction.triggered.connect(self.aboutQt)
         self.helpMenu.addAction(self.aboutQtAction)
 
@@ -191,13 +191,13 @@ class ControlWindow(NamedWindow):
         global anim_running
         if anim_running:
             anim_running = False
-            self.status_msg.setText("Animation paused")
+            self.status_msg.setText('Animation paused')
             self.playpausebtn.setIcon(self.playicon)
             if self.tooltips_enabled: self.playpausebtn.setToolTip('Start the animation')
             winp.ani.event_source.stop()
         else:
             anim_running = True
-            self.status_msg.setText("Animation running")
+            self.status_msg.setText('Animation running')
             self.playpausebtn.setIcon(self.pauseicon)
             if self.tooltips_enabled: self.playpausebtn.setToolTip('Pause the animation')
             winp.ani.event_source.start()
@@ -209,7 +209,7 @@ class ControlWindow(NamedWindow):
         anim_running = False
         self.playpausebtn.setIcon(self.playicon)
         if self.tooltips_enabled: self.playpausebtn.setToolTip('Start the animation')
-        self.status_msg.setText("Animation frame forward")
+        self.status_msg.setText('Animation frame forward')
         winp.ani.event_source.start()
 
     def frameback(self):
@@ -219,7 +219,7 @@ class ControlWindow(NamedWindow):
         anim_running = False
         self.playpausebtn.setIcon(self.playicon)
         if self.tooltips_enabled: self.playpausebtn.setToolTip('Start the animation')
-        self.status_msg.setText("Animation frame backward")
+        self.status_msg.setText('Animation frame backward')
         winp.ani.event_source.start()
 
     def about(self):
@@ -261,7 +261,7 @@ def keypress(event):
         evolve_pendulums()
         anim_running = False
         winp.ani.event_source.start()
-    elif event.key == "delete":
+    elif event.key == 'delete':
         if pendulums:
             winp.ani.event_source.stop()
             p = pendulums.pop()
