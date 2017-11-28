@@ -23,6 +23,7 @@ QLCDNumber = QtWidgets.QLCDNumber
 QLabel = QtWidgets.QLabel
 QApplication = QtWidgets.QApplication
 QPushButton = QtWidgets.QPushButton
+QToolButton = QtWidgets.QToolButton
 QGridLayout = QtWidgets.QGridLayout
 Qt = QtCore.Qt
 QSettings = QtCore.QSettings
@@ -128,24 +129,32 @@ class ControlWindow(NamedWindow):
         self.menubar = self.menuBar()
         self.menubar.setNativeMenuBar(False)
         self.fileMenu = self.menubar.addMenu('File')
+        self.viewMenu = self.menubar.addMenu('View')
         self.helpMenu = self.menubar.addMenu('Help')
 
-        self.exitAct = QAction(QIcon('icons/exit.png'), 'E&xit', self)
-        self.exitAct.setShortcut('Ctrl+Q')
-        self.exitAct.setStatusTip("Exit the program")
-        self.exitAct.triggered.connect(app.quit)
-        self.fileMenu.addAction(self.exitAct)
+        self.exitAction = QAction(QIcon('icons/exit.png'), 'E&xit', self)
+        self.exitAction.setShortcut('Ctrl+Q')
+        self.exitAction.setStatusTip("Exit the program")
+        self.exitAction.triggered.connect(app.quit)
+        self.fileMenu.addAction(self.exitAction)
 
-        self.aboutAct = QAction(QIcon('icons/about.png'), '&About', self)
-        self.aboutAct.setStatusTip("Information about the program")
-        self.aboutAct.triggered.connect(self.about)
-        self.helpMenu.addAction(self.aboutAct)
+        self.tooltipsAction = QAction('Show &tooltips', self, checkable=True, checked=False)
+        self.tooltipsAction.setStatusTip("Toggle showing tooltip popups")
+        self.tooltips_enabled = False
+        self.tooltipsAction.triggered.connect(self.tooltips_toggle)
+        self.viewMenu.addAction(self.tooltipsAction)
 
-        self.aboutQtAct = QAction(QIcon('icons/qt.png'), 'About &Qt', self)
-        self.aboutQtAct.setStatusTip("Information about the Qt version")
-        self.aboutQtAct.triggered.connect(self.aboutQt)
-        self.helpMenu.addAction(self.aboutQtAct)
+        self.aboutAction = QAction(QIcon('icons/about.png'), '&About', self)
+        self.aboutAction.setStatusTip("Information about the program")
+        self.aboutAction.triggered.connect(self.about)
+        self.helpMenu.addAction(self.aboutAction)
 
+        self.aboutQtAction = QAction(QIcon('icons/qt.png'), 'About &Qt', self)
+        self.aboutQtAction.setStatusTip("Information about the Qt version")
+        self.aboutQtAction.triggered.connect(self.aboutQt)
+        self.helpMenu.addAction(self.aboutQtAction)
+
+        self.time_label = QLabel('Time (s):')
         self.time_lcd = QLCDNumber(self)
         self.time_lcd.setDigitCount(8)
         self.time_lcd.setSegmentStyle(QLCDNumber.Flat)
@@ -154,67 +163,67 @@ class ControlWindow(NamedWindow):
         self.statusbar = self.statusBar()
         self.statusbar.setStyleSheet('QStatusBar {border-top: 1px outset grey;}')
         self.status_msg = QLabel('Program ready')
-        self.statusbar.addPermanentWidget(self.status_msg) # to prevent hovering over menubar from clearing status
+        self.statusbar.addPermanentWidget(self.status_msg) # to prevent ovewriting status by other widgets
 
-        self.startbtn = QPushButton("Start", self)
-        self.stopbtn = QPushButton("Stop", self)
-        self.stopbtn.setEnabled(False)
-        self.stepfbtn = QPushButton("Step Forward", self)
-        self.stepbbtn = QPushButton("Step Back", self)
+        self.playicon = QIcon('icons/play.png')
+        self.pauseicon = QIcon('icons/pause.png')
+        self.playpausebtn = QToolButton(self, icon=self.playicon)
+        self.playpausebtn.setToolTip('Start the animation')
+        self.frameforwardbtn = QToolButton(self, icon=QIcon('icons/forward.png'))
+        self.frameforwardbtn.setToolTip('Step forward one time step')
+        self.framebackbtn = QToolButton(self, icon=QIcon('icons/rewind'))
+        self.framebackbtn.setToolTip('Step back one time step')
 
-        self.startbtn.clicked.connect(self.start_animation)
-        self.stopbtn.clicked.connect(self.stop_animation)
-        self.stepfbtn.clicked.connect(self.step_forward)
-        self.stepbbtn.clicked.connect(self.step_backward)
-        self.grid.addWidget(self.startbtn, 0, 0)
-        self.grid.addWidget(self.stopbtn, 0, 1)
-        self.grid.addWidget(self.stepfbtn, 0, 2)
-        self.grid.addWidget(self.stepbbtn, 0, 3)
-        self.grid.addWidget(self.time_lcd, 1, 0)
+        self.playpausebtn.clicked.connect(self.playpause_animation)
+        self.frameforwardbtn.clicked.connect(self.frameforward)
+        self.framebackbtn.clicked.connect(self.frameback)
+        self.grid.addWidget(self.framebackbtn, 0, 0)
+        self.grid.addWidget(self.playpausebtn, 0, 1)
+        self.grid.addWidget(self.frameforwardbtn, 0, 2)
+        self.grid.addWidget(self.time_label, 1, 0)
+        self.grid.addWidget(self.time_lcd, 1, 1)
         self.show()
 
-    def start_animation(self):
-        global anim_running
-        anim_running = True
-        winp.ani.event_source.start()
-        self.startbtn.setEnabled(False)
-        self.stopbtn.setEnabled(True)
-        self.stepfbtn.setEnabled(False)
-        self.stepbbtn.setEnabled(False)
-        self.status_msg.setText("Animation running")
+    def tooltips_toggle(self, state):
+        self.tooltips_enabled = state
 
-    def stop_animation(self):
+    def playpause_animation(self):
         global anim_running
-        anim_running = False
-        winp.ani.event_source.stop()
-        self.startbtn.setEnabled(True)
-        self.stopbtn.setEnabled(False)
-        self.stepfbtn.setEnabled(True)
-        self.stepbbtn.setEnabled(True)
-        self.status_msg.setText("Animation stopped")
+        if anim_running:
+            anim_running = False
+            self.status_msg.setText("Animation paused")
+            self.playpausebtn.setIcon(self.playicon)
+            if self.tooltips_enabled: self.playpausebtn.setToolTip('Start the animation')
+            winp.ani.event_source.stop()
+        else:
+            anim_running = True
+            self.status_msg.setText("Animation running")
+            self.playpausebtn.setIcon(self.pauseicon)
+            if self.tooltips_enabled: self.playpausebtn.setToolTip('Pause the animation')
+            winp.ani.event_source.start()
 
-    def step_forward(self):
+    def frameforward(self):
         global anim_running, dt
         dt = abs(dt)
         evolve_pendulums()
         anim_running = False
-        winp.ani.event_source.start()
-        self.startbtn.setEnabled(True)
-        self.stopbtn.setEnabled(False)
+        self.playpausebtn.setIcon(self.playicon)
+        if self.tooltips_enabled: self.playpausebtn.setToolTip('Start the animation')
         self.status_msg.setText("Animation frame forward")
+        winp.ani.event_source.start()
 
-    def step_backward(self):
+    def frameback(self):
         global anim_running, dt
         dt = -abs(dt)
         evolve_pendulums()
         anim_running = False
-        winp.ani.event_source.start()
-        self.startbtn.setEnabled(True)
-        self.stopbtn.setEnabled(False)
+        self.playpausebtn.setIcon(self.playicon)
+        if self.tooltips_enabled: self.playpausebtn.setToolTip('Start the animation')
         self.status_msg.setText("Animation frame backward")
+        winp.ani.event_source.start()
 
     def about(self):
-        QMessageBox.about(self, PROGRAM, "<p>Computer simulations of mathematical pendulums.</p><p>To make a suggestion or to report a bug, please visit our github repository at: <A HREF='https://github.com/tigran123/quantum-infodynamics'>https://github.com/tigran123/quantum-infodynamics</A></p>")
+        QMessageBox.about(self, PROGRAM, "<p>Computer simulation of mathematical pendulums with the analysis of the trajectory in the phase space.</p><p>To make a suggestion or to report a bug, please visit our github repository at: <A HREF='https://github.com/tigran123/quantum-infodynamics'>https://github.com/tigran123/quantum-infodynamics</A></p>")
 
     def aboutQt(self):
         QMessageBox.aboutQt(self, PROGRAM)
