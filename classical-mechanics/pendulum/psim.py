@@ -7,7 +7,7 @@
 '''
 
 import sys
-import matplotlib.animation as animation
+from matplotlib.animation import FuncAnimation
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.qt_compat import QtWidgets, QtCore, QtGui
@@ -35,10 +35,6 @@ ICON = 'icons/Logo.jpg'
 t = 0.0 # global simulation time (has to be the same for all pendulums)
 dt = 0.005 # ODE integration fixed timestep
 anim_running = False # change to True to start the animation immediately
-
-def main_exit():
-    print('main_exit(): Exiting the application')
-    sys.exit()
 
 class NamedWindow(QMainWindow):
     '''NamedWindow is based on QMainWindow and allow the user to specify the name to be used
@@ -104,7 +100,7 @@ class PlotWindow(NamedWindow):
             p.cs.clabel(fontsize=9, inline=False)
         self.points = self.ax2.scatter([],[], color=colors)
         self.canvas.mpl_connect('key_press_event', keypress)
-        self.ani = animation.FuncAnimation(self.fig, animate, blit=True, interval=0, frames=200)
+        self.ani = FuncAnimation(self.fig, animate, blit=True, interval=0, frames=200)
         self.canvas.setFocusPolicy(Qt.StrongFocus)
         self.canvas.setFocus()
         self.setCentralWidget(self.canvas)
@@ -140,7 +136,6 @@ class ControlWindow(NamedWindow):
 
         self.tooltipsAction = QAction('Show &tooltips', self, checkable=True, checked=False)
         self.tooltipsAction.setStatusTip('Toggle showing tooltip popups')
-        self.tooltips_enabled = False
         self.tooltipsAction.triggered.connect(self.tooltips_toggle)
         self.viewMenu.addAction(self.tooltipsAction)
 
@@ -168,12 +163,8 @@ class ControlWindow(NamedWindow):
         self.playicon = QIcon('icons/play.png')
         self.pauseicon = QIcon('icons/pause.png')
         self.playpausebtn = QToolButton(self, icon=self.playicon)
-        self.playpausebtn.setToolTip('Start the animation')
         self.frameforwardbtn = QToolButton(self, icon=QIcon('icons/forward.png'))
-        self.frameforwardbtn.setToolTip('Step forward one time step')
         self.framebackbtn = QToolButton(self, icon=QIcon('icons/rewind'))
-        self.framebackbtn.setToolTip('Step back one time step')
-
         self.playpausebtn.clicked.connect(self.playpause_animation)
         self.frameforwardbtn.clicked.connect(self.frameforward)
         self.framebackbtn.clicked.connect(self.frameback)
@@ -185,7 +176,14 @@ class ControlWindow(NamedWindow):
         self.show()
 
     def tooltips_toggle(self, state):
-        self.tooltips_enabled = state
+        if state:
+            self.playpausebtn.setToolTip('Start/pause the animation')
+            self.frameforwardbtn.setToolTip('Step forward one time step')
+            self.framebackbtn.setToolTip('Step back one time step')
+        else:
+            self.playpausebtn.setToolTip(None)
+            self.frameforwardbtn.setToolTip(None)
+            self.framebackbtn.setToolTip(None)
 
     def playpause_animation(self):
         global anim_running
@@ -193,33 +191,31 @@ class ControlWindow(NamedWindow):
             anim_running = False
             self.status_msg.setText('Animation paused')
             self.playpausebtn.setIcon(self.playicon)
-            if self.tooltips_enabled: self.playpausebtn.setToolTip('Start the animation')
+            self.frameforwardbtn.setEnabled(True)
+            self.framebackbtn.setEnabled(True)
             winp.ani.event_source.stop()
         else:
             anim_running = True
             self.status_msg.setText('Animation running')
             self.playpausebtn.setIcon(self.pauseicon)
-            if self.tooltips_enabled: self.playpausebtn.setToolTip('Pause the animation')
+            self.frameforwardbtn.setEnabled(False)
+            self.framebackbtn.setEnabled(False)
             winp.ani.event_source.start()
 
     def frameforward(self):
         global anim_running, dt
         dt = abs(dt)
         evolve_pendulums()
-        anim_running = False
-        self.playpausebtn.setIcon(self.playicon)
-        if self.tooltips_enabled: self.playpausebtn.setToolTip('Start the animation')
         self.status_msg.setText('Animation frame forward')
+        anim_running = False
         winp.ani.event_source.start()
 
     def frameback(self):
         global anim_running, dt
         dt = -abs(dt)
         evolve_pendulums()
-        anim_running = False
-        self.playpausebtn.setIcon(self.playicon)
-        if self.tooltips_enabled: self.playpausebtn.setToolTip('Start the animation')
         self.status_msg.setText('Animation frame backward')
+        anim_running = False
         winp.ani.event_source.start()
 
     def about(self):
@@ -291,7 +287,6 @@ pendulums = [Pendulum(phi=pi, phidot=3, L=1.0, color='b'),
              Pendulum(phi=0.9*pi/3, L=0.6, color='m')]
 
 app = QApplication(sys.argv)
-app.aboutToQuit.connect(main_exit)
 winp = PlotWindow()
 winc = ControlWindow()
 
