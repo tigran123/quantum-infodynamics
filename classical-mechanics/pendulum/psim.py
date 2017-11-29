@@ -187,20 +187,12 @@ class ControlWindow(NamedWindow):
 
     def playpause_animation(self):
         global anim_running
-        if anim_running:
-            anim_running = False
-            self.status_msg.setText('Animation paused')
-            self.playpausebtn.setIcon(self.playicon)
-            self.frameforwardbtn.setEnabled(True)
-            self.framebackbtn.setEnabled(True)
-            winp.ani.event_source.stop()
-        else:
-            anim_running = True
-            self.status_msg.setText('Animation running')
-            self.playpausebtn.setIcon(self.pauseicon)
-            self.frameforwardbtn.setEnabled(False)
-            self.framebackbtn.setEnabled(False)
-            winp.ani.event_source.start()
+        self.frameforwardbtn.setEnabled(anim_running)
+        self.framebackbtn.setEnabled(anim_running)
+        self.status_msg.setText('Animation ' + ('paused' if anim_running else 'running'))
+        self.playpausebtn.setIcon(self.playicon if anim_running else self.pauseicon)
+        winp.ani.event_source.stop() if anim_running else winp.ani.event_source.start()
+        anim_running = not anim_running
 
     def frameforward(self):
         global anim_running, dt
