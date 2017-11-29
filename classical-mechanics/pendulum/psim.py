@@ -119,8 +119,8 @@ class ControlWindow(NamedWindow):
         self.tabs.addTab(self.pend2, 'Pendulum &2')
         self.setCentralWidget(self.tabs)
 
-        self.grid = QGridLayout()
-        self.controls.setLayout(self.grid)
+        self.controls.grid = QGridLayout()
+        self.controls.setLayout(self.controls.grid)
 
         self.menubar = self.menuBar()
         self.menubar.setNativeMenuBar(False)
@@ -168,11 +168,11 @@ class ControlWindow(NamedWindow):
         self.playpausebtn.clicked.connect(self.playpause_animation)
         self.frameforwardbtn.clicked.connect(self.frameforward)
         self.framebackbtn.clicked.connect(self.frameback)
-        self.grid.addWidget(self.framebackbtn, 0, 0)
-        self.grid.addWidget(self.playpausebtn, 0, 1)
-        self.grid.addWidget(self.frameforwardbtn, 0, 2)
-        self.grid.addWidget(self.time_label, 1, 0)
-        self.grid.addWidget(self.time_lcd, 1, 1)
+        self.controls.grid.addWidget(self.framebackbtn, 0, 0)
+        self.controls.grid.addWidget(self.playpausebtn, 0, 1)
+        self.controls.grid.addWidget(self.frameforwardbtn, 0, 2)
+        self.controls.grid.addWidget(self.time_label, 1, 0)
+        self.controls.grid.addWidget(self.time_lcd, 1, 1)
         self.show()
 
     def tooltips_toggle(self, state):
