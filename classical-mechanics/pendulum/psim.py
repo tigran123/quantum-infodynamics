@@ -29,45 +29,28 @@ Qt = QtCore.Qt
 QSettings = QtCore.QSettings
 QIcon = QtGui.QIcon
 
+COMPANY = 'QuantumInfodynamics.com'
 PROGRAM = 'Mathematical Pendulum Simulator v0.3 (Qt)'
-ICON = 'icons/Logo.jpg'
+PROG = 'MathematicalPendulum'
+LOGO = 'icons/Logo.jpg'
 
 t = 0.0 # global simulation time (has to be the same for all pendulums)
 dt = 0.005 # ODE integration fixed timestep
 anim_running = False # change to True to start the animation immediately
 
-class NamedWindow(QMainWindow):
-    '''NamedWindow is based on QMainWindow and allow the user to specify the name to be used
-       as a key for saving/restoring the window state on exit/starup.
-    '''
-    def __init__(self, name='Unnamed', descr='Unknown'):
+def main_exit():
+     global settings
+     settings.setValue('plot_geometry', winp.saveGeometry())
+     settings.setValue('plot_windowState', winp.saveState())
+     settings.setValue('control_geometry', winc.saveGeometry())
+     settings.setValue('control_windowState', winc.saveState())
+     del settings # to force the writing of settings to storage
+     print('Exiting the program')
+     sys.exit()
+
+class PlotWindow(QMainWindow):
+    def __init__(self, geometry = None, state = None):
         super().__init__()
-        self.name = name
-        self.descr = descr
-        self.settings = QSettings('QuantumInfodynamics.com', 'MathematicalPendulum_' + self.name)
-        self.setWindowIcon(QIcon(ICON))
-        self.setWindowTitle(self.descr)
-        if not self.settings.value('geometry') == None:
-            self.restoreGeometry(self.settings.value('geometry'))
-        if not self.settings.value('windowState') == None:
-            self.restoreState(self.settings.value('windowState'))
-
-    def closeEvent(self, event):
-        reply = QMessageBox.warning(self, 'Warning', 'Are you sure you want to quit?',
-                                     QMessageBox.Yes | QMessageBox.No, QMessageBox.Yes)
-        if reply == QMessageBox.Yes:
-            settings = QSettings('QuantumInfodynamics.com', 'MathematicalPendulum_' + self.name)
-            settings.setValue('geometry', self.saveGeometry())
-            settings.setValue('windowState', self.saveState())
-            event.accept()
-            print('Exiting the application')
-            sys.exit()
-        else:
-            event.ignore()
-
-class PlotWindow(NamedWindow):
-    def __init__(self):
-        super().__init__('plot', 'Plotting Window')
         self.fig = Figure()
         self.canvas = FigureCanvas(self.fig)
         self.ax1 = self.fig.add_subplot(121)
@@ -104,11 +87,16 @@ class PlotWindow(NamedWindow):
         self.canvas.setFocusPolicy(Qt.StrongFocus)
         self.canvas.setFocus()
         self.setCentralWidget(self.canvas)
+
+        self.setWindowIcon(QIcon(LOGO))
+        self.setWindowTitle('Plotting Window')
+        if geometry: self.restoreGeometry(geometry)
+        if state: self.restoreState(state)
         self.show()
 
-class ControlWindow(NamedWindow):
-    def __init__(self):
-        super().__init__('control', PROGRAM)
+class ControlWindow(QMainWindow):
+    def __init__(self, geometry = None, state = None):
+        super().__init__()
 
         self.tabs = QTabWidget()
         self.controls = QWidget()
@@ -130,8 +118,8 @@ class ControlWindow(NamedWindow):
 
         self.exitAction = QAction(QIcon('icons/exit.png'), 'E&xit', self)
         self.exitAction.setShortcut('Ctrl+Q')
-        self.exitAction.setStatusTip('Exit the program')
-        self.exitAction.triggered.connect(app.quit)
+        self.exitAction.setStatusTip('Save current state and exit')
+        self.exitAction.triggered.connect(main_exit)
         self.fileMenu.addAction(self.exitAction)
 
         self.tooltipsAction = QAction('Show &tooltips', self, checkable=True, checked=False)
@@ -173,6 +161,11 @@ class ControlWindow(NamedWindow):
         self.controls.grid.addWidget(self.frameforwardbtn, 0, 2)
         self.controls.grid.addWidget(self.time_label, 1, 0)
         self.controls.grid.addWidget(self.time_lcd, 1, 1)
+
+        self.setWindowIcon(QIcon(LOGO))
+        self.setWindowTitle('Mathematical Pendulum')
+        if geometry: self.restoreGeometry(geometry)
+        if state: self.restoreState(state)
         self.show()
 
     def tooltips_toggle(self, state):
@@ -279,8 +272,10 @@ pendulums = [Pendulum(phi=pi, phidot=3, L=1.0, color='b'),
              Pendulum(phi=0.9*pi/3, L=0.6, color='m')]
 
 app = QApplication(sys.argv)
-winp = PlotWindow()
-winc = ControlWindow()
+settings = QSettings(COMPANY, PROG)
+winp = PlotWindow(geometry = settings.value('plot_geometry'), state = settings.value('plot_windowState'))
+winc = ControlWindow(geometry = settings.value('control_geometry'), state = settings.value('control_windowState'))
+app.aboutToQuit.connect(main_exit)
 
 #winp.fig.tight_layout(); anim_running = True ; winp.ani.save('pendulum.mp4', fps=30, extra_args=['-vcodec', 'libx264'])
 sys.exit(app.exec_())
