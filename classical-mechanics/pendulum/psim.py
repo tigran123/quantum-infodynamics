@@ -97,7 +97,30 @@ class PlotWindow(QMainWindow):
 class ControlWindow(QMainWindow):
     def __init__(self, geometry = None, state = None):
         super().__init__()
+        self.create_tabs()
+        self.create_menus()
+        self.create_time_indicator()
+        self.create_statusbar()
 
+        self.playicon = QIcon('icons/play.png')
+        self.pauseicon = QIcon('icons/pause.png')
+        self.playpausebtn = QToolButton(self, icon=self.playicon)
+        self.frameforwardbtn = QToolButton(self, icon=QIcon('icons/forward.png'))
+        self.framebackbtn = QToolButton(self, icon=QIcon('icons/rewind'))
+        self.playpausebtn.clicked.connect(self.playpause_animation)
+        self.frameforwardbtn.clicked.connect(self.frameforward)
+        self.framebackbtn.clicked.connect(self.frameback)
+
+        self.setup_layout()
+
+        self.setWindowIcon(QIcon(LOGO))
+        self.setWindowTitle('Mathematical Pendulum')
+        if geometry: self.restoreGeometry(geometry)
+        if state: self.restoreState(state)
+        self.show()
+
+    def create_tabs(self):
+        '''Create tab widgets and set the container to be the central widget'''
         self.tabs = QTabWidget()
         self.controls = QWidget()
         self.pend1 = QWidget()
@@ -107,9 +130,8 @@ class ControlWindow(QMainWindow):
         self.tabs.addTab(self.pend2, 'Pendulum &2')
         self.setCentralWidget(self.tabs)
 
-        self.controls.grid = QGridLayout()
-        self.controls.setLayout(self.controls.grid)
-
+    def create_menus(self):
+        '''Create menubar, menu actions and attach them to the menubar'''
         self.menubar = self.menuBar()
         self.menubar.setNativeMenuBar(False)
         self.fileMenu = self.menubar.addMenu('File')
@@ -137,36 +159,30 @@ class ControlWindow(QMainWindow):
         self.aboutQtAction.triggered.connect(self.aboutQt)
         self.helpMenu.addAction(self.aboutQtAction)
 
-        self.time_label = QLabel('Time (s):')
-        self.time_lcd = QLCDNumber(self)
-        self.time_lcd.setDigitCount(8)
-        self.time_lcd.setSegmentStyle(QLCDNumber.Flat)
-        self.time_lcd.setStyleSheet('QLCDNumber {background: #8CB398;}')
-
-        self.statusbar = self.statusBar()
-        self.statusbar.setStyleSheet('QStatusBar {border-top: 1px outset grey;}')
-        self.status_msg = QLabel('Program ready')
-        self.statusbar.addPermanentWidget(self.status_msg) # to prevent ovewriting status by other widgets
-
-        self.playicon = QIcon('icons/play.png')
-        self.pauseicon = QIcon('icons/pause.png')
-        self.playpausebtn = QToolButton(self, icon=self.playicon)
-        self.frameforwardbtn = QToolButton(self, icon=QIcon('icons/forward.png'))
-        self.framebackbtn = QToolButton(self, icon=QIcon('icons/rewind'))
-        self.playpausebtn.clicked.connect(self.playpause_animation)
-        self.frameforwardbtn.clicked.connect(self.frameforward)
-        self.framebackbtn.clicked.connect(self.frameback)
+    def setup_layout(self):
+        '''Create and connect the layouts for the main control panel'''
+        self.controls.grid = QGridLayout()
+        self.controls.setLayout(self.controls.grid)
         self.controls.grid.addWidget(self.framebackbtn, 0, 0)
         self.controls.grid.addWidget(self.playpausebtn, 0, 1)
         self.controls.grid.addWidget(self.frameforwardbtn, 0, 2)
         self.controls.grid.addWidget(self.time_label, 1, 0)
         self.controls.grid.addWidget(self.time_lcd, 1, 1)
 
-        self.setWindowIcon(QIcon(LOGO))
-        self.setWindowTitle('Mathematical Pendulum')
-        if geometry: self.restoreGeometry(geometry)
-        if state: self.restoreState(state)
-        self.show()
+    def create_time_indicator(self):
+        '''Create the label and LCD window for the current time'''
+        self.time_label = QLabel('Time (s):')
+        self.time_lcd = QLCDNumber(self)
+        self.time_lcd.setDigitCount(8)
+        self.time_lcd.setSegmentStyle(QLCDNumber.Flat)
+        self.time_lcd.setStyleSheet('QLCDNumber {background: #8CB398;}')
+
+    def create_statusbar(self):
+        '''Create status bar and permanent message widget for the status info'''
+        self.statusbar = self.statusBar()
+        self.statusbar.setStyleSheet('QStatusBar {border-top: 1px outset grey;}')
+        self.status_msg = QLabel('Program ready')
+        self.statusbar.addPermanentWidget(self.status_msg) # to prevent ovewriting status by other widgets
 
     def tooltips_toggle(self, state):
         if state:
