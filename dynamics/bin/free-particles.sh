@@ -7,7 +7,7 @@ TACHYON=$workdir/tachyon
 nproc=$(nproc)
 FPS=20
 
-PARAMS="-r -x0 0.0 -p0 4.0 -sigmax 0.2 -sigmap 0.2 -x1 -20.0 -x2 40.0 -Nx 1024 -p1 3.0 -p2 5.0 -Np 1024 -t1 0.0 -t2 25.0 -u U_free"
+PARAMS="-r -x0 0.0 -p0 4.0 -sigmax 0.2 -sigmap 0.2 -x1 -20.0 -x2 40.0 -Nx 256 -p1 3.0 -p2 5.0 -Np 256 -t1 0.0 -t2 25.0 -u U_free"
 
 python3 solve.py -d "Free Luxon (m=0, v=c)"    -m 0.0  $PARAMS -tol 0.00001 -s $LUXON  &
 python3 solve.py -d "Free Tardyon (m=3, v=0.8c)"  -m 3.0  $PARAMS -tol 0.00001 -s $TARDYON &
