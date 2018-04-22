@@ -6,7 +6,7 @@ SOLCR=$workdir/solcr
 SOLQN=$workdir/solqn
 SOLCN=$workdir/solcn
 
-MOVIE_FILE=harmonic-oscillator.mp4
+MOVIE_FILE=harmonic-oscillator-4D.mp4
 PARAMS="-x0  0.0 -y0  0.0 \
         -px0 1.0 -py0 0.0 \
         -sigmax 0.2 -sigmay 0.2 -sigmapx 0.1 -sigmapy 0.1 \
