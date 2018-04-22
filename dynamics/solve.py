@@ -119,15 +119,15 @@ Tv = T(pv)
 H = T(pp)+Umod.U(xx)
 
 def solve_spectral(Winit, expU, expT):
-    B = fft(Winit, axis=0) # (x,p) -> (lambda,p)
+    B = fft(Winit, axis=0, threads=4) # (x,p) -> (lambda,p)
     B *= expT
-    B = ifft(B, axis=0) # (lambda,p) -> (x,p)
-    B = fft(B, axis=1) # (x,p) -> (x,theta)
+    B = ifft(B, axis=0, threads=4) # (lambda,p) -> (x,p)
+    B = fft(B, axis=1, threads=4) # (x,p) -> (x,theta)
     B *= expU
-    B = ifft(B, axis=1) # (x,theta) -> (x,p)
-    B = fft(B, axis=0) # (x,p) -> (lambda,p)
+    B = ifft(B, axis=1, threads=4) # (x,theta) -> (x,p)
+    B = fft(B, axis=0, threads=4) # (x,p) -> (lambda,p)
     B *= expT
-    B = ifft(B, axis=0) # (lambda,p) -> (x,p)
+    B = ifft(B, axis=0, threads=4) # (lambda,p) -> (x,p)
     return real(B) # to avoid python warning
 
 def adjust_step(cur_dt, Winit, maxtries=15):
