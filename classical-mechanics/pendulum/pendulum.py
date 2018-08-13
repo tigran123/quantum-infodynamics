@@ -10,19 +10,18 @@ from scipy.integrate import odeint
 class Pendulum:
     '''Pendulum Class --- model of a mathematical pendulum.
        Uses Lagrangian dynamics in variables (phi, phidot = dphi/dt)
+       The motion of pendulum does not depend on the mass, so by "energy" we mean "energy per unit mass"
     '''
     def __init__(self,
                  phi    = pi, # initial angle phi, in radians
                  phidot =  0.0,  # initial angular velocity = dphi/dt, in radian/s
                  L      =  1.0,  # length of pendulum in m
-                 M      =  1.0,  # mass of pendulum in kg
                  G      =  9.81, # standard gravity in m/s^2
                  color  = 'k',   # boring black colour by default :)
                  origin = (0, 0)): # coordinates of the suspension point
         self.phi = phi
         self.phidot = phidot
         self.L = L
-        self.M = M
         self.G = G
         self.color = color # colour to paint this pendulum
         self.origin = origin
@@ -39,16 +38,15 @@ class Pendulum:
         return [[self.origin[0], x], [self.origin[1],y]]
 
     def Hamiltonian(self, phi, phidot):
-        '''Return the total energy (Kinetic+Potential) of the specified state'''
-        M = self.M
+        '''Return the total (Kinetic+Potential) energy per unit mass of the specified state'''
         L = self.L
         G = self.G
-        T = 0.5*M*L**2*phidot**2
-        U = -M*G*L*cos(phi)
+        T = 0.5*L**2*phidot**2
+        U = -G*L*cos(phi)
         return T + U
 
     def energy(self):
-        '''Return the total energy (Kinetic+Potential) of the current state'''
+        '''Return the total (Kinetic+Potential) energy per unit mass of the current state'''
         return self.Hamiltonian(self.phi, self.phidot)
 
     def derivs(self, state, t):
