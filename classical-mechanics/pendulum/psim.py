@@ -51,7 +51,7 @@ def main_exit():
 class PlotWindow(QMainWindow):
     def __init__(self, geometry = None, state = None):
         super().__init__()
-        self.fig = Figure()
+        self.fig = Figure(figsize=(19.2,10.8))
         self.canvas = FigureCanvas(self.fig)
         self.ax1 = self.fig.add_subplot(121)
         self.ax2 = self.fig.add_subplot(122)
