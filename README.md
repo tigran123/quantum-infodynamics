@@ -9,7 +9,21 @@ This repository contains the programs and any other materials related to Quantum
 
 For more information see the project's website at http://quantuminfodynamics.com
 
-### Pre-requisites for using tools in "dynamics" directory
+### Tested with the following versions:
+
+* Python 3.7.0
+
+* numpy 1.15.1
+
+* scipy 1.1.0
+
+* matplotlib 2.2.3
+
+* PyFFTW 0.10.4
+
+* PyQt5 5.11.2
+
+### Minimal pre-requisites for using our python programs
 
 * Python >= 3.6.3
 
