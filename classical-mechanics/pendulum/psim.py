@@ -282,7 +282,7 @@ def animate(i):
 
     return tuple(p.line for p in pendulums) + tuple(p.energy_text for p in pendulums) + (winp.points,)
 
-pendulums = [Pendulum(phi=pi, phidot=3, L=1.0, color='b'),
+pendulums = [Pendulum(phi=pi, phidot=0, L=1.0, color='b'),
              Pendulum(phi=pi/2, L=0.9, color='r'),
              Pendulum(phi=pi/2, L=0.6, color='g'),
              Pendulum(phi=0.99*pi/2, L=0.6, color='m')]
