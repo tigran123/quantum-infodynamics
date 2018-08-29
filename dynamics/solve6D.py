@@ -4,6 +4,7 @@
    License: GPL
 """
 
+import sys
 from numpy import linspace, mgrid, pi, newaxis, exp, real, savez, amin, amax, sum, abs, memmap, sqrt, sign, zeros, array
 import argparse as arg
 from time import time
@@ -81,7 +82,7 @@ def pr_msg(str):
 
 def pr_exit(str):
     pr_msg("ERROR: " + str)
-    exit()
+    sys.exit()
 
 if Nx & (Nx-1): pr_msg("WARNING: Nx=%d is not a power 2, FFT may be slowed down" % Nx)
 if Ny & (Ny-1): pr_msg("WARNING: Ny=%d is not a power 2, FFT may be slowed down" % Ny)

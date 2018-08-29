@@ -1,9 +1,13 @@
+#!/usr/bin/env python3.7
+
 """
   solanim.py --- Quantum Infodynamics Tools - Solution Animator
 
   Author: Tigran Aivazian <aivazian.tigran@gmail.com>
   License: GPL
 """
+
+import sys
 import matplotlib as mplt
 import matplotlib.pyplot as plt
 from matplotlib import cm
@@ -32,7 +36,7 @@ framedir,Wonly,nparts,part,framew,frameh,nophi = args.framedir,args.Wonly,args.n
 
 def pr_exit(str):
     print("ERROR:" + str)
-    exit()
+    sys.exit()
 
 if nparts <= 0: pr_exit("Number of parts must be positive, but %d <= 0" % nparts)
 if part <= 0 or part > nparts: pr_exit("The part number must lie between 1 and %d,  but %d <= 0" % (nparts, part))

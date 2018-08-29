@@ -1,3 +1,5 @@
+#!/usr/bin/env python3.7
+
 """
    solve.py --- Quantum Infodynamics Solver (Spectral Split Propagator of Second Order with Adaptive Timestep Control)
    Author: Tigran Aivazian <aivazian.tigran@gmail.com>
@@ -5,10 +7,11 @@
 """
 
 from numpy import linspace, mgrid, pi, newaxis, exp, real, savez, amin, amax, sum, abs, memmap, sqrt, sign, zeros, array
-import argparse as arg
+from argparse import ArgumentParser as argp
 from time import time
+import sys
 
-p = arg.ArgumentParser(description="Quantum Infodynamics Tools - Equations Solver")
+p = argp(description="Quantum Infodynamics Tools - Equations Solver")
 p.add_argument("-d",  action="store", help="Description text", dest="descr", required=True)
 p.add_argument("-x0", action="append", help="Initial packet's x-coordinate (multiple OK)", dest="x0", type=float, required=True, default=[])
 p.add_argument("-p0", action="append", help="Initial packet's p-coordinate (multiple OK)", dest="p0", type=float, required=True, default=[])
@@ -43,7 +46,7 @@ def pr_msg(str):
 
 def pr_exit(str):
     pr_msg("ERROR: " + str)
-    exit()
+    sys.exit()
 
 if Nx & (Nx-1): pr_msg("WARNING: Nx=%d is not a power 2, FFT may be slowed down" % Nx)
 if Np & (Np-1): pr_msg("WARNING: Np=%d is not a power 2, FFT may be slowed down" % Np)
