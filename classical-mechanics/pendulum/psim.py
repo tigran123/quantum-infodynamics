@@ -79,9 +79,9 @@ class PlotWindow(QMainWindow):
             p.line, = self.ax1.plot([], [], 'o-', lw=2, color=p.color)
             p.energy_text = self.ax1.text(0.02, texty, '', transform=self.ax1.transAxes, color=p.color)
             texty -= 0.05
-            p.cs = self.ax2.contour(phim, phidotm, p.Hamiltonian(phim,phidotm), levels=p.energy(), linewidths=0.8, colors=p.color)
+            p.cs = self.ax2.contour(phim, phidotm, p.Hamiltonian(phim,phidotm), levels=[p.energy()], linewidths=0.8, colors=p.color)
             p.cs.clabel(fontsize=9, inline=False)
-        self.points = self.ax2.scatter([],[], color=colors)
+        self.points = self.ax2.scatter([None]*len(colors),[None]*len(colors), color=colors)
         self.canvas.mpl_connect('key_press_event', keypress)
         self.ani = FuncAnimation(self.fig, animate, blit=True, interval=0, frames=200)
         self.canvas.setFocusPolicy(Qt.StrongFocus)
