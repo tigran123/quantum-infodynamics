@@ -83,7 +83,7 @@ class PlotWindow(QMainWindow):
             p.cs.clabel(fontsize=9, inline=False)
         self.points = self.ax2.scatter([None]*len(colors),[None]*len(colors), color=colors)
         self.canvas.mpl_connect('key_press_event', keypress)
-        self.ani = FuncAnimation(self.fig, animate, blit=True, interval=0, frames=200)
+        self.ani = FuncAnimation(self.fig, animate, blit=True, interval=0, frames=1000) # frames= used only for saving to file
         self.canvas.setFocusPolicy(Qt.StrongFocus)
         self.canvas.setFocus()
         self.setCentralWidget(self.canvas)
@@ -293,5 +293,7 @@ winp = PlotWindow(geometry = settings.value('plot_geometry'), state = settings.v
 winc = ControlWindow(geometry = settings.value('control_geometry'), state = settings.value('control_windowState'))
 app.aboutToQuit.connect(main_exit)
 
-#winp.fig.tight_layout(); anim_running = True ; winp.ani.save('pendulum.mp4', fps=30, extra_args=['-vcodec', 'libx264'])
+# Uncomment this line only for saving animation to file (as per 'frames=' of FuncAnimation() constructor
+#winp.fig.tight_layout(); anim_running = True ; winp.ani.save('pendulum.mp4', fps=30, extra_args=['-vcodec', 'libx264']) ; sys.exit()
+
 sys.exit(app.exec_())
