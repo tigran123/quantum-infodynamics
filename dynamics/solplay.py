@@ -1,3 +1,5 @@
+#!/usr/bin/env python3.7
+
 """
   solplay.py --- Quantum Infodynamics Tools - Solution Playback
   Author: Tigran Aivazian <aivazian.tigran@gmail.com>
@@ -148,7 +150,7 @@ def animate_all(k):
             for c in c_artists[s].collections: c.remove()
         xx,pp = xxpp[s][0],xxpp[s][1]
         xv,pv = xvdx[s][0],pvdp[s][0]
-        c_artists[s] = ax[0].contourf(xx, pp, W[s][time_index], levels=Wlevels[s], norm=norm[s], cmap=cm.bwr, animated=True)
+        c_artists[s] = ax[0].contourf(xx, pp, W[s][time_index], levels=Wlevels[s], norm=norm[s], cmap=cm.bwr)
         rho_now = rho[s][time_index]
         rho_artist, = ax[1].plot(xv, rho_now, color='black', animated=True)
         rho_plus = ax[1].fill_between(xv, 0, rho_now, where=rho_now>0, color='red', interpolate=False, animated=True)
@@ -178,7 +180,7 @@ def animate_Wonly(k):
         if not preload:
             for c in c_artists[s].collections: c.remove()
         xx,pp = xxpp[s][0],xxpp[s][1]
-        c_artists[s] = ax.contourf(xx, pp, W[s][time_index], levels=Wlevels[s], norm=norm[s], cmap=cm.bwr, animated=True)
+        c_artists[s] = ax.contourf(xx, pp, W[s][time_index], levels=Wlevels[s], norm=norm[s], cmap=cm.bwr)
         artists.extend(c_artists[s].collections + h_artists[s].collections)
         s += 1
     if preload: progress.update(frame)
