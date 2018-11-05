@@ -1,33 +1,20 @@
 #!/usr/bin/env python3.7
 
-'''
+"""
   Mathematical Pendulum Simulator (main program)
   Author: Tigran Aivazian <aivazian.tigran@gmail.com>
   Released under GPLv3, 2017
-'''
+"""
 
 import sys
+
 from matplotlib.animation import FuncAnimation
 from matplotlib.figure import Figure
-from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
-from matplotlib.backends.qt_compat import QtWidgets, QtCore, QtGui
-from numpy import pi, mgrid
-from pendulum import Pendulum
 
-QMessageBox = QtWidgets.QMessageBox
-QMainWindow = QtWidgets.QMainWindow
-QWidget = QtWidgets.QWidget
-QTabWidget = QtWidgets.QTabWidget
-QAction = QtWidgets.QAction
-QLCDNumber = QtWidgets.QLCDNumber
-QLabel = QtWidgets.QLabel
-QApplication = QtWidgets.QApplication
-QPushButton = QtWidgets.QPushButton
-QToolButton = QtWidgets.QToolButton
-QGridLayout = QtWidgets.QGridLayout
-Qt = QtCore.Qt
-QSettings = QtCore.QSettings
-QIcon = QtGui.QIcon
+import numpy as np
+
+from qtapi import *
+from pendulum import Pendulum
 
 COMPANY = 'QuantumInfodynamics.com'
 PROGRAM = 'Mathematical Pendulum Simulator v0.3 (Qt)'
@@ -65,13 +52,13 @@ class PlotWindow(QMainWindow):
         self.ax2.set_title('Phase Space Trajectories')
         self.ax2.set_xlabel(r'$\varphi$ (rad)')
         self.ax2.set_ylabel(r'$\dot{\varphi}$ (rad/s)')
-        self.phi_range = 1.1*pi
+        self.phi_range = 1.1*np.pi
         self.phi_points = 200
         self.phidot_range = 10.0
         self.phidot_points = 200
         self.ax2.set_xlim([-self.phi_range, self.phi_range])
         self.ax2.set_ylim([-self.phidot_range, self.phidot_range])
-        phim,phidotm = mgrid[-self.phi_range:self.phi_range:self.phi_points*1j,-self.phidot_range:self.phidot_range:self.phidot_points*1j]
+        phim,phidotm = np.mgrid[-self.phi_range:self.phi_range:self.phi_points*1j,-self.phidot_range:self.phidot_range:self.phidot_points*1j]
         colors = []
         texty = 0.95
         for p in pendulums:
@@ -82,7 +69,7 @@ class PlotWindow(QMainWindow):
             p.cs = self.ax2.contour(phim, phidotm, p.Hamiltonian(phim,phidotm), levels=[p.energy()], linewidths=0.8, colors=p.color)
             p.cs.clabel(fontsize=9, inline=False)
         self.points = self.ax2.scatter([None]*len(colors),[None]*len(colors), color=colors)
-        self.canvas.mpl_connect('key_press_event', keypress)
+        self.canvas.mpl_connect('key_press_event', self.keypress)
         self.ani = FuncAnimation(self.fig, animate, blit=True, interval=0, frames=1000) # frames= used only for saving to file
         self.canvas.setFocusPolicy(Qt.StrongFocus)
         self.canvas.setFocus()
@@ -93,6 +80,45 @@ class PlotWindow(QMainWindow):
         if geometry: self.restoreGeometry(geometry)
         if state: self.restoreState(state)
         self.show()
+
+    def keypress(self, event):
+        """Handler for key presses, registered with matplotlib in the constructor of PlotWindow()"""
+        global anim_running, dt
+
+        if event.key == ' ':
+            self.ani.event_source.stop() if anim_running else self.ani.event_source.start()
+            anim_running = not anim_running
+        elif event.key == '+':
+            self.ax1.set_xlim([-2,2])
+            self.ax1.set_ylim([-2,2])
+            self.canvas.draw()
+            self.ani._handle_resize()
+            self.ani._end_redraw(None)
+        elif event.key == '-':
+            self.ax1.set_xlim([-1,1])
+            self.ax1.set_ylim([-1,1])
+            self.canvas.draw()
+            self.ani._handle_resize()
+            self.ani._end_redraw(None)
+        elif event.key == '.':
+            dt = abs(dt)
+            evolve_pendulums()
+            anim_running = False
+            self.ani.event_source.start()
+        elif event.key == ',':
+            dt = -abs(dt)
+            evolve_pendulums()
+            anim_running = False
+            self.ani.event_source.start()
+        elif event.key == 'delete':
+            if pendulums:
+                self.ani.event_source.stop()
+                p = pendulums.pop()
+                p.free()
+                self.ani._handle_resize()
+                self.ani._end_redraw(None)
+                self.ani.event_source.start()
+
 
 class ControlWindow(QMainWindow):
     def __init__(self, geometry = None, state = None):
@@ -120,7 +146,7 @@ class ControlWindow(QMainWindow):
         self.show()
 
     def create_tabs(self):
-        '''Create tab widgets and set the container to be the central widget'''
+        """Create tab widgets and set the container to be the central widget"""
         self.tabs = QTabWidget()
         self.controls = QWidget()
         self.pend1 = QWidget()
@@ -131,7 +157,7 @@ class ControlWindow(QMainWindow):
         self.setCentralWidget(self.tabs)
 
     def create_menus(self):
-        '''Create menubar, menu actions and attach them to the menubar'''
+        """Create menubar, menu actions and attach them to the menubar"""
         self.menubar = self.menuBar()
         self.menubar.setNativeMenuBar(False)
         self.fileMenu = self.menubar.addMenu('File')
@@ -160,7 +186,7 @@ class ControlWindow(QMainWindow):
         self.helpMenu.addAction(self.aboutQtAction)
 
     def setup_layout(self):
-        '''Create and connect the layouts for the main control panel'''
+        """Create and connect the layouts for the main control panel"""
         self.controls.grid = QGridLayout()
         self.controls.setLayout(self.controls.grid)
         self.controls.grid.addWidget(self.framebackbtn, 0, 0)
@@ -170,7 +196,7 @@ class ControlWindow(QMainWindow):
         self.controls.grid.addWidget(self.time_lcd, 1, 1)
 
     def create_time_indicator(self):
-        '''Create the label and LCD window for the current time'''
+        """Create the label and LCD window for the current time"""
         self.time_label = QLabel('Time (s):')
         self.time_lcd = QLCDNumber(self)
         self.time_lcd.setDigitCount(8)
@@ -178,7 +204,7 @@ class ControlWindow(QMainWindow):
         self.time_lcd.setStyleSheet('QLCDNumber {background: #8CB398;}')
 
     def create_statusbar(self):
-        '''Create status bar and permanent message widget for the status info'''
+        """Create status bar and permanent message widget for the status info"""
         self.statusbar = self.statusBar()
         self.statusbar.setStyleSheet('QStatusBar {border-top: 1px outset grey;}')
         self.status_msg = QLabel('Program ready')
@@ -230,43 +256,6 @@ def evolve_pendulums():
     for p in pendulums: p.evolve(t, t+dt)
     t += dt
 
-def keypress(event):
-    global anim_running, dt
-
-    if event.key == ' ':
-        winp.ani.event_source.stop() if anim_running else winp.ani.event_source.start()
-        anim_running = not anim_running
-    elif event.key == '+':
-        winp.ax1.set_xlim([-2,2])
-        winp.ax1.set_ylim([-2,2])
-        winp.canvas.draw()
-        winp.ani._handle_resize()
-        winp.ani._end_redraw(None)
-    elif event.key == '-':
-        winp.ax1.set_xlim([-1,1])
-        winp.ax1.set_ylim([-1,1])
-        winp.canvas.draw()
-        winp.ani._handle_resize()
-        winp.ani._end_redraw(None)
-    elif event.key == '.':
-        dt = abs(dt)
-        evolve_pendulums()
-        anim_running = False
-        winp.ani.event_source.start()
-    elif event.key == ',':
-        dt = -abs(dt)
-        evolve_pendulums()
-        anim_running = False
-        winp.ani.event_source.start()
-    elif event.key == 'delete':
-        if pendulums:
-            winp.ani.event_source.stop()
-            p = pendulums.pop()
-            p.free()
-            winp.ani._handle_resize()
-            winp.ani._end_redraw(None)
-            winp.ani.event_source.start()
-
 def animate(i):
     if not anim_running: winp.ani.event_source.stop()
     winc.time_lcd.display('%.3f' % t)
@@ -282,10 +271,10 @@ def animate(i):
 
     return tuple(p.line for p in pendulums) + tuple(p.energy_text for p in pendulums) + (winp.points,)
 
-pendulums = [Pendulum(phi=pi, phidot=0, L=1.0, color='b'),
-             Pendulum(phi=pi/2, L=0.9, color='r'),
-             Pendulum(phi=pi/2, L=0.6, color='g'),
-             Pendulum(phi=0.99*pi/2, L=0.6, color='m')]
+pendulums = [Pendulum(phi=np.pi, phidot=0, L=1.0, color='b'),
+             Pendulum(phi=np.pi/2, L=0.9, color='r'),
+             Pendulum(phi=np.pi/2, L=0.6, color='g'),
+             Pendulum(phi=0.99*np.pi/2, L=0.6, color='m')]
 
 app = QApplication(sys.argv)
 settings = QSettings(COMPANY, PROG)
