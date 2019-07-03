@@ -272,9 +272,10 @@ def animate(i):
     return tuple(p.line for p in pendulums) + tuple(p.energy_text for p in pendulums) + (winp.points,)
 
 pendulums = [Pendulum(phi=np.pi, phidot=0, L=1.0, color='b'),
-             Pendulum(phi=np.pi/2, L=0.9, color='r'),
-             Pendulum(phi=np.pi/2, L=0.6, color='g'),
-             Pendulum(phi=0.99*np.pi/2, L=0.6, color='m')]
+             Pendulum(phi=0.1*np.pi/2, color='k'),
+             Pendulum(phi=0.1*np.pi/2 + 0.01*np.pi/2, color='r'),
+             Pendulum(phi=np.pi/2, color='g'),
+             Pendulum(phi=np.pi/2 + 0.01*np.pi/2, color='m')]
 
 app = QApplication(sys.argv)
 settings = QSettings(COMPANY, PROG)
