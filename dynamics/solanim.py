@@ -11,14 +11,14 @@ import sys
 import matplotlib as mplt
 import matplotlib.pyplot as plt
 from matplotlib import cm
-from numpy import load, linspace, mgrid, memmap, append, unique
+from numpy import load, linspace, mgrid, memmap, append, unique, sqrt
 from argparse import ArgumentParser as argp
 
 # our own modules
 from midnorm import MidpointNormalize
 norm = MidpointNormalize(midpoint=0.0)
 
-mplt.rc('font', family='serif', size=11)
+mplt.rc('font', family='serif', size=9)
 
 p = argp(description="Quantum Infodynamics Tools - Solution Animator")
 p.add_argument("-s", action="append", help="Solution data filename (multiple OK)", dest="sfilenames", required=True, default=[])
@@ -42,13 +42,14 @@ if nparts <= 0: pr_exit("Number of parts must be positive, but %d <= 0" % nparts
 if part <= 0 or part > nparts: pr_exit("The part number must lie between 1 and %d,  but %d <= 0" % (nparts, part))
 
 (t,Nt,W,rho,phi,Wmin,Wmax,rho_min,rho_max,phi_min,phi_max,descr,H0,
-  Wlevels,Wticks,Wfilenames,x1,x2,Nx,p1,p2,Np,H,Hmin,Hmax,E,Emin,Emax) = ([] for _ in range(28))
+  Wlevels,Wticks,Wfilenames,x1,x2,Nx,p1,p2,Np,H,Hmin,Hmax,E,Emin,Emax,X,X2,P,P2) = ([] for _ in range(32))
 
 for sfilename in args.sfilenames:
-    with load(sfilename + '.npz') as data:
+    with load(sfilename + '.npz',allow_pickle=True) as data:
         t.append(data['t']); rho.append(data['rho']); phi.append(data['phi']); H.append(data['H']); H0.append(data['H0'])
         params = data['params'][()]
         E.append(data['E']); Emin.append(params['Emin']); Emax.append(params['Emax'])
+        X.append(data['X']); X2.append(data['X2']); P.append(data['P']); P2.append(data['P2']);
         Wmin.append(params['Wmin']); Wmax.append(params['Wmax'])
         Wlevels.append(linspace(Wmin[-1], Wmax[-1], args.clevels)); Wticks.append(linspace(Wmin[-1], Wmax[-1], 10))
         rho_min.append(params['rho_min']); rho_max.append(params['rho_max'])
@@ -135,7 +136,15 @@ for k in time_range:
             ax[1].set_ylabel(r'$\rho$')
             ax[1].set_xlabel('$x$')
             ax[1].set_xlim([x1[s],x2[s]-dx[s]])
-            ax[1].text(0.05, 0.8, "E=% 6.3f\nt=% 6.4f" % (E[s][time_index],t[s][time_index]), transform=ax[1].transAxes)
+            deltaX2 = X2[s][time_index] - (X[s][time_index])**2
+            deltaX = sqrt(deltaX2 + 0j)
+            deltaXs = '{0.real:.3f} + {0.imag:.3f}i'.format(deltaX)
+            deltaP2 = P2[s][time_index] - (P[s][time_index])**2
+            deltaP = sqrt(deltaP2 + 0j)
+            deltaPs = '{0.real:.3f} + {0.imag:.3f}i'.format(deltaP)
+            sxsp = '{0.real:.3f} + {0.imag:.3f}i'.format(deltaX*deltaP)
+            ax[1].text(0.05, 0.6, "t=% 6.4f\n$\Delta x$ = %s\n$\Delta p$ = %s\n$\Delta x\Delta p$=%s" %
+                                  (t[s][time_index], deltaXs, deltaPs, sxsp), transform=ax[1].transAxes)
             ax[1].set_ylim([1.02*rho_min[s],1.02*rho_max[s]])
 
             if not nophi:

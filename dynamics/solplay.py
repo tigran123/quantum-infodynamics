@@ -6,7 +6,7 @@
   License: GPL
 """
 import matplotlib as mplt
-from numpy import load, linspace, mgrid, memmap, append, unique
+from numpy import load, linspace, mgrid, memmap, append, unique, sqrt
 from argparse import ArgumentParser as argp
 from time import time
 
@@ -36,13 +36,14 @@ from progress import ProgressBar
 mplt.rc('font', family='serif', size=10)
 
 (t,Nt,W,rho,phi,Wmin,Wmax,rho_min,rho_max,phi_min,phi_max,descr,H0,
-  Wlevels,Wticks,Wfilenames,x1,x2,Nx,p1,p2,Np,H,U,T,Hmin,Hmax,E,Emin,Emax) = ([] for _ in range(30))
+  Wlevels,Wticks,Wfilenames,x1,x2,Nx,p1,p2,Np,H,U,T,Hmin,Hmax,E,Emin,Emax,X,X2,P,P2) = ([] for _ in range(34))
 
 for sfilename in args.sfilenames:
-    with load(sfilename + '.npz') as data:
+    with load(sfilename + '.npz', allow_pickle=True) as data:
         t.append(data['t']); rho.append(data['rho']); phi.append(data['phi']); H.append(data['H'])
         U.append(data['U']); T.append(data['T']); H0.append(data['H0'])
-        E.append(data['E']); params = data['params'][()]
+        E.append(data['E']); X.append(data['X']); X2.append(data['X2']); P.append(data['P']); P2.append(data['P2']);
+        params = data['params'][()];
         Wmin.append(params['Wmin']); Wmax.append(params['Wmax'])
         Emin.append(params['Emin']); Emax.append(params['Emax'])
         Wlevels.append(linspace(Wmin[-1], Wmax[-1], args.clevels)); Wticks.append(linspace(Wmin[-1], Wmax[-1], 10))
@@ -155,7 +156,11 @@ def animate_all(k):
         rho_artist, = ax[1].plot(xv, rho_now, color='black', animated=True)
         rho_plus = ax[1].fill_between(xv, 0, rho_now, where=rho_now>0, color='red', interpolate=False, animated=True)
         rho_minus = ax[1].fill_between(xv, 0, rho_now, where=rho_now<0, color='blue', interpolate=False, animated=True)
-        text_artist = ax[1].text(0.05, 0.8, "E=% 6.3f\nt=% 6.4f" % (E[s][time_index],t[s][time_index]), transform=ax[1].transAxes, animated=True)
+        deltaX2 = X2[s][time_index] - (X[s][time_index])**2
+        deltaP2 = P2[s][time_index] - (P[s][time_index])**2
+        sxsp = sqrt(deltaX2*deltaP2)
+        text_artist = ax[1].text(0.05, 0.8, "E=% 6.3f\nt=% 6.4f\n$\Delta x\Delta p$=% 6.4f" %
+                                            (E[s][time_index],t[s][time_index], sxsp), transform=ax[1].transAxes, animated=True)
         if not nophi:
             phi_now = phi[s][time_index]
             phi_artist, = ax[2].plot(pv, phi_now, color='black', animated=True)

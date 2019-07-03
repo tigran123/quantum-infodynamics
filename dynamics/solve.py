@@ -180,6 +180,10 @@ W = ifftshift(W, axes=(1,2))
 rho = sum(W, axis=2)*dp
 phi = sum(W, axis=1)*dx
 E = sum(H*W,axis=(1,2))*dx*dp
+X = sum(xx * W,axis=(1,2))*dx*dp
+P = sum(pp * W,axis=(1,2))*dx*dp
+X2 = sum(xx**2 * W,axis=(1,2))*dx*dp
+P2 = sum(pp**2 * W,axis=(1,2))*dx*dp
 
 params = {'Wmin': amin(W), 'Wmax': amax(W), 'rho_min': amin(rho), 'rho_max': amax(rho),
           'Hmin': amin(H), 'Hmax': amax(H), 'Emin': amin(E), 'Emax': amax(E),
@@ -187,7 +191,7 @@ params = {'Wmin': amin(W), 'Wmax': amax(W), 'rho_min': amin(rho), 'rho_max': ama
           'x1': x1, 'x2': x2, 'Nx': Nx, 'p1': p1, 'p2': p2, 'Np': Np, 'descr': descr}
 
 t_start = time()
-savez(sfilename, t=tv, rho=rho, phi=phi, H=H, U=Uv, T=Tv, E=E, H0=T(p0)+Umod.U(x0), params=params)
+savez(sfilename, t=tv, rho=rho, phi=phi, H=H, U=Uv, T=Tv, E=E, X=X, X2=X2, P=P, P2=P2, H0=T(p0)+Umod.U(x0), params=params)
 fp = memmap(Wfilename, dtype='float64', mode='w+', shape=(Nt, Nx, Np))
 fp[:] = W[:]
 del fp # causes the flush of memmap
