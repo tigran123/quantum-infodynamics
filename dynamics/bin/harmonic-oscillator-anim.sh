@@ -17,7 +17,7 @@ SOLQN=$workdir/solqn
 SOLCN=$workdir/solcn
 FPS=20
 
-MOVIE_FILE=harmonic-oscillator.mp4
+MOVIE_FILE=harmonic-oscillator-solanim.mp4
 
 nproc=$(nproc)
 for ((i=1; i <= $nproc; i++));
