@@ -160,7 +160,7 @@ tv = [t1]
 t = t1
 Nt = 1
 while t <= t2:
-    if Nt%100 == 0: pr_msg("%5d steps" % Nt)
+    if Nt%100 == 1: pr_msg("%5d steps, ~%d steps left" % (Nt, (t2-t)//dt))
     if Nt%20 == 1:
         (Wnext, new_dt, expU, expT) = adjust_step(dt, W[-1])
         W.append(Wnext)
