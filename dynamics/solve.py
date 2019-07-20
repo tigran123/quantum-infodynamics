@@ -11,6 +11,16 @@ from argparse import ArgumentParser as argp
 from time import time
 import sys
 
+def str2bool(v):
+    if isinstance(v, bool):
+        return v
+    if v.lower() in ('yes', 'true', 't', 'y', '1'):
+        return True
+    elif v.lower() in ('no', 'false', 'f', 'n', '0'):
+        return False
+    else:
+        raise argparse.ArgumentTypeError('Boolean value expected.')
+
 p = argp(description="Quantum Infodynamics Tools - Equations Solver")
 p.add_argument("-d",  action="store", help="Description text", dest="descr", required=True)
 p.add_argument("-x0", action="append", help="Initial packet's x-coordinate (multiple OK)", dest="x0", type=float, required=True, default=[])
@@ -30,14 +40,15 @@ p.add_argument("-s",  action="store", help="Solution file name", dest="sfilename
 p.add_argument("-c",  action="store_true", help="Use classical (non-quantum) propagator", dest="classical")
 p.add_argument("-r",  action="store_true", help="Use relativistic dynamics", dest="relat")
 p.add_argument("-m",  action="store", help="Rest mass in a.u. (default=1.0)", type=complex, dest="mass", default=1.0)
-p.add_argument("-N",  action="store", help="Initial number of time steps (default=50)", dest="N", type=int, default=50)
+p.add_argument("-N",  action="store", help="Initial number of time steps (default=100)", dest="N", type=int, default=100)
+p.add_argument("-mm", help="Use memory-mapped array for W(x,p,t) (default=Yes)", dest="mm", const=True, type=str2bool, nargs='?', default=True)
 p.add_argument("-tol", action="store", help="Absolute error tolerance", dest="tol", type=float, required=True)
 args = p.parse_args()
 
 sfilename = args.sfilename
 Wfilename = sfilename + '_W.npz'
 
-(descr,x1,x2,Nx,p1,p2,Np,t1,t2,tol,mass,N) = (args.descr,args.x1,args.x2,args.Nx,args.p1,args.p2,args.Np,args.t1,args.t2,args.tol,args.mass,args.N)
+(descr,x1,x2,Nx,p1,p2,Np,t1,t2,tol,mass,N,mm) = (args.descr,args.x1,args.x2,args.Nx,args.p1,args.p2,args.Np,args.t1,args.t2,args.tol,args.mass,args.N,args.mm)
 
 (x0,p0,sigmax,sigmap) = map(array, (args.x0, args.p0, args.sigmax, args.sigmap))
 
@@ -148,51 +159,98 @@ def adjust_step(cur_dt, Winit, maxtries=15):
         dt *= 0.7
     return (W1, dt, expU, expT)
 
-t_start = time()
 dt = (t2-t1)/N # the first very rough guess of time step
 Winit = zeros((Nx,Np))
 for (ax0,ap0,asigmax,asigmap) in zip(x0, p0, sigmax, sigmap):
     Winit += gauss(xx,pp,ax0,ap0,asigmax,asigmap)
 Winit /= npoints
 
-W = [fftshift(Winit)]
+if mm:
+    W = memmap(Wfilename, dtype='float64', mode='w+', shape=(4096, Nx, Np))
+    W[0] = fftshift(Winit)
+else:
+    W = [fftshift(Winit)]
+
 tv = [t1]
 t = t1
 Nt = 1
+t_calc = 0.0
+t_start = time()
 while t <= t2:
     if Nt%100 == 1: pr_msg("%5d steps, ~%d steps left" % (Nt, (t2-t)//dt))
     if Nt%20 == 1:
-        (Wnext, new_dt, expU, expT) = adjust_step(dt, W[-1])
-        W.append(Wnext)
+        (Wnext, new_dt, expU, expT) = adjust_step(dt, W[Nt-1])
+        if mm:
+            W[Nt] = Wnext
+        else:
+            W.append(Wnext)
         if new_dt != dt:
             est_steps = (t2-t)//new_dt + 1
             pr_msg("step %d, dt=%.4f -> %.4f, ~%d steps left" %(Nt,dt,new_dt,est_steps))
             dt = new_dt
     else:
-        W.append(solve_spectral(W[-1], expU, expT))
+        if mm:
+            W[Nt] = solve_spectral(W[Nt-1], expU, expT)
+        else:
+            W.append(solve_spectral(W[Nt-1], expU, expT))
     t += dt
     Nt += 1
     tv.append(t)
 
-pr_msg("solved in %.1fs, %d steps" % (time() - t_start, Nt))
+t_end = time()
+pr_msg("solved in %.1fs, %d steps (%.1f steps/second)" % (t_end - t_start, Nt, Nt/(t_end - t_start)))
 
-W = ifftshift(W, axes=(1,2))
+if mm:
+    t_start = time()
+    nbytes = W.itemsize*Nt*Nx*Np
+    W.base.resize(nbytes)
+    W.flush()
+    del W
+    W = memmap(Wfilename, dtype='float64', mode='r+', shape=(Nt, Nx, Np))
+    pr_msg("Wigner function resized to shape (%d,%d,%d), %d bytes in %.1fs" % (Nt, Nx, Np, nbytes, time() - t_start))
+
+t_start = time()
+if mm:
+    W[:] = ifftshift(W, axes=(1,2))
+else:
+    W = ifftshift(W, axes=(1,2))
+pr_msg("Wigner function shifted in %.1fs" % (time() - t_start))
+
+t_start = time()
 rho = sum(W, axis=2)*dp
+pr_msg("rho calculated in %.1fs" % (time() - t_start))
+t_start = time()
 phi = sum(W, axis=1)*dx
+pr_msg("phi calculated in %.1fs" % (time() - t_start))
+t_start = time()
 E = sum(H*W,axis=(1,2))*dx*dp
+pr_msg("E calculated in %.1fs" % (time() - t_start))
+t_start = time()
 X = sum(xx * W,axis=(1,2))*dx*dp
+pr_msg("X calculated in %.1fs" % (time() - t_start))
+t_start = time()
 P = sum(pp * W,axis=(1,2))*dx*dp
+pr_msg("P calculated in %.1fs" % (time() - t_start))
+t_start = time()
 X2 = sum(xx**2 * W,axis=(1,2))*dx*dp
+pr_msg("X2 calculated in %.1fs" % (time() - t_start))
+t_start = time()
 P2 = sum(pp**2 * W,axis=(1,2))*dx*dp
+pr_msg("P2 calculated in %.1fs" % (time() - t_start))
 
+t_start = time()
 params = {'Wmin': amin(W), 'Wmax': amax(W), 'rho_min': amin(rho), 'rho_max': amax(rho),
           'Hmin': amin(H), 'Hmax': amax(H), 'Emin': amin(E), 'Emax': amax(E),
           'phi_min': amin(phi), 'phi_max': amax(phi), 'tol': tol, 'Wfilename': Wfilename, 'Nt': Nt,
           'x1': x1, 'x2': x2, 'Nx': Nx, 'p1': p1, 'p2': p2, 'Np': Np, 'descr': descr}
+pr_msg("other parameters calculated in %.1fs" % (time() - t_start))
 
 t_start = time()
 savez(sfilename, t=tv, rho=rho, phi=phi, H=H, U=Uv, T=Tv, E=E, X=X, X2=X2, P=P, P2=P2, H0=T(p0)+Umod.U(x0), params=params)
-fp = memmap(Wfilename, dtype='float64', mode='w+', shape=(Nt, Nx, Np))
-fp[:] = W[:]
-del fp # causes the flush of memmap
+
+if not mm:
+    fp = memmap(Wfilename, dtype='float64', mode='w+', shape=(Nt, Nx, Np))
+    fp[:] = W[:]
+    del fp # causes the flush of memmap
+
 pr_msg("solution saved in %.1fs" % (time() - t_start))
