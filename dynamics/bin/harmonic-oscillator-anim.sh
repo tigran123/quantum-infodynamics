@@ -8,7 +8,8 @@ function sigint() {
 trap sigint SIGINT
 
 #workdir=$TMPDIR/harmonic-oscillator
-workdir=harmonic-oscillator-out
+workdir=/data/work/harmonic-oscillator
+#workdir=harmonic-oscillator
 mkdir -p $workdir/frames
 
 SOLQR=$workdir/solqr
