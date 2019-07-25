@@ -128,10 +128,6 @@ def dTdp_rel(p):
 
 (dU,dT) = (Umod.dUdx(X)*1j*Theta,-dTdp(P)*1j*Lam/2.) if args.classical else (qd(Umod.U,X,1j*Theta),qd(T,P,-1j*Lam)/2.)
 
-Uv = Umod.U(xv)
-Tv = T(pv)
-H = T(pp)+Umod.U(xx)
-
 def solve_spectral(Winit, expU, expT):
     B = fft(Winit, axis=0, threads=4) # (x,p) -> (lambda,p)
     B *= expT
@@ -201,52 +197,42 @@ t_end = time()
 pr_msg("solved in %.1fs, %d steps (%.1f steps/second)" % (t_end - t_start, Nt, Nt/(t_end - t_start)))
 
 if mm:
-    t_start = time()
+    #t_start = time()
     nbytes = W.itemsize*Nt*Nx*Np
     W.base.resize(nbytes)
     W.flush()
     del W
     W = memmap(Wfilename, dtype='float64', mode='r+', shape=(Nt, Nx, Np))
-    pr_msg("Wigner function resized to shape (%d,%d,%d), %d bytes in %.1fs" % (Nt, Nx, Np, nbytes, time() - t_start))
+    #pr_msg("Wigner function resized to shape (%d,%d,%d), %d bytes in %.1fs" % (Nt, Nx, Np, nbytes, time() - t_start))
 
-t_start = time()
+#t_start = time()
 if mm:
     W[:] = ifftshift(W, axes=(1,2))
 else:
     W = ifftshift(W, axes=(1,2))
-pr_msg("Wigner function shifted in %.1fs" % (time() - t_start))
+#pr_msg("Wigner function shifted in %.1fs" % (time() - t_start))
 
-t_start = time()
 rho = sum(W, axis=2)*dp
-pr_msg("rho calculated in %.1fs" % (time() - t_start))
-t_start = time()
 phi = sum(W, axis=1)*dx
-pr_msg("phi calculated in %.1fs" % (time() - t_start))
-t_start = time()
+H = real(T(pp)+Umod.U(xx))
+H0 = real(T(p0) + Umod.U(x0))
 E = sum(H*W,axis=(1,2))*dx*dp
-pr_msg("E calculated in %.1fs" % (time() - t_start))
-t_start = time()
-X = sum(xx * W,axis=(1,2))*dx*dp
-pr_msg("X calculated in %.1fs" % (time() - t_start))
-t_start = time()
-P = sum(pp * W,axis=(1,2))*dx*dp
-pr_msg("P calculated in %.1fs" % (time() - t_start))
-t_start = time()
-X2 = sum(xx**2 * W,axis=(1,2))*dx*dp
-pr_msg("X2 calculated in %.1fs" % (time() - t_start))
-t_start = time()
-P2 = sum(pp**2 * W,axis=(1,2))*dx*dp
-pr_msg("P2 calculated in %.1fs" % (time() - t_start))
 
-t_start = time()
+X = sum(xx * W,axis=(1,2))*dx*dp
+X2 = sum(xx**2 * W,axis=(1,2))*dx*dp
+deltaX = sqrt(X2-X*X)
+
+P = sum(pp * W,axis=(1,2))*dx*dp
+P2 = sum(pp**2 * W,axis=(1,2))*dx*dp
+deltaP = sqrt(P2-P*P)
+
 params = {'Wmin': amin(W), 'Wmax': amax(W), 'rho_min': amin(rho), 'rho_max': amax(rho),
           'Hmin': amin(H), 'Hmax': amax(H), 'Emin': amin(E), 'Emax': amax(E),
-          'phi_min': amin(phi), 'phi_max': amax(phi), 'tol': tol, 'Wfilename': Wfilename, 'Nt': Nt,
+          'phi_min': amin(phi), 'phi_max': amax(phi), 'Wfilename': Wfilename, 'Nt': Nt,
           'x1': x1, 'x2': x2, 'Nx': Nx, 'p1': p1, 'p2': p2, 'Np': Np, 'descr': descr}
-pr_msg("other parameters calculated in %.1fs" % (time() - t_start))
 
 t_start = time()
-savez(sfilename, t=tv, rho=rho, phi=phi, H=H, U=Uv, T=Tv, E=E, X=X, X2=X2, P=P, P2=P2, H0=T(p0)+Umod.U(x0), params=params)
+savez(sfilename, t=tv, rho=rho, phi=phi, H=H, E=E, deltaX=deltaX, deltaP=deltaP, H0=H0, params=params)
 
 if not mm:
     fp = memmap(Wfilename, dtype='float64', mode='w+', shape=(Nt, Nx, Np))
