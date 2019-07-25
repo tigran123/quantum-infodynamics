@@ -21,11 +21,11 @@ PARAMS="-x0 0.0 -x1 -6.0 -x2 6.0 \
         -p0 3.0 -p1 -7.0 -p2 7.0 \
         -sigmax 0.3 -sigmap 0.6 \
         -Nx 512 -Np 512 \
-        -t1 0.0 -t2 24 -N 200 \
+        -t1 0.0 -t2 24 -N 120 \
         -u U_harmonic"
 
-./solve.py -r -d "Quantum Relativistic Oscillator" $PARAMS -tol 0.001 -s $SOLQR &
-./solve.py -d "Quantum Non-relativistic Oscillator" $PARAMS -tol 0.001 -s $SOLQN &
-./solve.py -r -c -d "Classical Relativistic Oscillator" $PARAMS -tol 0.005 -s $SOLCR &
-./solve.py -c -d "Classical Non-relativistic Oscillator" $PARAMS -tol 0.001 -s $SOLCN &
+./solve.py -r -d "Quantum Relativistic Oscillator" $PARAMS -tol 0.01 -s $SOLQR &
+./solve.py -d "Quantum Non-relativistic Oscillator" $PARAMS -tol 0.01 -s $SOLQN &
+./solve.py -r -c -d "Classical Relativistic Oscillator" $PARAMS -tol 0.02 -s $SOLCR &
+./solve.py -c -d "Classical Non-relativistic Oscillator" $PARAMS -tol 0.01 -s $SOLCN &
 wait
