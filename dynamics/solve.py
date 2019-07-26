@@ -151,7 +151,10 @@ def adjust_step(cur_dt, Winit, maxtries=15):
         expUn = exp(0.5*dt*dU)
         expTn = exp(0.5*dt*dT)
         W2 = solve_spectral(solve_spectral(Winit, expUn, expTn), expUn, expTn)
-        if amax(abs(W2 - W1)) <= tol or tries > maxtries: break
+        if amax(abs(W2 - W1)) <= tol: break
+        if tries > maxtries:
+            pr_msg("WARNING: adjust_step: giving up after %d attempts" % maxtries)
+            break
         dt *= 0.7
     return (W1, dt, expU, expT)
 
