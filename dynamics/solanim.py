@@ -11,7 +11,7 @@ import sys
 import matplotlib as mplt
 import matplotlib.pyplot as plt
 from matplotlib import cm
-from numpy import load, linspace, mgrid, memmap, append, unique, sqrt
+from numpy import load, linspace, mgrid, memmap, append, unique
 from argparse import ArgumentParser as argp
 from time import time
 
