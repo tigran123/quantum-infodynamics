@@ -46,18 +46,32 @@ if part <= 0 or part > nparts: pr_exit("The part number must lie between 1 and %
 
 for sfilename in args.sfilenames:
     with load(sfilename + '.npz',allow_pickle=True) as data:
-        t.append(data['t']); rho.append(data['rho']); phi.append(data['phi']); H.append(data['H']); H0.append(data['H0'])
+        t.append(data['t']);
+        H.append(data['H']); H0.append(data['H0'])
         params = data['params'][()]
-        E.append(data['E']); Emin.append(params['Emin']); Emax.append(params['Emax'])
-        deltaX.append(data['deltaX']); deltaP.append(data['deltaP']);
-        Wmin.append(params['Wmin']); Wmax.append(params['Wmax'])
-        Wlevels.append(linspace(Wmin[-1], Wmax[-1], args.clevels)); Wticks.append(linspace(Wmin[-1], Wmax[-1], 10))
-        rho_min.append(params['rho_min']); rho_max.append(params['rho_max'])
-        phi_min.append(params['phi_min']); phi_max.append(params['phi_max'])
-        Wfilenames.append(params['Wfilename']); Nt.append(params['Nt'])
+        E.append(data['E']);
+        Emin.append(params['Emin']);
+        Emax.append(params['Emax'])
+        Wmin.append(params['Wmin']);
+        Wmax.append(params['Wmax'])
+        Wlevels.append(linspace(Wmin[-1], Wmax[-1], args.clevels));
+        Wticks.append(linspace(Wmin[-1], Wmax[-1], 10))
+        if not Wonly:
+            rho.append(data['rho']);
+            phi.append(data['phi']);
+            rho_min.append(params['rho_min']);
+            rho_max.append(params['rho_max'])
+            phi_min.append(params['phi_min']);
+            phi_max.append(params['phi_max'])
+            deltaX.append(data['deltaX']);
+            deltaP.append(data['deltaP']);
+        Wfilenames.append(params['Wfilename']);
+        Nt.append(params['Nt'])
         x1.append(params['x1']); x2.append(params['x2']); Nx.append(params['Nx'])
         p1.append(params['p1']); p2.append(params['p2']); Np.append(params['Np'])
-        Hmin.append(params['Hmin']); Hmax.append(params['Hmax']); descr.append(params['descr'])
+        Hmin.append(params['Hmin']);
+        Hmax.append(params['Hmax']);
+        descr.append(params['descr'])
 
 W = [memmap(filename, mode='r', dtype='float64', shape=(nt,nx,np)) for (filename,nt,nx,np) in zip(Wfilenames,Nt,Nx,Np)]
 
