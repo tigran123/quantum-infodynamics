@@ -34,15 +34,13 @@ args = p.parse_args()
 
 framedir,Wonly,nparts,part,framew,frameh = args.framedir,args.Wonly,args.nparts,args.part,args.framew,args.frameh
 
-def pr_exit(str):
-    print("ERROR:" + str)
-    sys.exit()
+assert nparts > 0, "Number of parts must be positive"
+assert part > 0 and part <= nparts,  "The part number must be between 1 and %d" % nparts
 
-if nparts <= 0: pr_exit("Number of parts must be positive, but %d <= 0" % nparts)
-if part <= 0 or part > nparts: pr_exit("The part number must lie between 1 and %d,  but %d <= 0" % (nparts, part))
+t,Nt,W,Wmin,Wmax,descr,H0,Wlevels,Wticks,Wfilenames,x1,x2,Nx,p1,p2,Np,H,Hmin,Hmax,E,Emin,Emax = ([] for _ in range(22))
 
-(t,Nt,W,rho,phi,Wmin,Wmax,rho_min,rho_max,phi_min,phi_max,descr,H0,
-  Wlevels,Wticks,Wfilenames,x1,x2,Nx,p1,p2,Np,H,Hmin,Hmax,E,Emin,Emax,deltaX,deltaP) = ([] for _ in range(30))
+if not Wonly:
+    rho,phi,rho_min,rho_max,phi_min,phi_max,deltaX,deltaP = ([] for _ in range(8))
 
 for sfilename in args.sfilenames:
     with load(sfilename + '.npz',allow_pickle=True) as data:
