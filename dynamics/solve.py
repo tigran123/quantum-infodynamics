@@ -41,15 +41,16 @@ p.add_argument("-c",  action="store_true", help="Use classical (non-quantum) pro
 p.add_argument("-r",  action="store_true", help="Use relativistic dynamics", dest="relat")
 p.add_argument("-m",  action="store", help="Rest mass in a.u. (default=1.0)", type=complex, dest="mass", default=1.0)
 p.add_argument("-N",  action="store", help="Initial number of time steps (default=100)", dest="N", type=int, default=100)
+p.add_argument("-adaptive", help="Use adaptive timestep control) (default=Yes)", dest="adaptive", const=True, type=str2bool, nargs='?', default=True)
 p.add_argument("-mm", help="Use memory-mapped array for W(x,p,t) (default=Yes)", dest="mm", const=True, type=str2bool, nargs='?', default=True)
 p.add_argument("-mmsize", help="Initial size (in GB) of the memory-mapped array for W(x,p,t) (default=32)", dest="mmsize", type=int, default=32)
-p.add_argument("-tol", action="store", help="Relative error tolerance (0 <tol <1)", dest="tol", type=float, required=True)
+p.add_argument("-tol", action="store", help="Relative error tolerance (0 <tol <1)", dest="tol", type=float)
 args = p.parse_args()
 
 sfilename = args.sfilename
 Wfilename = sfilename + '_W.npz'
 
-(descr,x1,x2,Nx,p1,p2,Np,t1,t2,tol,mass,N,mm) = (args.descr,args.x1,args.x2,args.Nx,args.p1,args.p2,args.Np,args.t1,args.t2,args.tol,args.mass,args.N,args.mm)
+(descr,x1,x2,Nx,p1,p2,Np,t1,t2,tol,mass,N,mm,adaptive) = (args.descr,args.x1,args.x2,args.Nx,args.p1,args.p2,args.Np,args.t1,args.t2,args.tol,args.mass,args.N,args.mm,args.adaptive)
 
 (x0,p0,sigmax,sigmap) = map(array, (args.x0, args.p0, args.sigmax, args.sigmap))
 
@@ -63,7 +64,7 @@ def pr_exit(str):
 if Nx & (Nx-1): pr_msg("WARNING: Nx=%d is not a power 2, FFT may be slowed down" % Nx)
 if Np & (Np-1): pr_msg("WARNING: Np=%d is not a power 2, FFT may be slowed down" % Np)
 
-assert 0 < tol < 1, "Tolerance value %.2f outside (0,1) range" % tol
+assert not adaptive or 0 < tol < 1, "Tolerance value %.2f outside (0,1) range" % tol
 assert x2 > x1 and p2 > p1 and Nx > 0 and Np > 0
 
 npoints = len(x0)
@@ -127,10 +128,6 @@ def dTdp_rel(p):
     else:
         return c*p/sqrt(p**2 + mass**2*c**2)
 
-(T,dTdp) = (lambda p: c*sqrt(p**2 + mass**2*c**2),dTdp_rel) if args.relat else (lambda p: p**2/(2.*mass),lambda p: p/mass)
-
-(dU,dT) = (Umod.dUdx(X)*1j*Theta,-dTdp(P)*1j*Lam/2.) if args.classical else (qd(Umod.U,X,1j*Theta),qd(T,P,-1j*Lam)/2.)
-
 def solve_spectral(Winit, expU, expT):
     B = fft(Winit, axis=0, threads=4) # (x,p) -> (lambda,p)
     B *= expT
@@ -161,7 +158,11 @@ def adjust_step(cur_dt, Winit, maxtries=15):
         dt *= 0.7
     return (W1, dt, expU, expT)
 
+(T,dTdp) = (lambda p: c*sqrt(p**2 + mass**2*c**2),dTdp_rel) if args.relat else (lambda p: p**2/(2.*mass),lambda p: p/mass)
+(dU,dT) = (Umod.dUdx(X)*1j*Theta,-dTdp(P)*1j*Lam/2.) if args.classical else (qd(Umod.U,X,1j*Theta),qd(T,P,-1j*Lam)/2.)
+
 dt = (t2-t1)/N # the first very rough guess of time step
+expU,expT = exp(dt*dU),exp(dt*dT)
 Winit = zeros((Nx,Np))
 for (ax0,ap0,asigmax,asigmap) in zip(x0, p0, sigmax, sigmap):
     Winit += gauss(xx,pp,ax0,ap0,asigmax,asigmap)
@@ -169,6 +170,7 @@ Winit /= npoints
 
 if mm:
     Ntmax = (1024)**3*args.mmsize//(8*Nx*Np)
+    assert Ntmax > N, "Run out of mm-mapped array size, please increase -mmsize"
     W = memmap(Wfilename, dtype='float64', mode='w+', shape=(Ntmax, Nx, Np))
     W[0] = fftshift(Winit)
 else:
@@ -181,7 +183,7 @@ t_calc = 0.0
 t_start = time()
 while t <= t2:
     if Nt%100 == 1: pr_msg("%5d steps, ~%d steps left" % (Nt, (t2-t)//dt))
-    if Nt%20 == 1:
+    if adaptive and Nt%20 == 1:
         (Wnext, new_dt, expU, expT) = adjust_step(dt, W[Nt-1])
         if mm:
             W[Nt] = Wnext
