@@ -194,7 +194,7 @@ while t <= t2:
     tv.append(t)
 
 t_end = time()
-pr_msg("solved in %.1fs, %d steps (%.1f steps/second)" % (t_end - t_start, Nt, Nt/(t_end - t_start)))
+pr_msg("solved in %.2fs, %d steps (%.2f steps/second)" % (t_end - t_start, Nt, Nt/(t_end - t_start)))
 
 if mm:
     #t_start = time()
@@ -203,14 +203,14 @@ if mm:
     W.flush()
     del W
     W = memmap(Wfilename, dtype='float64', mode='r+', shape=(Nt, Nx, Np))
-    #pr_msg("Wigner function resized to shape (%d,%d,%d), %d bytes in %.1fs" % (Nt, Nx, Np, nbytes, time() - t_start))
+    #pr_msg("Wigner function resized to shape (%d,%d,%d), %d bytes in %.2fs" % (Nt, Nx, Np, nbytes, time() - t_start))
 
 #t_start = time()
 if mm:
     W[:] = ifftshift(W, axes=(1,2))
 else:
     W = ifftshift(W, axes=(1,2))
-#pr_msg("Wigner function shifted in %.1fs" % (time() - t_start))
+#pr_msg("Wigner function shifted in %.2fs" % (time() - t_start))
 
 rho = sum(W, axis=2)*dp
 phi = sum(W, axis=1)*dx
@@ -239,4 +239,4 @@ if not mm:
     fp[:] = W[:]
     del fp # causes the flush of memmap
 
-pr_msg("solution saved in %.1fs" % (time() - t_start))
+pr_msg("solution saved in %.2fs" % (time() - t_start))
