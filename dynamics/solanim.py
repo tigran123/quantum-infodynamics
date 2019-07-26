@@ -13,7 +13,9 @@ import matplotlib.pyplot as plt
 from matplotlib import cm
 from numpy import load, linspace, mgrid, memmap, append, unique
 from argparse import ArgumentParser as argp
+
 from time import time
+t_start = time()
 
 # our own modules
 from midnorm import MidpointNormalize
@@ -100,7 +102,6 @@ prog_prefix = "solanim: %d of %d: " %(part, nparts)
 
 total_frames = len(time_range)
 print(prog_prefix + "processing %d out of %d frames" % (total_frames, time_steps))
-t_start = time()
 frames = 0
 nplots = 1 if Wonly else 3
 
