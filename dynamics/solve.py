@@ -42,7 +42,7 @@ p.add_argument("-r",  action="store_true", help="Use relativistic dynamics", des
 p.add_argument("-m",  action="store", help="Rest mass in a.u. (default=1.0)", type=complex, dest="mass", default=1.0)
 p.add_argument("-N",  action="store", help="Initial number of time steps (default=100)", dest="N", type=int, default=100)
 p.add_argument("-mm", help="Use memory-mapped array for W(x,p,t) (default=Yes)", dest="mm", const=True, type=str2bool, nargs='?', default=True)
-p.add_argument("-tol", action="store", help="Absolute error tolerance", dest="tol", type=float, required=True)
+p.add_argument("-tol", action="store", help="Relative error tolerance (0 <tol <1)", dest="tol", type=float, required=True)
 args = p.parse_args()
 
 sfilename = args.sfilename
@@ -62,7 +62,9 @@ def pr_exit(str):
 if Nx & (Nx-1): pr_msg("WARNING: Nx=%d is not a power 2, FFT may be slowed down" % Nx)
 if Np & (Np-1): pr_msg("WARNING: Np=%d is not a power 2, FFT may be slowed down" % Np)
 
-assert tol > 0 and x2 > x1 and p2 > p1 and Nx > 0 and Np > 0
+assert 0 < tol < 1, "Tolerance value %.2f outside (0,1) range" % tol
+
+assert x2 > x1 and p2 > p1 and Nx > 0 and Np > 0
 npoints = len(x0)
 assert p0.shape == (npoints,) and sigmax.shape == (npoints,) and sigmap.shape == (npoints,)
 
@@ -151,7 +153,7 @@ def adjust_step(cur_dt, Winit, maxtries=15):
         expUn = exp(0.5*dt*dU)
         expTn = exp(0.5*dt*dT)
         W2 = solve_spectral(solve_spectral(Winit, expUn, expTn), expUn, expTn)
-        if amax(abs(W2 - W1)) <= tol: break
+        if sum(abs(W1-W2))/sum(abs(W1)) < tol: break
         if tries > maxtries:
             pr_msg("WARNING: adjust_step: giving up after %d attempts" % maxtries)
             break
@@ -223,11 +225,11 @@ E = sum(H*W,axis=(1,2))*dx*dp
 
 X = sum(xx * W,axis=(1,2))*dx*dp
 X2 = sum(xx**2 * W,axis=(1,2))*dx*dp
-deltaX = sqrt(X2-X*X)
+deltaX = sqrt(abs(X2-X*X))
 
 P = sum(pp * W,axis=(1,2))*dx*dp
 P2 = sum(pp**2 * W,axis=(1,2))*dx*dp
-deltaP = sqrt(P2-P*P)
+deltaP = sqrt(abs(P2-P*P))
 
 params = {'Wmin': amin(W), 'Wmax': amax(W), 'rho_min': amin(rho), 'rho_max': amax(rho),
           'Hmin': amin(H), 'Hmax': amax(H), 'Emin': amin(E), 'Emax': amax(E),
