@@ -42,6 +42,7 @@ p.add_argument("-r",  action="store_true", help="Use relativistic dynamics", des
 p.add_argument("-m",  action="store", help="Rest mass in a.u. (default=1.0)", type=complex, dest="mass", default=1.0)
 p.add_argument("-N",  action="store", help="Initial number of time steps (default=100)", dest="N", type=int, default=100)
 p.add_argument("-mm", help="Use memory-mapped array for W(x,p,t) (default=Yes)", dest="mm", const=True, type=str2bool, nargs='?', default=True)
+p.add_argument("-mmsize", help="Initial size (in GB) of the memory-mapped array for W(x,p,t) (default=32)", dest="mmsize", type=int, default=32)
 p.add_argument("-tol", action="store", help="Relative error tolerance (0 <tol <1)", dest="tol", type=float, required=True)
 args = p.parse_args()
 
@@ -63,8 +64,8 @@ if Nx & (Nx-1): pr_msg("WARNING: Nx=%d is not a power 2, FFT may be slowed down"
 if Np & (Np-1): pr_msg("WARNING: Np=%d is not a power 2, FFT may be slowed down" % Np)
 
 assert 0 < tol < 1, "Tolerance value %.2f outside (0,1) range" % tol
-
 assert x2 > x1 and p2 > p1 and Nx > 0 and Np > 0
+
 npoints = len(x0)
 assert p0.shape == (npoints,) and sigmax.shape == (npoints,) and sigmap.shape == (npoints,)
 
@@ -167,7 +168,8 @@ for (ax0,ap0,asigmax,asigmap) in zip(x0, p0, sigmax, sigmap):
 Winit /= npoints
 
 if mm:
-    W = memmap(Wfilename, dtype='float64', mode='w+', shape=(4096, Nx, Np))
+    Ntmax = (1024)**3*args.mmsize//(8*Nx*Np)
+    W = memmap(Wfilename, dtype='float64', mode='w+', shape=(Ntmax, Nx, Np))
     W[0] = fftshift(Winit)
 else:
     W = [fftshift(Winit)]
