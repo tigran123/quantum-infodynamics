@@ -88,6 +88,8 @@ class PlotWindow(QMainWindow):
         if event.key == ' ':
             self.ani.event_source.stop() if anim_running else self.ani.event_source.start()
             anim_running = not anim_running
+        elif event.key == 'ctrl+q':
+            main_exit()
         elif event.key == '+':
             self.ax1.set_xlim([-2,2])
             self.ax1.set_ylim([-2,2])
