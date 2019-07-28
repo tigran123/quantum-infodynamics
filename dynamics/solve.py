@@ -8,7 +8,7 @@
 
 from numpy import linspace, mgrid, pi, newaxis, exp, real, savez, amin, amax, sum, abs, memmap, sqrt, sign, zeros, array
 from argparse import ArgumentParser as argp
-from time import time
+from timeit import default_timer as timer
 import sys
 
 def str2bool(v):
@@ -170,7 +170,7 @@ Winit /= npoints
 
 if mm:
     Ntmax = (1024)**3*args.mmsize//(8*Nx*Np)
-    assert Ntmax > N, "Run out of mm-mapped array size, please increase -mmsize"
+    assert Ntmax > 1.2*N, "Run out of mm-mapped array size, please increase -mmsize"
     W = memmap(Wfilename, dtype='float64', mode='w+', shape=(Ntmax, Nx, Np))
     W[0] = fftshift(Winit)
 else:
@@ -180,9 +180,9 @@ tv = [t1]
 t = t1
 Nt = 1
 t_calc = 0.0
-t_start = time()
+t_start = timer()
 while t <= t2:
-    if Nt%100 == 1: pr_msg("%5d steps, ~%d steps left" % (Nt, (t2-t)//dt))
+    if Nt%100 == 1: pr_msg("%d steps (%.2f steps/second), ~%d steps left" % (Nt, Nt/(timer()-t_start), (t2-t)//dt))
     if adaptive and Nt%20 == 1:
         (Wnext, new_dt, expU, expT) = adjust_step(dt, W[Nt-1])
         if mm:
@@ -202,27 +202,34 @@ while t <= t2:
     Nt += 1
     tv.append(t)
 
-t_end = time()
+t_end = timer()
 pr_msg("solved in %.2fs, %d steps (%.2f steps/second)" % (t_end - t_start, Nt, Nt/(t_end - t_start)))
 
 if mm:
-    #t_start = time()
+    t_start = timer()
     nbytes = W.itemsize*Nt*Nx*Np
     W.base.resize(nbytes)
     W.flush()
     del W
     W = memmap(Wfilename, dtype='float64', mode='r+', shape=(Nt, Nx, Np))
-    #pr_msg("Wigner function resized to shape (%d,%d,%d), %d bytes in %.2fs" % (Nt, Nx, Np, nbytes, time() - t_start))
+    pr_msg("Wigner function resized to shape (%d,%d,%d), %d bytes in %.2fs" % (Nt, Nx, Np, nbytes, timer() - t_start))
 
-#t_start = time()
+t_start = timer()
 if mm:
     W[:] = ifftshift(W, axes=(1,2))
 else:
     W = ifftshift(W, axes=(1,2))
-#pr_msg("Wigner function shifted in %.2fs" % (time() - t_start))
+pr_msg("Wigner function shifted in %.2fs" % (timer() - t_start))
 
+t_start = timer()
 rho = sum(W, axis=2)*dp
+pr_msg("rho calculated in %.2fs" % (timer() - t_start))
+
+t_start = timer()
 phi = sum(W, axis=1)*dx
+pr_msg("phi calculated in %.2fs" % (timer() - t_start))
+
+t_start = timer()
 H = real(T(pp)+Umod.U(xx))
 H0 = real(T(p0) + Umod.U(x0))
 E = sum(H*W,axis=(1,2))*dx*dp
@@ -240,7 +247,9 @@ params = {'Wmin': amin(W), 'Wmax': amax(W), 'rho_min': amin(rho), 'rho_max': ama
           'phi_min': amin(phi), 'phi_max': amax(phi), 'Wfilename': Wfilename, 'Nt': Nt,
           'x1': x1, 'x2': x2, 'Nx': Nx, 'p1': p1, 'p2': p2, 'Np': Np, 'descr': descr}
 
-t_start = time()
+pr_msg("parameters calculated in %.2fs" % (timer() - t_start))
+
+t_start = timer()
 savez(sfilename, t=tv, rho=rho, phi=phi, H=H, E=E, deltaX=deltaX, deltaP=deltaP, H0=H0, params=params)
 
 if not mm:
@@ -248,4 +257,4 @@ if not mm:
     fp[:] = W[:]
     del fp # causes the flush of memmap
 
-pr_msg("solution saved in %.2fs" % (time() - t_start))
+pr_msg("solution saved in %.2fs" % (timer() - t_start))
