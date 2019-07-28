@@ -118,7 +118,7 @@ for k in time_range:
         pv = pvdp[s][0]
         time_index = abs(t[s] - t_longest[k]).argmin()
         ax[0].contour(xx, pp, H[s], levels=Hlevels[s], linewidths=0.5, colors='k')
-        ax[0].set_title(descr[s] + ' $W(x,p,t)$')
+        ax[0].set_title('$W(x,p,t)$ of ' + descr[s])
         im = ax[0].contourf(xx, pp, W[s][time_index], levels=Wlevels[s], norm=norm, cmap=cm.bwr)
         divider = make_axes_locatable(ax[0])
         cax = divider.append_axes("right", "2%", pad="1%")
