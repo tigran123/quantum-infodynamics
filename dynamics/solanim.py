@@ -139,7 +139,7 @@ for k in time_range:
             ax[1].set_ylabel(r'$\rho$')
             ax[1].set_xlabel('$x$')
             ax[1].set_xlim([x1[s],x2[s]-dx[s]])
-            ax[1].text(0.05, 0.6, "t=% 6.4f\n$\Delta x$ = %.1f\n$\Delta p$ = %.1f\n$\Delta x\Delta p$=%.1f" %
+            ax[1].text(0.05, 0.6, "t=% 6.4f\n$\Delta x$ = %.2f\n$\Delta p$ = %.2f\n$\Delta x\Delta p$=%.2f" %
                                   (t[s][time_index], deltaX[s][time_index], deltaP[s][time_index], deltaX[s][time_index]*deltaP[s][time_index]), transform=ax[1].transAxes)
             ax[1].set_ylim([1.02*rho_min[s],1.02*rho_max[s]])
 
