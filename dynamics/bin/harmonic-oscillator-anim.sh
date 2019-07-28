@@ -2,7 +2,7 @@ function sigint() {
    echo -n "SIGINT: "
    pkill -P $$
    echo "killed all child processes"
-   exit
+   exit 1
 }
 
 trap sigint SIGINT
