@@ -170,7 +170,7 @@ Winit /= npoints
 
 if mm:
     Ntmax = (1024)**3*args.mmsize//(8*Nx*Np)
-    assert Ntmax > 1.2*N, "Run out of mm-mapped array size, please increase -mmsize"
+    assert Ntmax > N, "Pre-allocation out of mm-mapped array size, increase -mmsize"
     W = memmap(Wfilename, dtype='float64', mode='w+', shape=(Ntmax, Nx, Np))
     W[0] = fftshift(Winit)
 else:
@@ -182,7 +182,10 @@ Nt = 1
 t_calc = 0.0
 t_start = timer()
 while t <= t2:
-    if Nt%100 == 1: pr_msg("%d steps (%.2f steps/second), ~%d steps left" % (Nt, Nt/(timer()-t_start), (t2-t)//dt))
+    if Nt%100 == 1:
+        Ntleft = (t2-t)//dt
+        assert not mm or Ntmax > Nt + Ntleft, "Calculation out of mm-mapped array size, increase -mmsize"
+        pr_msg("%d steps (%.2f steps/second), ~%d steps left" % (Nt-1, (Nt-1)/(timer()-t_start), Ntleft))
     if adaptive and Nt%20 == 1:
         (Wnext, new_dt, expU, expT) = adjust_step(dt, W[Nt-1])
         if mm:
@@ -191,7 +194,7 @@ while t <= t2:
             W.append(Wnext)
         if new_dt != dt:
             est_steps = (t2-t)//new_dt + 1
-            pr_msg("step %d, dt=%.4f -> %.4f, ~%d steps left" %(Nt,dt,new_dt,est_steps))
+            pr_msg("step %d (%.2f steps/second), dt=%.4f -> %.4f, ~%d steps left" % (Nt, Nt/(timer()-t_start), dt, new_dt ,est_steps))
             dt = new_dt
     else:
         if mm:
