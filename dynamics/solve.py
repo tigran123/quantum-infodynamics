@@ -44,7 +44,7 @@ p.add_argument("-N",  action="store", help="Initial number of time steps (defaul
 p.add_argument("-adaptive", help="Use adaptive timestep control) (default=Yes)", dest="adaptive", const=True, type=str2bool, nargs='?', default=True)
 p.add_argument("-mm", help="Use memory-mapped array for W(x,p,t) (default=Yes)", dest="mm", const=True, type=str2bool, nargs='?', default=True)
 p.add_argument("-mmsize", help="Initial size (in GB) of the memory-mapped array for W(x,p,t) (default=32)", dest="mmsize", type=int, default=32)
-p.add_argument("-tol", action="store", help="Relative error tolerance (0 <tol <1)", dest="tol", type=float)
+p.add_argument("-tol", action="store", help="Relative error tolerance (0 < tol < 1)", dest="tol", type=float)
 args = p.parse_args()
 
 sfilename = args.sfilename
@@ -181,7 +181,7 @@ t = t1
 Nt = 1
 t_calc = 0.0
 t_start = timer()
-while t <= t2:
+while (dt > 0 and t <= t2) or (dt < 0 and t >= t2):
     if Nt%100 == 1:
         Ntleft = (t2-t)//dt
         assert not mm or Ntmax > Nt + Ntleft, "Calculation out of mm-mapped array size, increase -mmsize"
