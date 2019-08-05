@@ -48,7 +48,7 @@ p.add_argument("-tol", action="store", help="Relative error tolerance (0 < tol <
 args = p.parse_args()
 
 sfilename = args.sfilename
-Wfilename = sfilename + '_W.npz'
+Wfilename = sfilename + '_W.npy'
 
 (descr,x1,x2,Nx,p1,p2,Np,t1,t2,tol,mass,N,mm,adaptive) = (args.descr,args.x1,args.x2,args.Nx,args.p1,args.p2,args.Np,args.t1,args.t2,args.tol,args.mass,args.N,args.mm,args.adaptive)
 
@@ -183,9 +183,12 @@ t_calc = 0.0
 t_start = timer()
 while (dt > 0 and t <= t2) or (dt < 0 and t >= t2):
     if Nt%100 == 1:
-        Ntleft = (t2-t)//dt
+        Ntleft = (t2-t)//dt + 1
         assert not mm or Ntmax > Nt + Ntleft, "Calculation out of mm-mapped array size, increase -mmsize"
-        pr_msg("%d steps (%.2f steps/second), ~%d steps left" % (Nt-1, (Nt-1)/(timer()-t_start), Ntleft))
+        if Nt > 1:
+            pr_msg("%d steps (%.2f steps/second), ~%d steps left" % (Nt, Nt/(timer()-t_start), Ntleft))
+        else:
+            pr_msg("%d step, ~%d steps left" % (Nt, Ntleft))
     if adaptive and Nt%20 == 1:
         (Wnext, new_dt, expU, expT) = adjust_step(dt, W[Nt-1])
         if mm:
@@ -193,8 +196,9 @@ while (dt > 0 and t <= t2) or (dt < 0 and t >= t2):
         else:
             W.append(Wnext)
         if new_dt != dt:
-            est_steps = (t2-t)//new_dt + 1
-            pr_msg("step %d (%.2f steps/second), dt=%.4f -> %.4f, ~%d steps left" % (Nt, Nt/(timer()-t_start), dt, new_dt ,est_steps))
+            Ntleft = (t2-t)//new_dt + 1
+            assert not mm or Ntmax > Nt + Ntleft, "Adaptive calculation out of mm-mapped array size, increase -mmsize"
+            pr_msg("step %d (%.2f steps/second), dt=%.4f -> %.4f, ~%d steps left" % (Nt, Nt/(timer()-t_start), dt, new_dt, Ntleft))
             dt = new_dt
     else:
         if mm:
@@ -226,13 +230,7 @@ pr_msg("Wigner function shifted in %.2fs" % (timer() - t_start))
 
 t_start = timer()
 rho = sum(W, axis=2)*dp
-pr_msg("rho calculated in %.2fs" % (timer() - t_start))
-
-t_start = timer()
 phi = sum(W, axis=1)*dx
-pr_msg("phi calculated in %.2fs" % (timer() - t_start))
-
-t_start = timer()
 H = real(T(pp)+Umod.U(xx))
 H0 = real(T(p0) + Umod.U(x0))
 E = sum(H*W,axis=(1,2))*dx*dp
