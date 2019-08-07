@@ -26,7 +26,6 @@ mplt.rc('font', family='serif', size=9)
 p = argp(description="Quantum Infodynamics Tools - Solution Animator")
 p.add_argument("-s", action="append", help="Solution data filename (multiple OK)", dest="sfilenames", required=True, default=[])
 p.add_argument("-W",  action="store_true", help="Animate W(x,p,t) only", dest="Wonly")
-p.add_argument("-ff", action="store", help="Starting frame number (default 0)", dest="fframe", type=int, default=0)
 p.add_argument("-c", action="store", help="Number of contour levels of W(x,p,t) to plot (default 100)", dest="clevels", type=int, default=100)
 p.add_argument("-P", action="store", help="Number of parts to split the time range into (default 1)", dest="nparts", type=int, default=1)
 p.add_argument("-p", action="store", help="The part number to process in this instance (default 1)", dest="part", type=int, default=1)
@@ -35,7 +34,7 @@ p.add_argument("-fw", action="store", help="Frame width in pixels (default 1920)
 p.add_argument("-fh", action="store", help="Frame height in pixels (default 1080)", dest="frameh", type=int, default=1080)
 args = p.parse_args()
 
-fframe,framedir,Wonly,nparts,part,framew,frameh = args.fframe,args.framedir,args.Wonly,args.nparts,args.part,args.framew,args.frameh
+framedir,Wonly,nparts,part,framew,frameh = args.framedir,args.Wonly,args.nparts,args.part,args.framew,args.frameh
 
 assert nparts > 0, "Number of parts must be positive"
 assert part > 0 and part <= nparts,  "The part number must be between 1 and %d" % nparts
@@ -102,7 +101,7 @@ time_steps = len(t_longest)
 
 # split the entire time range into 'nparts' chunks and take chunk 'part'
 time_range = split(list(range(time_steps)), nparts, part)
-prog_prefix = "solanim: %d of %d: (fframe=%d) " %(part, nparts, fframe)
+prog_prefix = "solanim: %d of %d: " %(part, nparts)
 
 total_frames = len(time_range)
 print(prog_prefix + "processing %d out of %d frames" % (total_frames, time_steps))
@@ -161,7 +160,7 @@ for k in time_range:
         s += 1
 
     plt.tight_layout()
-    fig.savefig(framedir + '/%05d.png' % (fframe+k), format='png')
+    fig.savefig(framedir + '/%05d.png' % k, format='png')
     plt.close('all')
     frames += 1
     if frames%30 == 0: print(prog_prefix + "processed %d frames of %d" % (frames,total_frames))

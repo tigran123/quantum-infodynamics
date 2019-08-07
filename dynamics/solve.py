@@ -243,7 +243,4 @@ if not mm:
     fp[:] = W[:]
     del fp # causes the flush of memmap
 
-file1 = open(args.ofilename + '-Nt.txt', 'w+')
-file1.write('%d' % Nt)
-file1.close()
 pr_msg("solution saved in %.2fs" % (timer() - t_start))
