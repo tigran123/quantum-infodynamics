@@ -30,20 +30,20 @@ SOLVE_PARAMS="-adaptive Yes -tol 0.1 \
 
 ./initgauss.py $INIT_PARAMS -o $INIT
 
-( ./solve.py -d "\$H(x,p)=\sqrt{1+p^2}+x^2\$ (Q)" -r $SOLVE_PARAMS -i $INIT  -o $QR    -t1 0  -t2 24 && \
-  ./solve.py -d "\$H(x,p)=\sqrt{1+p^2}+x^2\$ (Q)" -r $SOLVE_PARAMS -i $QR    -o ${QR}2 -t1 24 -t2 48 && \
-  ./solve.py -d "\$H(x,p)=\sqrt{1+p^2}+x^2\$ (Q)" -r $SOLVE_PARAMS -i ${QR}2 -o ${QR}3 -t1 48 -t2 72 ) &
+( ./solve.py -d "\$H(x,p)=\sqrt{1+p^2}+x^2\$ (Q)" -r $SOLVE_PARAMS -i $INIT  -o ${QR}1 -t1 0  -t2 6 && \
+  ./solve.py -d "\$H(x,p)=\sqrt{1+p^2}+x^2\$ (Q)" -r $SOLVE_PARAMS -i ${QR}1 -o ${QR}2 -t1 6  -t2 12 && \
+  ./solve.py -d "\$H(x,p)=\sqrt{1+p^2}+x^2\$ (Q)" -r $SOLVE_PARAMS -i ${QR}2 -o ${QR}3 -t1 12 -t2 18 ) &
 
-( ./solve.py -d "\$H(x,p)=\sqrt{1+p^2}+x^2\$ (C)" -r -c $SOLVE_PARAMS -i $INIT  -o $CR    -t1 0  -t2 24 && \
-  ./solve.py -d "\$H(x,p)=\sqrt{1+p^2}+x^2\$ (C)" -r -c $SOLVE_PARAMS -i $CR    -o ${CR}2 -t1 24 -t2 48 && \
-  ./solve.py -d "\$H(x,p)=\sqrt{1+p^2}+x^2\$ (C)" -r -c $SOLVE_PARAMS -i ${CR}2 -o ${CR}3 -t1 48 -t2 72 ) &
+( ./solve.py -d "\$H(x,p)=\sqrt{1+p^2}+x^2\$ (C)" -r -c $SOLVE_PARAMS -i $INIT  -o ${CR}1 -t1 0  -t2 6 && \
+  ./solve.py -d "\$H(x,p)=\sqrt{1+p^2}+x^2\$ (C)" -r -c $SOLVE_PARAMS -i ${CR}1 -o ${CR}2 -t1 6  -t2 12 && \
+  ./solve.py -d "\$H(x,p)=\sqrt{1+p^2}+x^2\$ (C)" -r -c $SOLVE_PARAMS -i ${CR}2 -o ${CR}3 -t1 12 -t2 18 ) &
 
-( ./solve.py -d "\$H(x,p)=p^2/2+x^2\$ (Q)" $SOLVE_PARAMS -i $INIT  -o $QN    -t1 0  -t2 24 && \
-  ./solve.py -d "\$H(x,p)=p^2/2+x^2\$ (Q)" $SOLVE_PARAMS -i $QN    -o ${QN}2 -t1 24 -t2 48 && \
-  ./solve.py -d "\$H(x,p)=p^2/2+x^2\$ (Q)" $SOLVE_PARAMS -i ${QN}2 -o ${QN}3 -t1 48 -t2 72 ) &
+( ./solve.py -d "\$H(x,p)=p^2/2+x^2\$ (Q)" $SOLVE_PARAMS -i $INIT  -o ${QN}1 -t1 0  -t2 6 && \
+  ./solve.py -d "\$H(x,p)=p^2/2+x^2\$ (Q)" $SOLVE_PARAMS -i ${QN}1 -o ${QN}2 -t1 6  -t2 12 && \
+  ./solve.py -d "\$H(x,p)=p^2/2+x^2\$ (Q)" $SOLVE_PARAMS -i ${QN}2 -o ${QN}3 -t1 12 -t2 18 ) &
 
-( ./solve.py -d "\$H(x,p)=p^2/2+x^2\$ (C)" -c $SOLVE_PARAMS -i $INIT  -o $CN    -t1 0  -t2 24 && \
-  ./solve.py -d "\$H(x,p)=p^2/2+x^2\$ (C)" -c $SOLVE_PARAMS -i $CN    -o ${CN}2 -t1 24 -t2 48 && \
-  ./solve.py -d "\$H(x,p)=p^2/2+x^2\$ (C)" -c $SOLVE_PARAMS -i ${CN}2 -o ${CN}3 -t1 48 -t2 72 ) &
+( ./solve.py -d "\$H(x,p)=p^2/2+x^2\$ (C)" -c $SOLVE_PARAMS -i $INIT  -o ${CN}1 -t1 0  -t2 6 && \
+  ./solve.py -d "\$H(x,p)=p^2/2+x^2\$ (C)" -c $SOLVE_PARAMS -i ${CN}1 -o ${CN}2 -t1 6  -t2 12 && \
+  ./solve.py -d "\$H(x,p)=p^2/2+x^2\$ (C)" -c $SOLVE_PARAMS -i ${CN}2 -o ${CN}3 -t1 12 -t2 18 ) &
 
 wait
