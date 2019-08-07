@@ -26,6 +26,7 @@ mplt.rc('font', family='serif', size=9)
 p = argp(description="Quantum Infodynamics Tools - Solution Animator")
 p.add_argument("-s", action="append", help="Solution data filename (multiple OK)", dest="sfilenames", required=True, default=[])
 p.add_argument("-W",  action="store_true", help="Animate W(x,p,t) only", dest="Wonly")
+p.add_argument("-ff", action="store", help="Starting frame number (default 0)", dest="fframe", type=int, default=0)
 p.add_argument("-c", action="store", help="Number of contour levels of W(x,p,t) to plot (default 100)", dest="clevels", type=int, default=100)
 p.add_argument("-P", action="store", help="Number of parts to split the time range into (default 1)", dest="nparts", type=int, default=1)
 p.add_argument("-p", action="store", help="The part number to process in this instance (default 1)", dest="part", type=int, default=1)
@@ -34,7 +35,7 @@ p.add_argument("-fw", action="store", help="Frame width in pixels (default 1920)
 p.add_argument("-fh", action="store", help="Frame height in pixels (default 1080)", dest="frameh", type=int, default=1080)
 args = p.parse_args()
 
-framedir,Wonly,nparts,part,framew,frameh = args.framedir,args.Wonly,args.nparts,args.part,args.framew,args.frameh
+fframe,framedir,Wonly,nparts,part,framew,frameh = args.fframe,args.framedir,args.Wonly,args.nparts,args.part,args.framew,args.frameh
 
 assert nparts > 0, "Number of parts must be positive"
 assert part > 0 and part <= nparts,  "The part number must be between 1 and %d" % nparts
@@ -45,33 +46,36 @@ if not Wonly:
     rho,phi,rho_min,rho_max,phi_min,phi_max,deltaX,deltaP = ([] for _ in range(8))
 
 for sfilename in args.sfilenames:
-    with load(sfilename + '.npz',allow_pickle=True) as data:
-        t.append(data['t']);
-        H.append(data['H']); H0.append(data['H0'])
-        params = data['params'][()]
-        E.append(data['E']);
-        Emin.append(params['Emin']);
-        Emax.append(params['Emax'])
-        Wmin.append(params['Wmin']);
-        Wmax.append(params['Wmax'])
-        Wlevels.append(linspace(Wmin[-1], Wmax[-1], args.clevels));
-        Wticks.append(linspace(Wmin[-1], Wmax[-1], 10))
-        if not Wonly:
-            rho.append(data['rho']);
-            phi.append(data['phi']);
-            rho_min.append(params['rho_min']);
-            rho_max.append(params['rho_max'])
-            phi_min.append(params['phi_min']);
-            phi_max.append(params['phi_max'])
-            deltaX.append(data['deltaX']);
-            deltaP.append(data['deltaP']);
-        Wfilenames.append(params['Wfilename']);
-        Nt.append(params['Nt'])
-        x1.append(params['x1']); x2.append(params['x2']); Nx.append(params['Nx'])
-        p1.append(params['p1']); p2.append(params['p2']); Np.append(params['Np'])
-        Hmin.append(params['Hmin']);
-        Hmax.append(params['Hmax']);
-        descr.append(params['descr'])
+    try:
+        with load(sfilename + '.npz',allow_pickle=True) as data:
+            t.append(data['t']);
+            H.append(data['H']); H0.append(data['H0'])
+            params = data['params'][()]
+            E.append(data['E']);
+            Emin.append(params['Emin']);
+            Emax.append(params['Emax'])
+            Wmin.append(params['Wmin']);
+            Wmax.append(params['Wmax'])
+            Wlevels.append(linspace(Wmin[-1], Wmax[-1], args.clevels));
+            Wticks.append(linspace(Wmin[-1], Wmax[-1], 10))
+            if not Wonly:
+                rho.append(data['rho']);
+                phi.append(data['phi']);
+                rho_min.append(params['rho_min']);
+                rho_max.append(params['rho_max'])
+                phi_min.append(params['phi_min']);
+                phi_max.append(params['phi_max'])
+                deltaX.append(data['deltaX']);
+                deltaP.append(data['deltaP']);
+            Wfilenames.append(params['Wfilename']);
+            Nt.append(params['Nt'])
+            x1.append(params['x1']); x2.append(params['x2']); Nx.append(params['Nx'])
+            p1.append(params['p1']); p2.append(params['p2']); Np.append(params['Np'])
+            Hmin.append(params['Hmin']);
+            Hmax.append(params['Hmax']);
+            descr.append(params['descr'])
+    except IOError:
+        print("solanim: WARNING: ignoring -s ", sfilename)
 
 W = [memmap(filename, mode='r', dtype='float64', shape=(nt,nx,np)) for (filename,nt,nx,np) in zip(Wfilenames,Nt,Nx,Np)]
 
@@ -98,7 +102,7 @@ time_steps = len(t_longest)
 
 # split the entire time range into 'nparts' chunks and take chunk 'part'
 time_range = split(list(range(time_steps)), nparts, part)
-prog_prefix = "solanim: %d of %d: " %(part, nparts)
+prog_prefix = "solanim: %d of %d: (fframe=%d) " %(part, nparts, fframe)
 
 total_frames = len(time_range)
 print(prog_prefix + "processing %d out of %d frames" % (total_frames, time_steps))
@@ -157,7 +161,7 @@ for k in time_range:
         s += 1
 
     plt.tight_layout()
-    fig.savefig(framedir + '/%05d.png' % k, format='png')
+    fig.savefig(framedir + '/%05d.png' % (fframe+k), format='png')
     plt.close('all')
     frames += 1
     if frames%30 == 0: print(prog_prefix + "processed %d frames of %d" % (frames,total_frames))

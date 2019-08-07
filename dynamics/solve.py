@@ -1,12 +1,12 @@
 #!/usr/bin/env python3.7
 
 """
-   solve.py --- Quantum Infodynamics Solver (Spectral Split Propagator of Second Order with Adaptive Timestep Control)
+   solve.py --- Quantum Infodynamics Tools (Spectral Split Propagator of Second Order with Adaptive Timestep Control)
    Author: Tigran Aivazian <aivazian.tigran@gmail.com>
    License: GPL
 """
 
-from numpy import linspace, mgrid, pi, newaxis, exp, real, savez, amin, amax, sum, abs, memmap, sqrt, sign, zeros, array
+from numpy import linspace, mgrid, pi, newaxis, exp, real, load, savez, amin, amax, sum, abs, memmap, sqrt, sign
 from argparse import ArgumentParser as argp
 from timeit import default_timer as timer
 import sys
@@ -23,20 +23,11 @@ def str2bool(v):
 
 p = argp(description="Quantum Infodynamics Tools - Equations Solver")
 p.add_argument("-d",  action="store", help="Description text", dest="descr", required=True)
-p.add_argument("-x0", action="append", help="Initial packet's x-coordinate (multiple OK)", dest="x0", type=float, required=True, default=[])
-p.add_argument("-p0", action="append", help="Initial packet's p-coordinate (multiple OK)", dest="p0", type=float, required=True, default=[])
-p.add_argument("-sigmax", action="append", help="Initial packet's sigmax (multiple OK)", dest="sigmax", type=float, required=True, default=[])
-p.add_argument("-sigmap", action="append", help="Initial packet's sigma (multiple OK)", dest="sigmap", type=float, required=True, default=[])
-p.add_argument("-x1", action="store", help="Starting coordinate", dest="x1", type=float, required=True)
-p.add_argument("-x2", action="store", help="Final coordinate", dest="x2", type=float, required=True)
-p.add_argument("-Nx", action="store", help="Number of points in x direction", dest="Nx", type=int, required=True)
-p.add_argument("-p1", action="store", help="Starting momentum", dest="p1", type=float, required=True)
-p.add_argument("-p2", action="store", help="Final momentum", dest="p2", type=float, required=True)
-p.add_argument("-Np", action="store", help="Number of points in p direction", dest="Np", type=int, required=True)
 p.add_argument("-t1", action="store", help="Starting time", dest="t1", type=float, required=True)
 p.add_argument("-t2", action="store", help="Final time", dest="t2", type=float, required=True)
 p.add_argument("-u",  action="store", help="Python source of U(x) and U'(x)", dest="srcU", required=True)
-p.add_argument("-s",  action="store", help="Solution file name", dest="sfilename", required=True)
+p.add_argument("-o",  action="store", help="Solution file name", dest="ofilename", required=True)
+p.add_argument("-i",  action="store", help="Cauchy data file name", dest="ifilename", required=True)
 p.add_argument("-c",  action="store_true", help="Use classical (non-quantum) propagator", dest="classical")
 p.add_argument("-r",  action="store_true", help="Use relativistic dynamics", dest="relat")
 p.add_argument("-m",  action="store", help="Rest mass in a.u. (default=1.0)", type=complex, dest="mass", default=1.0)
@@ -47,12 +38,9 @@ p.add_argument("-mmsize", help="Initial size (in GB) of the memory-mapped array 
 p.add_argument("-tol", action="store", help="Relative error tolerance (0 < tol < 1)", dest="tol", type=float)
 args = p.parse_args()
 
-sfilename = args.sfilename
-Wfilename = sfilename + '_W.npy'
+oWfilename = args.ofilename + '_W.npy'
 
-(descr,x1,x2,Nx,p1,p2,Np,t1,t2,tol,mass,N,mm,adaptive) = (args.descr,args.x1,args.x2,args.Nx,args.p1,args.p2,args.Np,args.t1,args.t2,args.tol,args.mass,args.N,args.mm,args.adaptive)
-
-(x0,p0,sigmax,sigmap) = map(array, (args.x0, args.p0, args.sigmax, args.sigmap))
+(descr,t1,t2,tol,mass,N,mm,adaptive) = (args.descr,args.t1,args.t2,args.tol,args.mass,args.N,args.mm,args.adaptive)
 
 def pr_msg(str):
     print(descr + ": " + str)
@@ -61,14 +49,17 @@ def pr_exit(str):
     pr_msg("ERROR: " + str)
     sys.exit()
 
+with load(args.ifilename + '.npz', allow_pickle=True) as data:
+    params = data['params'][()]
+    iWfilename = params['Wfilename']
+    x0 = params['x0']; x1 = params['x1']; x2 = params['x2']; Nx = params['Nx']
+    p0 = params['p0']; p1 = params['p1']; p2 = params['p2']; Np = params['Np']
+    Nt = params['Nt']
+
 if Nx & (Nx-1): pr_msg("WARNING: Nx=%d is not a power 2, FFT may be slowed down" % Nx)
 if Np & (Np-1): pr_msg("WARNING: Np=%d is not a power 2, FFT may be slowed down" % Np)
 
 assert not adaptive or 0 < tol < 1, "Tolerance value %.2f outside (0,1) range" % tol
-assert x2 > x1 and p2 > p1 and Nx > 0 and Np > 0
-
-npoints = len(x0)
-assert p0.shape == (npoints,) and sigmax.shape == (npoints,) and sigmap.shape == (npoints,)
 
 Umod = __import__(args.srcU) # load the physical model (U(x) and dUdx(x) definitions)
 
@@ -109,10 +100,6 @@ X = fftshift(xv)[:,newaxis]
 P = fftshift(pv)[newaxis,:]
 Theta = fftshift(thetav)[newaxis,:]
 Lam = fftshift(lamv)[:,newaxis]
-
-def gauss(x, p, x0, p0, sigmax, sigmap):
-    Z = 1./(2.*pi*sigmax*sigmap)
-    return Z*exp(-((x-x0)**2/(2.*sigmax**2)+(p-p0)**2/(2.*sigmap**2)))
 
 def qd(f, x, dx):
     """qdf(x,dx) --- quantum differential of function f(x) at a point x on the increment dx"""
@@ -163,27 +150,25 @@ def adjust_step(cur_dt, Winit, maxtries=15):
 
 dt = (t2-t1)/N # the first very rough guess of time step
 expU,expT = exp(dt*dU),exp(dt*dT)
-Winit = zeros((Nx,Np))
-for (ax0,ap0,asigmax,asigmap) in zip(x0, p0, sigmax, sigmap):
-    Winit += gauss(xx,pp,ax0,ap0,asigmax,asigmap)
-Winit /= npoints
+Winit = memmap(iWfilename, dtype='float64', mode='r', shape=(Nt, Nx, Np))
 
 if mm:
-    Ntmax = (1024)**3*args.mmsize//(8*Nx*Np)
+    Ntmax = (1024)**3*args.mmsize//(Winit.itemsize*Nx*Np)
     assert Ntmax > N, "Pre-allocation out of mm-mapped array size, increase -mmsize"
-    W = memmap(Wfilename, dtype='float64', mode='w+', shape=(Ntmax, Nx, Np))
-    W[0] = fftshift(Winit)
+    W = memmap(oWfilename, dtype='float64', mode='w+', shape=(Ntmax, Nx, Np))
+    W[0] = fftshift(Winit[Nt-1])
 else:
-    W = [fftshift(Winit)]
+    W = [fftshift(Winit[Nt-1])]
 
 tv = [t1]
 t = t1
 Nt = 1
 t_calc = 0.0
 t_start = timer()
-while (dt > 0 and t <= t2) or (dt < 0 and t >= t2):
+t2 -= dt
+while (dt > 0 and t < t2) or (dt < 0 and t > t2):
     if Nt%100 == 1:
-        Ntleft = (t2-t)//dt + 1
+        Ntleft = (t2-t)//dt
         assert not mm or Ntmax > Nt + Ntleft, "Calculation out of mm-mapped array size, increase -mmsize"
         if Nt > 1:
             pr_msg("%d steps (%.2f steps/second), ~%d steps left" % (Nt, Nt/(timer()-t_start), Ntleft))
@@ -196,7 +181,7 @@ while (dt > 0 and t <= t2) or (dt < 0 and t >= t2):
         else:
             W.append(Wnext)
         if new_dt != dt:
-            Ntleft = (t2-t)//new_dt + 1
+            Ntleft = (t2-t)//new_dt
             assert not mm or Ntmax > Nt + Ntleft, "Adaptive calculation out of mm-mapped array size, increase -mmsize"
             pr_msg("step %d (%.2f steps/second), dt=%.4f -> %.4f, ~%d steps left" % (Nt, Nt/(timer()-t_start), dt, new_dt, Ntleft))
             dt = new_dt
@@ -218,7 +203,7 @@ if mm:
     W.base.resize(nbytes)
     W.flush()
     del W
-    W = memmap(Wfilename, dtype='float64', mode='r+', shape=(Nt, Nx, Np))
+    W = memmap(oWfilename, dtype='float64', mode='r+', shape=(Nt, Nx, Np))
     pr_msg("Wigner function resized to shape (%d,%d,%d), %d bytes in %.2fs" % (Nt, Nx, Np, nbytes, timer() - t_start))
 
 t_start = timer()
@@ -245,17 +230,20 @@ deltaP = sqrt(abs(P2-P*P))
 
 params = {'Wmin': amin(W), 'Wmax': amax(W), 'rho_min': amin(rho), 'rho_max': amax(rho),
           'Hmin': amin(H), 'Hmax': amax(H), 'Emin': amin(E), 'Emax': amax(E),
-          'phi_min': amin(phi), 'phi_max': amax(phi), 'Wfilename': Wfilename, 'Nt': Nt,
-          'x1': x1, 'x2': x2, 'Nx': Nx, 'p1': p1, 'p2': p2, 'Np': Np, 'descr': descr}
+          'phi_min': amin(phi), 'phi_max': amax(phi), 'Wfilename': oWfilename, 'Nt': Nt,
+          'x0': x0, 'x1': x1, 'x2': x2, 'Nx': Nx, 'p0': p0, 'p1': p1, 'p2': p2, 'Np': Np, 'descr': descr}
 
 pr_msg("parameters calculated in %.2fs" % (timer() - t_start))
 
 t_start = timer()
-savez(sfilename, t=tv, rho=rho, phi=phi, H=H, E=E, deltaX=deltaX, deltaP=deltaP, H0=H0, params=params)
+savez(args.ofilename, t=tv, rho=rho, phi=phi, H=H, E=E, deltaX=deltaX, deltaP=deltaP, H0=H0, params=params)
 
 if not mm:
-    fp = memmap(Wfilename, dtype='float64', mode='w+', shape=(Nt, Nx, Np))
+    fp = memmap(oWfilename, dtype='float64', mode='w+', shape=(Nt, Nx, Np))
     fp[:] = W[:]
     del fp # causes the flush of memmap
 
+file1 = open(args.ofilename + '-Nt.txt', 'w+')
+file1.write('%d' % Nt)
+file1.close()
 pr_msg("solution saved in %.2fs" % (timer() - t_start))

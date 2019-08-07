@@ -12,22 +12,38 @@ workdir=/data/work/harmonic-oscillator
 #workdir=harmonic-oscillator
 rm -rf $workdir ; mkdir -p $workdir
 
-SOLQR=$workdir/solqr
-SOLCR=$workdir/solcr
-SOLQN=$workdir/solqn
-SOLCN=$workdir/solcn
+INIT=$workdir/init
 
-PARAMS="-adaptive 1 -tol 0.01 \
-        -mm 1 -mmsize 32 \
-        -x0 0.0 -x1 -6.0 -x2 6.0 \
-        -p0 2.0 -p1 -7.0 -p2 7.0 \
-        -sigmax 0.3 -sigmap 0.6 \
-        -Nx 512 -Np 512 \
-        -t1 0 -t2 24 -N 100 \
-        -u U_harmonic"
+QR=$workdir/qr
+CR=$workdir/cr
+QN=$workdir/qn
+CN=$workdir/cn
 
-./solve.py -r -d "\$H(x,p)=\sqrt{1+p^2}+x^2\$ (Q)" $PARAMS -s $SOLQR &
-./solve.py -d "\$H(x,p)=p^2/2+x^2\$ (Q)" $PARAMS -s $SOLQN &
-./solve.py -r -c -d "\$H(x,p)=\sqrt{1+p^2}+x^2\$ (C)" $PARAMS -s $SOLCR &
-./solve.py -c -d "\$H(x,p)=p^2/2+x^2\$ (C)" $PARAMS -s $SOLCN &
+INIT_PARAMS="-x0 0.0 -x1 -6.0 -x2 6.0 \
+             -p0 2.0 -p1 -7.0 -p2 7.0 \
+             -sigmax 0.3 -sigmap 0.6 \
+             -Nx 512 -Np 512"
+
+SOLVE_PARAMS="-adaptive Yes -tol 0.1 \
+              -mm Yes -mmsize 32 \
+              -N 100 -u U_harmonic"
+
+./initgauss.py $INIT_PARAMS -o $INIT
+
+( ./solve.py -d "\$H(x,p)=\sqrt{1+p^2}+x^2\$ (Q)" -r $SOLVE_PARAMS -i $INIT  -o $QR    -t1 0  -t2 24 && \
+  ./solve.py -d "\$H(x,p)=\sqrt{1+p^2}+x^2\$ (Q)" -r $SOLVE_PARAMS -i $QR    -o ${QR}2 -t1 24 -t2 48 && \
+  ./solve.py -d "\$H(x,p)=\sqrt{1+p^2}+x^2\$ (Q)" -r $SOLVE_PARAMS -i ${QR}2 -o ${QR}3 -t1 48 -t2 72 ) &
+
+( ./solve.py -d "\$H(x,p)=\sqrt{1+p^2}+x^2\$ (C)" -r -c $SOLVE_PARAMS -i $INIT  -o $CR    -t1 0  -t2 24 && \
+  ./solve.py -d "\$H(x,p)=\sqrt{1+p^2}+x^2\$ (C)" -r -c $SOLVE_PARAMS -i $CR    -o ${CR}2 -t1 24 -t2 48 && \
+  ./solve.py -d "\$H(x,p)=\sqrt{1+p^2}+x^2\$ (C)" -r -c $SOLVE_PARAMS -i ${CR}2 -o ${CR}3 -t1 48 -t2 72 ) &
+
+( ./solve.py -d "\$H(x,p)=p^2/2+x^2\$ (Q)" $SOLVE_PARAMS -i $INIT  -o $QN    -t1 0  -t2 24 && \
+  ./solve.py -d "\$H(x,p)=p^2/2+x^2\$ (Q)" $SOLVE_PARAMS -i $QN    -o ${QN}2 -t1 24 -t2 48 && \
+  ./solve.py -d "\$H(x,p)=p^2/2+x^2\$ (Q)" $SOLVE_PARAMS -i ${QN}2 -o ${QN}3 -t1 48 -t2 72 ) &
+
+( ./solve.py -d "\$H(x,p)=p^2/2+x^2\$ (C)" -c $SOLVE_PARAMS -i $INIT  -o $CN    -t1 0  -t2 24 && \
+  ./solve.py -d "\$H(x,p)=p^2/2+x^2\$ (C)" -c $SOLVE_PARAMS -i $CN    -o ${CN}2 -t1 24 -t2 48 && \
+  ./solve.py -d "\$H(x,p)=p^2/2+x^2\$ (C)" -c $SOLVE_PARAMS -i ${CN}2 -o ${CN}3 -t1 48 -t2 72 ) &
+
 wait
