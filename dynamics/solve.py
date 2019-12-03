@@ -1,4 +1,4 @@
-#!/usr/bin/env python3.7
+#!/usr/bin/env python3.8
 
 """
    solve.py --- Quantum Infodynamics Tools (Spectral Split Propagator of Second Order with Adaptive Timestep Control)

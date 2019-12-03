@@ -24,7 +24,7 @@ INIT_PARAMS="-x0 0.0 -x1 -6.0 -x2 6.0 \
              -sigmax 0.3 -sigmap 0.6 \
              -Nx 512 -Np 512"
 
-SOLVE_PARAMS="-adaptive Yes -tol 0.1 \
+SOLVE_PARAMS="-adaptive Yes -tol 0.01 \
               -mm Yes -mmsize 32 \
               -N 100 -u U_harmonic"
 
