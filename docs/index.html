@@ -1,0 +1,1086 @@
+<!DOCTYPE html>
+<html lang='eng-US'>
+<head>
+	<meta http-equiv='Content-Type' content='text/html; charset=utf-8'>
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="-1">
+	<meta http-equiv='CACHE-CONTROL' content='NO-CACHE'>
+	<meta name='description' content='Quantum Infodynamics: Theory of Motion of Matter-Energy-Information in the Real Space'>
+	<meta name='rating' content='general'>
+	<meta name='author' content='Tigran Aivazian'>
+    <link rel='shortcut icon' href='img/favicon.ico'> 
+	<title>Quantum Infodynamics</title>
+    <link rel='stylesheet' href='jquery/jquery-ui-1.12.1.custom/jquery-ui.min.css'>
+    <script src='jquery/jquery-3.1.1.min.js'></script>
+    <script src='jquery/jquery-ui-1.12.1.custom/jquery-ui.min.js'></script>
+    <script src='js/index.js'></script>
+	<link rel='stylesheet' href='css/qid.css'>
+    <!--- <script type="text/javascript" src="mathjax/MathJax.js?config=TeX-AMS_CHTML"></script> -->
+    <script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS_CHTML"></script>
+    <script type="text/x-mathjax-config">
+       MathJax.Hub.Config({
+          TeX: { equationNumbers: { autoNumber: "AMS" } }
+       });
+    </script>
+</head>
+
+<body>
+
+\(\newcommand{\div}{\operatorname{div}}\)
+\(\newcommand{\Im}{\operatorname{Im}}\)
+\(\newcommand{\qx}{\boldsymbol{\hat{x}}}\)
+\(\newcommand{\qp}{\boldsymbol{\hat{p}}}\)
+\(\newcommand{\qxm}{\boldsymbol{\hat{x}'}}\)
+\(\newcommand{\qpm}{\boldsymbol{\hat{p}'}}\)
+\(\newcommand{\qd}{\tilde{d}}\)
+\(\newcommand{\qc}{\tilde{\triangle}}\)
+
+<div id='tabs'>
+   <ul>
+      <li><a href='#tab_home'><span class='ui-icon ui-icon-home'></span>Home</a></li>
+      <li><a href='#tab_hamiltonian'><span class='ui-icon ui-icon-suitcase'></span>Hamiltonian Dynamics</a></li>
+      <li><a href='#tab_classical'><span class='ui-icon ui-icon-script'></span>Classical Infodynamics</a></li>
+      <li><a href='#tab_quantum'><span class='ui-icon ui-icon-star'></span>Quantum Infodynamics</a></li>
+      <li><a href='#tab_bibliography'><span class='ui-icon ui-icon-note'></span>Bibliography</a></li>
+      <li><a href='#tab_software'><span class='ui-icon ui-icon-calculator'></span>Software</a></li>
+      <li><a href='#tab_contact'><span class='ui-icon ui-icon-person'></span>Contact</a></li>
+      <li><a href='index-ru.html' id='language'><span class='ui-icon ui-icon-flag'></span>Русский</a></li>
+   </ul>
+
+   <div id='tab_home'>
+      <h1>What is Quantum Infodynamics?</h1>
+      <p>Quantum Infodynamics is a theory of motion of matter-energy-information which takes into account the reality of space. From the primitive materialistic point of view space is "nothing", i.e. it exists only in relation to something positive and material. This view is erroneous. Space is real and it contains and conditions motion. It even moves: space respiration on cosmological scale is just one example of such motion, called <em>primary motion</em>. The confusion of modern physicists stems from the failure to comprehend the <em>reality of space</em>. Despite the human mind being rather rigidly bound to space, the mind is in fact the only instrument that allows us to transcend space, albeit partially. Our finite status must not discourage us from the exploration of the true nature and dynamic structure of space, because space itself is &mdash; to all beings of creature status &mdash; relatively finite.
+      <p>To understand Quantum Infodynamics we need to consider carefully the following three levels of the description of motion:</p>
+      <ol>
+	  <li><strong>Hamiltonian Dynamics.</strong> On this level we have particles which obey equations of motion represented by ordinary differential equations. The <em>initial state</em> is a set of coordinates and velocities (or momenta) and our task is to discover the time-evolution of this state.</li>
+	  <li><strong>Classical Infodynamics.</strong> The initial coordinates and momenta can never be specified with infinite precision and, therefore, their time-evolution is likewise indeterminate. Instead, we can specify some probability distribution \(f_0(x,p)\) of the initial coordinates and momenta and ask for the corresponding distribution \(f(x,p,t)\) at some later (or earlier) moment of time \(t\). This is the level of <em>classical</em> infodynamics and the word "classical" here means "non-quantum", which, in turn, means "without taking into account the reality of space" (see below). The concrete physical model is fully specified (say, in one spatial dimension) by the form of the potential energy's \(U(x)\) dependence on the coordinate and the kinetic energy's \(T(p)\) dependence on the momentum. The dynamics is determined by the exponential propagators containing the ordinary <em>derivatives</em> of these two entities: \(\partial U\over\partial x\) and \(\partial T\over\partial p\) respetively.</li>
+	  <li><strong>Quantum Infodynamics.</strong> On the classical level there is nothing in principle precluding the specification of <em>both</em> the coordinate and momentum of a particle simultaneously with as high precision as is desired. The empirical evidence suggests that this is not the case in reality and so the Classical Infodynamics needs modification. This brings us to the level of <em>Quantum</em> Infodynamics. Here, unlike the <em>Classical</em> level, the specification of \(U(x)\) and \(T(p)\) as real-valued functions of real arguments is <strong>insufficient</strong>, even though in the formal equations this may seem to be the case. In actual fact, one has to perform the analytic continuation of these two functions into the complex plane \(\mathbb{C}\) and consider the <em>quantum differentials</em> (defined below) of the complex valued functions \(U(z_x)\) and \(T(z_p)\). We shall see below what exactly does this amount to.</li>
+   </ol>
+   </div> <!-- div id='tab_home' -->
+
+   <div id='tab_hamiltonian'>
+      <h1>Hamiltonian Dynamics</h1>
+<p>In theoretical (in contrast with the school-level) physics the second law of Newton can be conveniently reformulated using either Lagrangian or Hamiltonian formalism. In the Lagrangian approach the state of the system is described by the generalised coordinates \(q_i\) and velocities \(\dot{q_i}\). The specifics of the system are encoded in the <em>Lagrange function</em> \(L(q,\dot{q},t)\) and the equations of motion arise as the extremals of the <em>action functional</em> \(S[q(t)]\):
+
+$$
+\begin{align}
+& S[q(t)] = \int\limits_{t_1}^{t_2}L(q,\dot{q},t)\,dt \\
+& \delta S[q(t)] = 0 \Rightarrow {\partial L\over\partial q_i} = {d\over dt}{\partial L\over\partial\dot{q_i}}, (i=1\dots s)
+\end{align}
+$$
+
+<p>For a system with \(s\) degrees of freedom, these comprise \(s\) ordinary differential equations of second order. The Cauchy problem is stated by specifying the initial value of all coordinates and velocities and asking for their time evolution:
+
+$$
+\begin{equation}
+(q(0),\dot{q}(0)) \mapsto (q(t),\dot{q}(t))
+\end{equation}
+$$
+
+<p>In the Hamiltonian approach the state of the system is described by the generalised coordinates \(q_i\) and momenta \(p_i\) and
+the specifics of the system are encoded in the <em>Hamilton function</em> \(H(q,p,t)\) which is connected with \(L(q,\dot{q},t)\)
+via <em>Legendre transformation</em> as follows:
+
+$$
+\begin{align}
+& p_i \equiv {\partial L\over\partial\dot{q_i}}\\
+& H(q,p,t) = \sum\limits_{i=1}^{s}p_i\dot{q_i} - L
+\end{align}
+$$
+
+<p>and the equation of motion are:
+
+$$
+\begin{align}
+& \dot x^i = {\partial H\over\partial p_i} \equiv \{x^i,H\}\label{dotxi}\\
+& \dot p_i = -{\partial H\over\partial x^i} \equiv \{p_i,H\}\label{dotpi}\\
+& \{A,B\} = A(x,p)(\overset{\leftarrow}{\partial_x}\overset{\rightarrow}{\partial_p} - \overset{\leftarrow}{\partial_p}\overset{\rightarrow}{\partial_x})B(x,p)
+\end{align}
+$$
+
+<p>where we have defined the Poisson bracket \(\{A,B\}\) on the algebra of smooth functions on the phase space.
+
+<p>The phase flow providing time evolution of the position and momentum \((q(0),p(0))\) defines a one-parametric
+semi-group \({g^t}\) of local diffeomorphisms:
+
+$$
+\begin{equation}
+g^t(q(0),p(0)) = (q(t),p(t))
+\end{equation}
+$$
+
+<p>In the case of the autonomous system \(\partial_t H\equiv 0\) the semi-group becomes a proper group.
+
+<p>Geometrically, the difference between the Lagrangian and Hamiltonian formalisms is the same as that between the tangent
+\(T\mathcal{M}\) and cotangent bundle \(T^*\mathcal{M}\) over a base configuration manifold \(\mathcal{M}\).
+   </div> <!-- div id='tab_hamiltonian' -->
+
+   <div id='tab_classical'>
+      <ul>
+         <li><a href='#tab_classical_main_principles'><span class='ui-icon ui-icon-folder-open'></span>Main Principles</a></li>
+         <li><a href='#tab_classical_link_hydrodynamics'><span class='ui-icon ui-icon-folder-open'></span>Link with Hydrodynamics</a></li>
+         <li><a href='#tab_classical_harmonic_oscillator'><span class='ui-icon ui-icon-folder-open'></span>Harmonic Oscillator</a></li>
+      </ul>
+      <h1>Classical Infodynamics</h1>
+      <div id='tab_classical_main_principles'>
+<h2>Main Principles</h2>
+
+<p>If we switch from the concentration of information about the state of a system in a tuple of numbers \(\{q_i(t),p_i(t)\}\) to the real-valued (and reasonably smooth) distribution function \(f(x,p,t)\), the equations of motion will have to be modified considerably.
+
+<p>We give the function \(f(x,p,t)\) the following physical meaning: if the phase space \(\mathcal{P}\) has an integration measure \(dx\,dp\), then the expression \(f(x,p,t)\,dx\,dp\) corresponds to the probability of finding the particle within the neighbourhood of the point \((q,p)\) with the infinitesemal volume \(dx\,dp\). For a finite domain \(G\subseteq\mathcal{P}\) we have the probability \(P_G(t)\) of finding the particle in the phase image \(g^t(G)\) at a moment of time \(t\) given by the following integral:
+
+$$
+\begin{equation}
+P_G(t) = \int\limits_{g^t(G)} f(x,p,t)\,dx\,dp
+\end{equation}
+$$
+
+<p>To obtain the dynamical equation for the <em>information field</em> \(f(x,p,t)\) (which on this level has the simple meaning of a positive-definite distribution function or a probability measure) we can demand a very natural conservation law:
+
+$$
+\begin{equation}
+P_G(t) = const
+\label{Pconst}
+\end{equation}
+$$
+
+<p>This simply means that if the particle was initially (\(t=0\)) somewhere in the domain \(G\), then it can only end up in the phase image \(g^t(G)\) of this domain at a subsequent moment of time \(t\). Particles do not disappear and do not appear out of nowhere. This is a purely <em>classical</em> condition and will have to be abandoned in the <em>quantum</em> regime.
+
+<p>Now we can make use of the well-known <em>Transport Theorem</em> which we here give for the most generic case of a non-autonomous dynamical system:
+
+$$
+\begin{align}
+& \dot{x}^i = F^i(x,t),\\
+& x^i(0) = y^i, g^t(y) = x(t;y),\\
+& {d\over dt}\int\limits_{g^t(G)} f(x,t)\,d^nx = \int\limits_{g^t(G)}\left\{{\partial f\over\partial t} +
+                  \sum\limits_{i=1}^n {\partial\over\partial x^i}(F^i f)\right\}\label{transport}
+\end{align}
+$$
+
+<p>Notice the similarity of the rhs of (\ref{transport}) with the continuity equation from hydrodynamics:
+\(\partial_t\rho + \div(\rho\mathbf{v}) = 0\).
+This signifies an important fact: the information flows in phase space as an ordinary liquid with the role of velocity played by the phase flow. As we shall see later, this is true only in the classical regime, i.e. when the reality of space is ignored.
+
+<p>For a Hamiltonian system the sum in the above expression turns into the Poisson bracket \(\{f,H\}\) and so we have:
+
+$$
+{d\over dt}\int\limits_{g^t(G)} f(x,p,t)\,dx\,dp = \int\limits_{g^t(G)}\left\{{\partial f\over\partial t} - \{H,f\}\right\}
+$$
+
+<p>Thus, the demand (\ref{Pconst}) is equivalent to the following partial differential equation on the information field:
+
+$$
+\begin{equation}
+\partial_t f = \{H,f\}
+\end{equation}
+$$
+
+<p>The original ordinary differential equations of motion serve as the <em>characteristics</em> for this equation in partial derivatives.
+
+<p>We can look at what we have achieved so far in the following way. The system consists of: a) particles moving along the characteristic trajectories and b) the information field flowing as a liquid driven by the phase flow. The combined <em>Dynamical Equations of Energy-Information Field</em> are so important that we collect them all here again:
+
+$$
+\begin{align}
+\dot x & = \{x,H\}\label{dotx}\\
+\dot p & = \{p,H\}\label{dotp}\\
+\partial_t f & = \{H,f\}\label{dotf}
+\end{align}
+$$
+
+<p>As we see above, when the equations of motion are expressed by means of Poisson brackets, the equations of time evolution of <em>particles</em> and <em>information</em> about particles are similar, up to the sign.
+
+<p>The formal solution \(f(x,p,t)\) of the Cauchy problem for (\ref{dotf}) is given by the following exponent of differential operators:
+
+$$
+\begin{equation}
+f(x,p,t) = \exp\left\{t({\partial H\over\partial p}{\partial\over\partial x} - {\partial H\over\partial x}{\partial\over\partial p})\right\}f_0(x,p)
+\end{equation}
+$$
+
+<p>In order to cast this formal solution into a form useable for numeric simulations we split the exponent using
+<A HREF="https://en.wikipedia.org/wiki/Baker%E2%80%93Campbell%E2%80%93Hausdorff_formula">Baker-Cambpell-Hausdorff formula</A>:
+
+$$
+\begin{equation}
+f(x,p,t+\Delta t) \approx \exp\left\{t{\partial H\over\partial p}{\partial\over\partial x}\right\}
+                    \exp\left\{-t{\partial H\over\partial x}{\partial\over\partial p}\right\}f(x,p,t)
+\end{equation}
+$$
+
+<p>And here we can directly apply the method of spectral split propagator, i.e. by hopping from the space of \(x-p\) functions to the space of fourier images over \(p\) and then over \(x\) we can solve Cauchy problem. In the classical regime there are other stable methods of solving this equation, but in the quantum regime the spectral split propagator is practically the only useable algorithm and I successfully used it for all my computer simulations.
+
+<p>There is a well-defined concept of entropy \(S_G(t)\) associated with the given information field \(f(x,p,t)\):
+
+$$
+\begin{equation}
+S_G(t) = - \int\limits_{g^t(G)} f(x,p,t)\ln f(x,p,t)\,dx\,dp = const
+\end{equation}
+$$
+
+<p>This quantity is well-defined because if the information field is non-negative initially, it will remain such forever:
+
+$$
+\begin{equation}
+f_0(x,p)\geqslant 0 \Rightarrow f(x,p,t) \geqslant 0
+\end{equation}
+$$
+
+<p>This fact follows from the fact that the information field is constant along the characteristics:
+
+$$
+\begin{equation}
+{df(x(t),p(t),t)\over dt} = {\partial f \over\partial t} + \{f,H\} = 0
+\end{equation}
+$$
+
+<p>
+Note that in the classical regime the entropy is real-valued. This is not the case in the quantum case, where entropy becomes complex-valued and the imaginary part thereof corresponds to what is known as "negentropy" or "syntropy" — its increase corresponds to the appearance of <em>order</em>, i.e. describes <em>self-organisation</em>. This effect is clearly seen in <A HREF="https://youtu.be/owc6GJzSQvY">one of my simulations</A>.
+
+   </div> <!-- div id='tab_classical_main_principles' -->
+   <div id='tab_classical_link_hydrodynamics'>
+<h2>Link with the Hydrodynamics</h2>
+
+<p>It was mentioned above that information flows in the phase space as a liquid obeying continuity equation. It turns out that the projections of the information field onto both coordinate and momentum subspaces also flow as continuous liquids in their own subspaces. Let us prove this rigorously.
+
+<p>We begin by defining a pair of quantities \(\rho(x,t),\mathbf{u}(x,t)\) which have the meaning of space density and velocity field respectively:
+
+$$
+\begin{align}
+\rho(x,t) &\equiv \int f(x,p,t)\,d^np\label{rho}\\
+\rho(x,t)u^i(x,t) & \equiv \int {\partial H\over\partial p_i}f(x,p,t)\,d^np\label{u}
+\end{align}
+$$
+
+<p>Let us see if they obey continuity equation in \(x\)-space:
+
+$$
+\begin{equation}
+{\partial\rho\over\partial t} + \div(\rho\mathbf{u}) =
+\int\,d^np\left\{\{H,f\} + {\partial\over\partial x^i}\left({\partial H\over\partial p_i} f\right)\right\} =
+\int\,d^np\left\{{\partial H\over\partial x^i}{\partial f\over\partial p_i} + {\partial^2 H\over\partial x^i\partial p_i}f\right\} =
+\int\,d^np{\partial\over\partial p_i}\left({\partial H\over\partial x^i}f\right) = 0\label{contin1}
+\end{equation}
+$$
+
+<p>The last integral in (\ref{contin1}) is zero because we assume that on infinity in momentum space the integrand function is "behaving well", i.e. tends to zero fast enough and so the "surface term" disappears. We have now established that the "information liquid" projected onto coordinate space flows according to the continuity
+equation:
+
+$$
+\begin{equation}
+{\partial\rho\over\partial t} + \div(\rho\mathbf{u}) = 0
+\end{equation}
+$$
+
+<p>Now let us construct a pair of <em>dual</em> quantities \(\tilde\rho(p,t),\tilde{\mathbf{u}}(p,t)\) with the meaning of momentum density and "velocity distribution in momentum space" respectively, similar to (\ref{rho},\ref{u}):
+
+$$
+\begin{align}
+\tilde\rho(p,t) &\equiv \int f(x,p,t)\,d^nx\label{rhop}\\
+\tilde\rho(p,t)\tilde{u}_i(p,t) & \equiv -\int {\partial H\over\partial x^i}f(x,p,t)\,d^nx\label{up}
+\end{align}
+$$
+
+<p>In complete analogy with derivation (\ref{contin1}) we have:
+
+$$
+\begin{equation}
+{\partial\tilde\rho\over\partial t} + \div_p(\tilde\rho\tilde{\mathbf{u}}) =
+\int\,d^nx\left\{\{H,f\} - {\partial\over\partial p_i}\left({\partial H\over\partial x^i} f\right)\right\} =
+-\int\,d^nx\left\{{\partial H\over\partial p_i}{\partial f\over\partial x^i} + {\partial^2 H\over\partial x^i\partial p_i}f\right\} =
+-\int\,d^nx{\partial\over\partial x^i}\left({\partial H\over\partial p_i}f\right) = 0\label{contin2}
+\end{equation}
+$$
+
+<p>We have now established that the projection of the "information liquid" onto momentum subspace flows according to the continuity equation, in complete symmetry with the situation in \(x\)-subspace:
+
+$$
+\begin{equation}
+{\partial\tilde\rho\over\partial t} + \div_p(\tilde\rho\tilde{\mathbf{u}}) = 0
+\end{equation}
+$$
+
+<p>Note that the possibility of such separation onto \(x\) and \(p\)-subspaces is only present in the simple case of Euclidean geometry. In a more general case of a Riemannian (or Lorentzian) configuration manifold \(\mathcal{M}\) the phase space is a cotangent bundle \(T^*\mathcal{M}\) over \(\mathcal{M}\) and comparing (or integrating over) momenta \(\mathbf{p}\) belonging to different fibres \(T_x^*\mathcal{M}\) makes no sense. We can only integrate over \(\mathcal{p}\in T_x^*\mathcal{M}\).
+
+<p>Now let us construct the energy density and the energy flux density:
+
+$$
+\begin{align}
+\epsilon(x,t) &\equiv \int H(x,p,t) f(x,p,t)\,d^np\\
+q^i(x,t) &\equiv \int {\partial H(x,p,t)\over\partial p_i} f(x,p,t)\,d^np\\
+\end{align}
+$$
+
+<p>It turns out that these obey the local energy conservation law
+
+$$
+\begin{equation}
+{\partial\epsilon\over\partial t} + \div(\mathbf{q}) = \int {\partial H\over\partial t} f\,d^np = \overline{\partial_t H}
+\end{equation}
+$$
+
+<p>Now let us construct a quantity which could be called a stress tensor:
+
+$$
+\begin{equation}
+P^{ik} \equiv \int {\partial H\over\partial p_i}{\partial H\over\partial p_k} f\,d^np
+\end{equation}
+$$
+
+<p>It turns out that it obeys an equation that resembles Euler's equation in hydrodynamics:
+
+$$
+\begin{equation}
+{\partial(\rho u^i) \over\partial t} + {\partial P^{ik}\over\partial x^k} = 
+   \int \left( {\partial H_{p_i}\over\partial t} +\{H_{p_i},H\} \right) f\,d^np
+\end{equation}
+$$
+
+<p>where \(H_{p_i} \equiv {\partial H\over\partial p_i}\).
+
+   </div> <!-- div id='tab_classical_link_hydrodynamics' -->
+   <div id='tab_classical_harmonic_oscillator'>
+<h2>Harmonic Oscillator</h2>
+
+<p>As an illustration, we shall consider here the case of <A HREF="https://en.wikipedia.org/wiki/Harmonic_oscillator">Harmonic Oscillator</A>, i.e. the system with the Hamilton function \(H(x,p)\) being a quadratic polynomial on both the coordinate \(x\) and momentum \(p\):
+
+$$
+\begin{equation}
+H(x,p) = {p^2\over2m} + {m\omega^2 x^2\over2}
+\end{equation}
+$$
+
+<p>The characteristic system (\ref{dotx}-\ref{dotp}) has the form:
+
+$$
+\begin{align}
+& \dot x = {p\over m}\label{harmdotx}\\
+& \dot p = -m\omega^2 x\label{harmdotp}\\
+& x(0) = x_0\\
+& p(0) = p_0\\
+\end{align}
+$$
+
+<p>The general solution of (\ref{harmdotx}-\ref{harmdotp}) in Cauchy form is:
+
+$$
+\begin{align}
+x(t) & = x_0\cos{\omega t} + {p_0\over m\omega}\sin{\omega t}\label{harmxsol}\\
+p(t) & = p_0\cos{\omega t} - {m\omega x_0}\sin{\omega t}\label{harmpsol}\\
+\end{align}
+$$
+
+<p>Solving (\ref{harmxsol}-\ref{harmpsol}) against \(x_0,p_0\) we can use the method of characteristics to generate the time evolution of the classical information field \(f(x,p,t)\):
+
+$$
+\begin{equation}
+f(x,p,t) = f_0(x_0(x,p,t),p_0(x,p,t)) =
+f_0(x\cos{\omega t} - {p\over m\omega}\sin{\omega t}, p\cos{\omega t} + {m\omega x}\sin{\omega t})\label{harmfsol}
+\end{equation}
+$$
+
+<p>The form of solution (\ref{harmfsol}) shows that the support of the initial distribution \(f_0(x,p)\) rotates in the \(x-p\) plane with the cyclic frequency \(\omega\). It could be immediately obtained by noticing that the vector field generating the phase flow \(p\partial_x - x\partial_p\) could be brought to the form \(\partial_{\varphi}\) and this is a well-known generator of rotations.
+
+<p>Now, let's start with the initial distribution having the normalised Gaussian form centered at some arbitrary point
+ \((x_0,p_0)\in\mathbb{R}^2\):
+
+$$
+\begin{equation}
+f_0(x,p) = {1\over {2\pi\sigma_x\sigma_p}}
+         \exp\left\{
+            -{(x-x_0)^2\over{2\sigma_x^2}} - {(p-p_0)^2\over{2\sigma_p^2}}
+             \right\}\label{harmGaussf}
+\end{equation}
+$$
+
+<p>Let's calculate the energy \(E\) in a state \(f_0\):
+
+$$
+\begin{equation}
+E = \int H(x,p)f_0(x,p)\,dx\,dp =
+ {p_0^2\over2m} + {m\omega^2 x_0^2\over2} + {\sigma_p^2\over2m} + {m\omega^2\sigma_x^2\over2}\label{harmE}
+\end{equation}
+$$
+
+<p>As we see from (\ref{harmE}) the energy consists of two elements: the purely-mechanical energy of the wave packet's centre and the contribution from the information (or, more precisely, the lack thereof) which has the form of <em>quasi-particle</em> with the momentum \(\sigma_p\) and coordinate \(\sigma_x\).
+
+<p>Let us now consider the <A HREF="https://en.wikipedia.org/wiki/Boltzmann_distribution">Boltzmann distribution</A>, i.e. the state of maximum entropy with the constrained energy and unity-normalisation:
+
+$$
+\begin{equation}
+f_B(x,p) = {1\over Z(\beta)}\exp(-\beta H(x,p))\label{harmBoltzf}
+\end{equation}
+$$
+
+<p>If we compare the functions (\ref{harmGaussf}) and (\ref{harmBoltzf}), we notice that they coincide under the following conditions:
+
+$$
+\begin{align}
+& x_0 = 0, p_0=0\\
+& \sigma_x = {1\over{\omega\sqrt{m\beta}}}, \sigma_p = \sqrt{m\over\beta}\label{harmsigmaxp}
+\end{align}
+$$
+
+<p>From (\ref{harmsigmaxp}) we immediately obtain the classical analogue of Heisenberg's Uncertainty Principle:
+
+$$
+\begin{equation}
+\sigma_x\sigma_p = {1\over{\beta\omega}}
+\end{equation}
+$$
+
+What is more important is that there is an explicit connection between \(\sigma_x\) and \(\sigma_p\), given by:
+
+$$
+\begin{equation}
+\boxed{\sigma_x = {\sigma_p\over{m\omega}}}\label{sxsp}
+\end{equation}
+$$
+
+In other words, if the oscillator is in the stationary impure state centered around the rest equilibrium position
+(i.e. with maximum enthropy for a given total energy and normalised distribution), then its "uncertainties" of
+the coordinate \(\sigma_x\) and momentum \(\sigma_p\) cannot be arbitrary, but are related by the equation (\ref{sxsp}).
+This proves that there is a perfectly valid Classical Uncertainty Principle in Classical Infodynamics, due to the fact
+that the stationary impure states form a one-parametric \(\beta\) family of functions and, necessarily, the two values
+\(\sigma_x\) and \(\sigma_p\) cannot be chosen independently: fixing one automatically determines the other.
+
+   </div> <!-- div id='tab_classical_harmonic_oscillator' -->
+   </div> <!-- div id='tab_classical' -->
+
+   <div id='tab_quantum'>
+      <ul>
+         <li><a href='#tab_quantum_operation_quantisation'><span class='ui-icon ui-icon-folder-open'></span>Quantisation</a></li>
+         <li><a href='#tab_quantum_fundamental_equations'><span class='ui-icon ui-icon-folder-open'></span>Fundamental Equations</a></li>
+         <li><a href='#tab_quantum_density_matrix'><span class='ui-icon ui-icon-folder-open'></span>Density Matrix</a></li>
+         <li><a href='#tab_quantum_wigner_function'><span class='ui-icon ui-icon-folder-open'></span>Wigner Function</a></li>
+         <li><a href='#tab_quantum_olavo'><span class='ui-icon ui-icon-folder-open'></span>Olavo Representation</a></li>
+         <li><a href='#tab_quantum_blokhintsev'><span class='ui-icon ui-icon-folder-open'></span>Blokhintsev Function</a></li>
+         <li><a href='#tab_quantum_spectral_split'><span class='ui-icon ui-icon-folder-open'></span>Spectral Split Propagator</a></li>
+         <li><a href='#tab_quantum_examples'><span class='ui-icon ui-icon-folder-open'></span>Examples</span></a></li>
+      </ul>
+
+      <h1>Quantum Infodynamics</h1>
+      <div id='tab_quantum_operation_quantisation'>
+<h2>Operation of Quantisation</h2>
+
+<p>The operation of quantisation is a bit of a "magic", in the following sense. It can be disguised in many different ways, but if you follow carefully the logical steps you will inevitably arrive at an assumption or "postulate" which is inexplicable. For example, I have seen some people and textbooks actually claiming to "derive" the <A HREF="https://en.wikipedia.org/wiki/Schr%C3%B6dinger_equation">Schrödinger Equation</A> but it amounts to nothing more than substituting the operators \(\hat{E} = i\hbar{\partial\over\partial t}\) and \(\hat{P} = -i\hbar{\partial\over\partial x}\) into the classical formula for energy \(E = {P^2\over 2m} + U(x)\). We shall avoid all such jiggery-pokery here and honestly admit that the exact form of the procedure of quantisation is a direct act of the Transcendental Architects of the Master Universe and originating as it does from the Paradise (absolute) level of reality, cannot be satisfactorily explained in terms of anything pertaining to this, finite, level of reality.
+
+<p>For our purposes the procedure of quantisation (i.e. "activating" the reality of space) can be concisely stated as follows:
+
+$$
+\begin{align}
+& [A,B] \equiv {1\over i\hbar}(A\star B - B\star A)\label{quantumbrackets}\\
+& \star \equiv \exp\left\{{i\hbar\over2}(\overset{\leftarrow}{\partial_x}\overset{\rightarrow}{\partial_p} - \overset{\leftarrow}{\partial_p}\overset{\rightarrow}{\partial_x})\right\}\\
+& \{A,B\} \mapsto [A,B],
+\label{quantisation}
+\end{align}
+$$
+
+<p>i.e. the <em>classical</em> Poisson brackets \(\{A,B\}\) are replaced with the <em>quantum</em> brackets \([A,B]\) as defined
+by (\ref{quantumbrackets}). This is our main <em>postulate</em> and it cannot be reduced to the more basic or elementary
+forms.
+
+<p>In the classical limit \(\hbar\rightarrow 0\) the quantum brackets coincide with the classical Poisson brackets:
+
+$$
+\begin{equation}
+\lim_{\hbar\rightarrow 0}[A,B] = \{A,B\}\\
+\end{equation}
+$$
+
+     </div> <!-- div id='tab_quantum_operation_quantisation' -->
+
+     <div id='tab_quantum_fundamental_equations'>
+<h2>Fundamental Equations</h2>
+
+<p>Now we can rewrite the fundamental system of equations of classical infodynamics in terms of the quantum brackets and arrive at the fundamental system of <em>quantum infodynamics</em>:
+
+$$
+\begin{align}
+\dot x & = [x,H]\label{qdotx}\\
+\dot p & = [p,H]\label{qdotp}\\
+\partial_t\rho & = [H,\rho]\label{qdotrho}
+\end{align}
+$$
+
+<p>where we have designated the quantum information field as \(\rho(t)\) in anticipation of the fact that it coincides with what is known in the orthodox Quantum Mechanics as the <em>density matrix.</em>
+
+<p>What is most interesting here is that the quantum brackets of the coordinate \(x\) and momentum \(p\) with the Hamilton function \(H(x,p,t)\) coincide with the classical ones:
+
+$$
+\begin{align}
+& \{x,H\} \equiv [x,H]\\
+& \{p,H\} \equiv [p,H]
+\end{align}
+$$
+
+<p>This means that the first two of the equations of quantum infodynamics coincide with the classical ones, i.e. the characteristics of the classical information field remain <em>intact</em> under the procedure of quantisation. In other words, more strikingly emphasising the difference between our and the "orthodox" interpretation of QM: the quantum particles actually move along the classical trajectories, but the information field associated with them evolves according to the much more complicated law (\ref{qdotrho}) than the classical law for the function \(f(x,p,t)\). And when the coordinates and momentum of a particle are <em>measured</em>, we interact with the information about the particle rather than the particle itself, whilst the latter becomes an "abstract" intangible entity on quantum level, i.e. simply a <em>pattern</em> which provides a skeleton for the information field to be shaped around in accordance with the
+reality of space both inside and surrounding the particle. Thus we have reconciled both (65:6.1 and 42:5.14) statements in the Urantia Papers: one confirming Heisenberg's Uncertainty Principle and the seemingly impossible statement that all particles move along well-defined trajectories.
+
+     </div> <!-- div id='tab_quantum_fundamental_equations' -->
+
+     <div id='tab_quantum_density_matrix'>
+<h2>Density Matrix And Four-Operator Algebra \((\hat{x},\hat{p},\hat{\theta},\hat{\lambda})\)</h2>
+
+<p>Now let us rewrite the equation (\ref{qdotrho}) in the form connecting it with the density matrix known from the orthodox QM. To do this we must notice a certain symmetry between configuration and momentum spaces. We use the same notation as in the very important recent paper by Cabrera, Bondar et al (see <A HREF="/bibliography.html#cabrera1">"Efficient Method to generate time evolution of the Wigner function for open quantum systems", Nov 2015</A>). It turns out that we can split the quantum operators of coordinate and momentum into a linear combination of the operators corresponding to their classical (i.e. simultaneously measurable) counterparts and "quantum corrections" as follows:
+
+$$
+\begin{align}
+& \qx = \hat{x} - {\hbar\over 2}\hat{\theta}\label{Xdef}\\
+& \qp = \hat{p} + {\hbar\over 2}\hat{\lambda}\label{Pdef}\\
+& [\qx,\qp] = i\hbar\label{XPcomm}
+\end{align}
+$$
+
+<p>To satisfy the main commutation relation (\ref{XPcomm}) we can impose the following six commutation relations on the four operators \(\hat{x},\hat{p},\hat{\lambda},\hat{\theta}\):
+
+$$
+\begin{align}
+& [\hat{x},\hat{\lambda}] = i\label{xpcomm1}\\
+& [\hat{p},\hat{\theta}] = i\\
+& [\hat{x},\hat{p}] = 0\\
+& [\hat{x},\hat{\theta}] = 0\\
+& [\hat{\lambda},\hat{\theta}] = 0\\
+& [\hat{p},\hat{\lambda}] = 0\label{xpcomm2}\\
+\end{align}
+$$
+
+<p>As we see from the above, the meaning of the operators of classical coordinate \(\hat{x}\) and classical momentum \(\hat{p}\) is that they correspond to the simultaneously measurable (<em>commuting</em>, in quantum language) physical values of coordinate and momentum.
+
+<p>We also need a mirror algebra of operators \(\qxm\) and \(\qpm\):
+
+$$
+\begin{align}
+& \qxm = \hat{x} + {\hbar\over 2}\hat{\theta}\\
+& \qpm = \hat{p} - {\hbar\over 2}\hat{\lambda}\\
+& [\qxm,\qpm] = -i\hbar\label{XP1comm}
+\end{align}
+$$
+
+<p>It is straightforward to verify that (\ref{XP1comm}) is automatically satisfied by virtue of (\ref{xpcomm1}-\ref{xpcomm2}).
+
+<p>Now we are ready to write the equation for density matrix in the most general form:
+
+$$
+\begin{equation}
+i\hbar{\partial\rho\over\partial t} = \{H(\qx,\qp) - H(\qxm,\qpm)\}\rho =
+\{H(\hat{x} - {\hbar\over 2}\hat{\theta},\hat{p} + {\hbar\over 2}\hat{\lambda}) - H(\hat{x} + {\hbar\over 2}\hat{\theta},\hat{p} - {\hbar\over 2}\hat{\lambda})\}\rho\label{densmat}
+\end{equation}
+$$
+
+<p>The formal solution of (\ref{densmat}) can be written without fixing a representation for the four operators \((\hat{x},\hat{p},\hat{\theta},\hat{\lambda})\):
+
+$$
+\begin{equation}
+\rho(t) = \exp\left\{-{it\over\hbar}\left(
+   H(\hat{x} - {\hbar\over 2}\hat{\theta},\hat{p} + {\hbar\over 2}\hat{\lambda}) -
+   H(\hat{x} + {\hbar\over 2}\hat{\theta},\hat{p} - {\hbar\over 2}\hat{\lambda}
+  \right)\right\}\rho(0)
+\label{rhosol}
+\end{equation}
+$$
+
+     </div> <!-- div id='tab_quantum_density_matrix' -->
+
+     <div id='tab_quantum_wigner_function'>
+<h2>\(x-p\) Representation: The Wigner Function \(W(x,p,t)\)</h2>
+
+<p>With the four operators \(\hat{x},\hat{p},\hat{\lambda},\hat{\theta}\) we have the freedom of choosing the representation in such a way that any two of them will correspond to simple multiplication and the other two to differentiation (this is analogous to the choice of \(X\) <em>vs</em> \(P\) representation in the orthodox QM).
+
+<p>For example, we can choose to represent \(\hat{x}\) and \(\hat{p}\) by multiplication by number and the other two by differentiation:
+
+$$
+\begin{align}
+& \hat{x} = x\label{xprepx}\\
+& \hat{p} = p\label{xprepp}\\
+& \hat{\theta} = -i\partial_p\label{xpreptheta}\\
+& \hat{\lambda} = -i\partial_x\label{xpreplambda}\\
+\end{align}
+$$
+
+<p>Then, the equation for density matrix (\ref{densmat}) becomes:
+
+$$
+\begin{equation}
+i\hbar{\partial W\over\partial t} = \left\{H(x + {i\hbar\over 2}\partial_p, p - {i\hbar\over 2}\partial_x) -
+                    H(x - {i\hbar\over 2}\partial_p, p + {i\hbar\over 2}\partial_x)\right\}W(x,p,t),
+\label{WignerEq}
+\end{equation}
+$$
+
+<p>where we immediately we recognise the well-known Moyal equation for the Wigner function \(W(x,p,t)\).
+
+     </div> <!-- div id='tab_quantum_wigner_function' -->
+
+     <div id='tab_quantum_olavo'>
+<h2>Olavo Representation: \(F(x,p,t)=\Psi^*(x,p,t)\Psi(x,p,t)\)</h2>
+
+<p>In the series of papers by L.S.F. Olavo titled "Quantum Mechanics as a Classical Theory" it was shown how a positive-definite space density can be obtained. And this, not in some arbitrary manner, but in a way that preserves the value of the average value of energy, at least in the non-relativistic case this is treated rigorously in <A HREF="/bibliography.html#olavo1">paper XVI of the series</A>.
+
+<p>Let us see to what it corresponds in our formalism. To this end let us begin with the Schrödinger equation rather than that of the density matrix:
+
+$$
+\begin{equation}
+i\hbar{\partial\Psi\over\partial t} = H(\qx,\qp)\Psi
+\end{equation}
+$$
+
+<p>Now, substitute the operators \(\qx,\qp\) according to their definition (\ref{Xdef}-\ref{Pdef}) and concrete representation (\ref{xprepx}-\ref{xpreplambda}) to obtain the Schrödinger equation in the phase space:
+
+$$
+\begin{equation}
+i\hbar{\partial\Psi(x,p,t)\over\partial t} = H(x+{i\hbar\over 2}\partial_p, p-{i\hbar\over 2}\partial_x)\Psi(x,p,t)
+\end{equation}
+$$
+
+<p>We can construct the distribution function which can be interpreted as a probability distribution:
+
+$$
+\begin{equation}
+F(x,p,t) = \Psi^*(x,p,t)\Psi(x,p,t)
+\end{equation}
+$$
+
+<p>which has the important property (proved in <A HREF="/bibliography.html#olavo1">Olavo, 2003</A>) that the energy calculated by means of
+\(F(x,p,t)\) is the same as if it was calculated from the original probability amplitude \(\psi(x,t)\) satisfying the usual Schrödinger equation:
+
+$$
+\begin{equation}
+\bar{E} = \int\left({p^2\over{2m}} + U(x)\right)F(x,p,t)\,dx\,dp = \int\psi^*(x,t)\left(-{\hbar^2\over{2m}}{\partial^2\over\partial x^2} + U(x)\right)\psi(x,t)\,dx
+\end{equation}
+$$
+
+<p>Now let us explore the question whether Olavo distribution \(F(x,p,t)\) can be a candidate for quantum information field.
+To answer this question it is sufficient to investigate the classical limit for a free non-relativistic particle, which we shall
+do in the \(x-p\)-representation of the Hilbert phase space:
+
+$$
+\begin{equation}
+H = {\hat{P}^2\over{2m}} = {(p-{i\hbar\over2}\partial_x)^2\over{2m}}
+\end{equation}
+$$
+
+<p>The Schrödinger equation becomes:
+
+$$
+\begin{equation}
+i\hbar{\partial\Psi(x,p,t)\over\partial t} = {1\over2m}\left(p^2 - i\hbar p\partial_x - {\hbar^2\over4}\partial_x^2\right)\Psi(x,p,t)
+\end{equation}
+$$
+
+<p>and its conjugated version is:
+
+$$
+\begin{equation}
+-i\hbar{\partial\Psi^*(x,p,t)\over\partial t} = {1\over2m}\left(p^2 + i\hbar p\partial_x - {\hbar^2\over4}\partial_x^2\right)\Psi^*(x,p,t)
+\end{equation}
+$$
+
+<p>Now we can try to find the equation satisfied by the Olavo distribution \(F(x,p,t)\):
+
+$$
+\begin{equation}
+i\hbar\partial_t F(x,p,t) = i\hbar\partial_t\Psi^*\Psi + i\hbar\Psi^*\partial_t\Psi =
+  \Psi  {1\over2m}\left(-p^2 - i\hbar p\partial_x + {\hbar^2\over4}\partial_x^2\right)\Psi^* +
+  \Psi^*{1\over2m}\left( p^2 - i\hbar p\partial_x - {\hbar^2\over4}\partial_x^2\right)\Psi
+\end{equation}
+$$
+
+$$
+\begin{equation}
+i\hbar{\partial F(x,p,t)\over\partial t} = -{i\hbar p\over2m}{\partial F\over\partial x} + {\hbar^2\over8m}\left(\Psi\Psi^*_{xx} - \Psi^*\Psi_{xx}\right)
+\end{equation}
+$$
+
+<p>The last equation can be written in the following more compact form:
+
+$$
+\begin{equation}
+{\partial F\over\partial t} + {p\over2m}{\partial F\over\partial x} = {\hbar\over4m}\Im(\Psi\Psi^*_{xx})
+\end{equation}
+$$
+
+<p>From here we can immediately observe that the classical limit \(\hbar\to0\) of this equation does <i>not</i> coincide with the
+Liouville equation. It differs by an extra factor of \(1/2\) in the velocity \(p/m\):
+
+$$
+\begin{equation}
+{\partial F\over\partial t} + {p\over2m}{\partial F\over\partial x} = 0
+\end{equation}
+$$
+
+<p>This result most likely corresponds to the well-known fact that the phase velocity of de-Broglie wave corresponding to
+a free non-relativistic massive particle is equal to \(V/2\), where \(V\) is the actual velocity of the particle itself.
+
+<p>This means that the classical limit of the Olavo function is retarded behind the real classical distribution function and,
+therefore, this object (useful though it is, due to its non-negativity), unfortunately cannot be considered as a candidate
+for the quantum information field either.
+
+     </div> <!-- div id='tab_quantum_olavo' -->
+
+     <div id='tab_quantum_blokhintsev'>
+<h2>\(x-\theta\) Representation: The Blokhintsev Function \(B(x,\theta,t)\)</h2>
+
+<p>Sometimes it can be convenient to use a different representation, namely the one where the operators \(\hat{x}\) and \(\hat{\theta}\) have a simple form:
+
+$$
+\begin{align}
+& \hat{x} = x\\
+& \hat{p} = i\partial_\theta\\
+& \hat{\theta} = \theta\\
+& \hat{\lambda} = -i\partial_x\\
+\end{align}
+$$
+
+<p>The master equation takes the form, originally found by <A HREF="/bibliography.html#blokhintsev1">Blokhintsev (in the particular case of non-relativistic Hamiltonian)</A>:
+
+$$
+\begin{equation}
+i\hbar{\partial B\over\partial t} = \left\{H(x - {\hbar\over 2}\theta, i\partial_\theta - {i\hbar\over 2}\partial_x) -
+                    H(x + {\hbar\over 2}\theta, i\partial_\theta + {i\hbar\over 2}\partial_x)\right\}B(x,\theta,t)
+\label{BlokhintsevEq}
+\end{equation}
+$$
+
+<p>The \(x\)-dependence of the Hamiltonian \(H(x,p)\) can be very complex, because it comes from the potential energy term \(U(x)\),
+whereas the \(p\)-dependence comes from the kinetic energy term \(T(p)\) and in the non-relativistic case is a simple quadratic
+polynomial.
+In this case, the \(x-\theta\) representation allows one to deal with a much more simle partial differential equation than the
+pseudo-differential equation in \(x-p\) representation.
+
+<p>In any case, one has to deal with both \(x-p\) and \(x-\theta\) representations when solving Cauchy problem numerically
+using the spectral split propagator technique because in this method one splits the full time-propagator into a composition
+of pieces that take a simple form in one such representation, but not the other.
+
+<p>The connection between Wigner and Blokhintsev functions is established via Fourier transform:
+
+$$
+\begin{align}
+W(x,p,t) & = {1\over2\pi}\int B(x,\theta,t)e^{ip\theta}\,d\theta & \equiv \mathcal{F}_{\theta\rightarrow p}[B(x,\theta,t)]\\
+B(x,\theta,t) & = \int W(x,p,t)e^{-ip\theta}\,dp & \equiv \mathcal{F}^{-1}_{p\rightarrow\theta}[W(x,p,t)]
+\end{align}
+$$
+
+     </div> <!-- div id='tab_quantum_blokhintsev' -->
+
+     <div id='tab_quantum_spectral_split'>
+<h2>Spectral Split Propagator in General Case</h2>
+
+<p>Frequently, the Hamiltonian \(H(x,p)\) happens to be a sum of the kinetic and potential energy terms:
+
+$$
+\begin{equation}
+H(x,p) = T(p) + U(x)
+\end{equation}
+$$
+
+<p>Then, the formula (\ref{rhosol}) becomes:
+
+$$
+\begin{equation}
+\rho(t) = \exp\left\{-{it\over\hbar}\left(
+   T(\hat{p} + {\hbar\over 2}\hat{\lambda}) -
+   T(\hat{p} - {\hbar\over 2}\hat{\lambda}) +
+   U(\hat{x} - {\hbar\over 2}\hat{\theta}) -
+   U(\hat{x} + {\hbar\over 2}\hat{\theta})
+  \right)\right\}\rho(0)
+\label{rhosolTU}
+\end{equation}
+$$
+
+<p>The formula (\ref{rhosolTU}) can be rewritten in a more compact form using the definition of a quantum differential (see also \ref{qd}):
+
+$$
+\begin{align}
+& \qd f(x,dx) \equiv {1\over i\hbar}\left(f(x+{i\hbar\over 2}dx) - f(x-{{i\hbar\over 2}}dx)\right)\\
+& \rho(t) = \exp\left\{t\left(\qd T(\hat{p},-i\hat{\lambda}) + \qd U(\hat{x},i\hat{\theta})\right)\right\}\rho(0)\label{rhosolqd}
+\end{align}
+$$
+
+<p>Now, let us assume that our initial state \(\rho(0)\) is realised in the form of a function depending on the classical phase space variables \(x,p\), (i.e. the Wigner Function) \(W_0(x,p)\). Then, we can make the formula (\ref{rhosolqd}) more specific:
+
+$$
+\begin{equation}
+W(x,p,t) = \exp\left\{t\left(\qd T(\hat{p},-i\hat{\lambda}) + \qd U(\hat{x},i\hat{\theta})\right)\right\}W_0(x,p)\label{Wsolqd}
+\end{equation}
+$$
+
+<p>The formula (\ref{Wsolqd}) can be turned into a computational scheme of calculating the value \(W(x,p,t+\Delta t)\) from its value in the previous moment of time \(W(x,p,t)\) (in <em>all</em> points of the phase space \(x,p\), not just current one!):
+
+$$
+\begin{equation}
+W(x,p,t+\Delta t) \approx \exp\left\{\Delta t\left(\qd T(\hat{p},-i\hat{\lambda}) + \qd U(\hat{x},i\hat{\theta})\right)\right\}W(x,p,t)\label{Wsoldt}
+\end{equation}
+$$
+
+<p>Now we have a small parameter \(\Delta t\) inside the exponent and so we can make use of the one of the following approximations:
+
+$$
+\begin{align}
+&\exp\left\{\Delta t(\hat{A}+\hat{B})\right\} \approx
+    \exp\left\{\Delta t\hat{A}\right\}
+    \exp\left\{\Delta t\hat{B}\right\}\label{forder}\\
+&\exp\left\{\Delta t(\hat{A}+\hat{B})\right\} \approx
+    \exp\left\{\Delta t\hat{A}\over2\right\}
+    \exp\left\{\Delta t\hat{B}\right\}
+    \exp\left\{\Delta t\hat{A}\over2\right\}\label{sorder}
+\end{align}
+$$
+
+<p>The first order formula (\ref{forder}) is called <em>Lie splitting</em> and the second-order formula (\ref{sorder}) is known as <em>symmetric Strang splitting</em> approximation. The error in the first case diminishes linearly with decreasing step \(\Delta t\) and in the second case it diminishes quadratically, making it more attractive for computations.
+
+<p>The local error can be estimated easily for the Lie splitting method:
+
+$$
+\begin{align}
+& u' = Au + Bu, u_0 = u(0)\\
+& u(t) =  e^{t(A+B)}u_0\\
+& u_{n+1} \approx e^{\Delta tA}e^{\Delta tB}u_n\\
+& \Delta^{(1)}(h) \equiv u_1(h) - u(h) = \left(e^{hA}e^{hB} - e^{h(A+B)}\right)u_0 = {h^2\over2}[A,B]u_0 + O(h^3)
+\end{align}
+$$
+
+<p>For the second-order (Strang) splitting we have a slightly longer expression:
+
+$$
+\begin{equation}
+\Delta^{(2)}(h) \equiv u_1(h) - u(h) = \left(e^{hA/2}e^{hB}e^{hA/2} - e^{h(A+B)}\right)u_0 =
+   h^3\left({1\over12}[B,[B,A]]-{1\over24}[A,[A,B]]\right)u_0 + O(h^4)
+\end{equation}
+$$
+
+<p>Let us introduce two operators \(\tilde{T}(\hat{p},\hat{\lambda},\Delta t)\) and \(\tilde{U}(\hat{x},\hat{\theta},\Delta t)\) as follows:
+
+$$
+\begin{align}
+& \tilde{T}(\hat{p},\hat{\lambda},\Delta t) \equiv \exp\left\{\Delta t\qd T(\hat{p},-i\hat{\lambda})\right\}\label{tildeT}\\
+& \tilde{U}(\hat{x},\hat{\theta},\Delta t) \equiv \exp\left\{\Delta t\qd U(\hat{x},i\hat{\theta})\right\}\label{tildeU}
+\end{align}
+$$
+
+<p>Then, we can use, for example the first order BCH approximation to rewrite (\ref{Wsoldt}) in the following form:
+
+$$
+\begin{equation}
+W(x,p,t+\Delta t) \approx \tilde{T}(\hat{p},\hat{\lambda},\Delta t)\tilde{U}(\hat{x},\hat{\theta},\Delta t)W(x,p,t)\label{Wsoldt2}
+\end{equation}
+$$
+
+<p>To simplify the action of the operator \(\tilde{U}(\hat{x},\hat{\theta},\Delta t)\) we must Fourier-transform from the initial \(x-p\) representation to Blokhintsev representation \(x-\theta\):
+
+$$
+\begin{equation}
+W(x,p,t+\Delta t) \approx \tilde{T}(\hat{p},\hat{\lambda},\Delta t)
+            \mathcal{F}_{\theta\rightarrow p}
+            \tilde{U}(x,\theta,\Delta t)\mathcal{F}^{-1}_{p\rightarrow\theta}W(x,p,t)\label{Wsoldt3}
+\end{equation}
+$$
+
+<p>Notice how the hats over \(\hat{x}\) and \(\hat{\theta}\) in \(\tilde{U}(\hat{x},\hat{\theta},\Delta t)\) are gone, because in \(x-\theta\) representation these operators are purely multiplying by \(x\) and \(\theta\) respectively.
+
+<p>The same can be done for \(\tilde{T}(\hat{p},\hat{\lambda},\Delta t)\) by temporarily switching to \(p-\lambda\) representation:
+
+$$
+\begin{equation}
+W(x,p,t+\Delta t) \approx
+            \mathcal{F}_{\lambda\rightarrow x}
+            \tilde{T}(p,\lambda,\Delta t)
+            \mathcal{F}^{-1}_{x\rightarrow\lambda}
+            \mathcal{F}_{\theta\rightarrow p}
+            \tilde{U}(x,\theta,\Delta t)\mathcal{F}^{-1}_{p\rightarrow\theta}W(x,p,t)\label{Wsoldt4}
+\end{equation}
+$$
+
+<p>The formula (\ref{Wsoldt4}) is in the form that can be used on a computer, because all its terms are readily computable. Nevertheless, let us rewrite it in terms of the original exponents, to make the whole computational procedure more explicit:
+
+$$
+\begin{equation}
+W(x,p,t+\Delta t) \approx
+            \mathcal{F}_{\lambda\rightarrow x}
+            \exp\left\{\Delta t\qd T(p,-i\lambda)\right\}
+            \mathcal{F}^{-1}_{x\rightarrow\lambda}
+            \mathcal{F}_{\theta\rightarrow p}
+            \exp\left\{\Delta t\qd U(x,i\theta)\right\}
+            \mathcal{F}^{-1}_{p\rightarrow\theta}W(x,p,t)\label{Wsoldt5}
+\end{equation}
+$$
+
+<p>Likewise, we can use the second order decomposition (\ref{sorder}) to construct a much more accurate computational scheme than (\ref{Wsoldt5}):
+
+$$
+\begin{equation}
+W(x,p,t+\Delta t) \approx
+            \mathcal{F}_{\lambda\rightarrow x}
+            \exp\left\{{\Delta t\over2}\qd T(p,-i\lambda)\right\}
+            \mathcal{F}_{\theta\rightarrow p}
+            \mathcal{F}^{-1}_{x\rightarrow\lambda}
+            \exp\left\{\Delta t\qd U(x,i\theta)\right\}
+            \mathcal{F}^{-1}_{p\rightarrow\theta}
+            \mathcal{F}_{\lambda\rightarrow x}
+            \exp\left\{{\Delta t\over2}\qd T(p,-i\lambda)\right\}
+            \mathcal{F}^{-1}_{x\rightarrow\lambda}W(x,p,t)\label{Wsoldt6}
+\end{equation}
+$$
+   </div> <!-- div id='tab_quantum_spectral_split' -->
+
+   <div id='tab_quantum_examples'>
+<h2>Free Relativistic Quantum Particle in One Dimension</h2>
+
+<p>In this case the Hamiltonian consists of kinetic energy (including rest mass):
+
+$$
+\begin{equation}
+H(x,p) = T(p) = c \sqrt{p^2 + m^2 c^2}
+\end{equation}
+$$
+
+<p>The equation for the information field takes the following simple form:
+
+$$
+\begin{equation}
+i\hbar{\partial\rho\over\partial t} =
+   \left[T(\hat{p}+{\hbar\over2}\hat{\lambda}) - T(\hat{p}-{\hbar\over2}\hat{\lambda})\right]\rho
+\end{equation}
+$$
+
+<p>Its formal solution in Cauchy form is:
+
+$$
+\begin{equation}
+\rho(t) =
+\exp\left\{-{it\over\hbar}\left[T(\hat{p}+{\hbar\over2}\hat{\lambda}) - T(\hat{p}-{\hbar\over2}\hat{\lambda})\right]\right\}\rho(0)
+\label{rhosolT}
+\end{equation}
+$$
+
+<p>It is convenient to specify the initial state as a function \(W_0(x,p)\) defined on the classical phase space, i.e. in
+\(x-p\) representation.
+Therefore, we shall need to "jump" through one intermediate space of fourier-images to compute the operator-valued exponent
+in (\ref{rhosolT}):
+
+$$
+\begin{equation}
+(x-p)\overset{\mathcal{F}_{x\rightarrow\lambda}^{-1}}{\mapsto}(\lambda-p)\overset{\mathcal{F}_{\lambda\rightarrow x}}{\mapsto}(x-p)
+\end{equation}
+$$
+
+<p>This procedure allows us to write the explicit form for the information field in \(x-p\) representation:
+
+$$
+\begin{equation}
+W(x,p,t) = \mathcal{F}_{\lambda\rightarrow x}
+\exp\left\{-{it\over\hbar}\left[T(p+{\hbar\over2}\lambda) - T(p-{\hbar\over2}\lambda)\right]\right\}
+\mathcal{F}_{x\rightarrow\lambda}^{-1}[W_0(x,p)]\label{Wsol}
+\end{equation}
+$$
+
+<p>Notice, that unlike (\ref{rhosolT}), in (\ref{Wsol}) we no longer have hats over \(p\) and \(\lambda\), because they are not operators
+anymore, but simple multiplications by numbers.
+Great indeed is the power of spectral analysis: it allows to convert from differential operators to multiplication.
+This provides the simplest illustration of the "spectral split propagator", which does not even require to "split" the exponent,
+as both operators \(\hat{p}\) and \(\hat{\lambda}\) were cast into multiplicative representation simultaneously.
+(If we had an interaction term \(U(x)\), it would have been impossible to do so for all four operators
+\(\hat{x},\hat{p},\hat{\theta},\hat{\lambda}\) and we would solve this problem by "splitting"
+the exponent (ala BCH in the first or even second order) into components containing only pairs of these.)
+
+<p>Now we have a convenient and concrete formula which can be turned into an algorithm simulated on a computer:
+
+$$
+\begin{equation}
+W(x,p,t) = \mathcal{F}_{\lambda\rightarrow x}
+\exp\left\{-{ict\over\hbar}\left[\sqrt{(p+{\hbar\over2}\lambda)^2+m^2c^2} - \sqrt{(p-{\hbar\over2}\lambda)^2+m^2c^2}\right]\right\}
+\mathcal{F}_{x\rightarrow\lambda}^{-1}[W_0(x,p)]
+\end{equation}
+$$
+
+<p>Here \(\mathcal{F}_{\lambda\rightarrow x}\) and \(\mathcal{F}_{x\rightarrow\lambda}^{-1}\) can be computed using
+FFT (Discrete Fast Fourier Transform) implementation either in C or in Python.
+
+<p>Unfortunately, with the number of spatial dimensions going beyond one (i.e. the number of phase space dimensions
+being 4 or more) the only realistic way to solve the equations of quantum infodynamics is to use multigrid with
+adaptive mesh refinement (AMR).
+This technique is well developed for the classical numeric recipes like finite elements method, but, to my knowledge,
+it has not yet been applied to the spectral split propagator technique.
+Therefore, this is what I am developing right now: an adaptive mesh refinement generalisation of the spectral split propagator,
+so that we can apply it not only to the \(3+3\) phase spaces, but also to \(4+4\) (GR) and even \(5+5\) (Kaluza-Klein type
+5D gravity).
+
+<h2>Classical Tunnel Efect</h2>
+<iframe width="560" height="315" src="https://www.youtube.com/embed/yizt9ZoqFPg" frameborder="0" allowfullscreen></iframe>
+
+<h2>Ultimaton At Rest</h2>
+<iframe width="560" height="315" src="https://www.youtube.com/embed/owc6GJzSQvY" frameborder="0" allowfullscreen></iframe>
+
+<h2>Two photons</h2>
+<iframe width="560" height="315" src="https://www.youtube.com/embed/nOn9RlIHtRg" frameborder="0" allowfullscreen></iframe>
+   </div> <!-- div id='tab_quantum_examples' -->
+   </div> <!-- div id='tab_quantum' -->
+
+
+   <div id='tab_bibliography'>
+      <h1>Bibliography</h1>
+      <ol>
+      <li id=zachos1>Ed. C.K. Zachos, D.B. Fairlie, T.L. Curtright, "Quantum Mechanics in Phase Space: An Overview with Selected Papers", World Scientific 2005</li>
+      <li id=landau1>Л.Д. Ландау, Е.М. Лифшиц, Теоретическая физика, т.3 "Квантовая механика, нерелятивистская теория", Москва 1989</li>
+      <li id=aivazian1>T. Aivazian, "Extended Hilbert Phase Space and Dissipative Quantum Systems", 2017 <A HREF="../articles/T.Aivazian-Extended-Hilbert-Phase-Space-And-Dissipative-Quantum-Systems-2017.pdf">PDF</A>, <A HREF="https://arxiv.org/abs/1702.07746">arXiv</A></li>
+      <li id=cabrera1>Renan Cabrera, Denys Bondar, Kurt Jacobs, Herschel A. Rabitz, "Efficient method to generate time evolution of the Wigner function for open quantum systems", 2015 <A HREF="https://arxiv.org/abs/1212.3406">arXiv</A></li>
+      <li id=olavo1>L.S.F. Olavo, "Quantum Mechanics as a Classical Theory XVI, 2008 <A HREF="https://arxiv.org/abs/quant-ph/9704004">arXiv</A></li>
+      <li id=blokhintsev1>Д.И. Блохинцев, "Пространство и время в микромире", Москва 1982</li>
+      <li id=blokhintsev2>Д.И. Блохинцев, "Принципиальные вопросы квантовой механики", Москва 1987 (2-е изд.)</li>
+      <li>A. Cohn, M. Rabinowitz, "Classical Tunneling"</li>
+      <li id=mcdonald1>Kirk T. McDonald, "A Damped Oscillator as a Hamiltonian System", Joseph Henry Laboratories, Princeton University, 2015</li>
+      <li>Emmanuel Saucedo-Flores, Ruben Ruelas, Victor Manuel Rangel Cobian, "Particle in a Finite Dual Well Potential System: A Simple Quantum Model for Well Super-Localization and Ultra-Dispersion Duality Effect An Alternative Model for the Hydrogen Atom", <A HREF="https://www.researchgate.net/publication/272177572_Particle_in_a_Finite_Dual_Well_Potential_System_A_Simple_Quantum_Model_for_Well_Super-_Localization_and_Ultra-Dispersion_Duality_Effect_An_Alternative_Model_for_the_Hydrogen_Atom">ResearchGate</A></li>
+      <li id=kozyrev>Н.А. Козырев, "Избранные труды", ЛГУ 1991</li>
+      <li id=zolotarev>В.Ф. Золотарёв, Б.Б. Шамшев, "Структура и свойства среды физического вакуума", Известия вузов МВ и ССО СССР, 1985</li>
+      <li id=shixobalov>Л.С. Шихобалов, "Причинная механика Н.А. Козырева: Анализ основ", в книге "Избранные труды Н.А. Козырева", ЛГУ 1991</li>
+      <li id=vlasov1>А.А. Власов, "Теория многих частиц", Москва 1950 (reissued byм URSS in 2016 in the series "Physics and Mathematics Heritage")</li>
+      <li id=vlasov2>А.А. Власов, "Статистические функции распределения", Москва изд-во "Наука", 1966</li>
+      <li id=vlasov3>А.А. Власов, "Нелокальная статистическая механика", Москва изд-во "Наука", 1978 (appeared after the death of Anatoly Aleksandrovich. The publication went ahead despite the objections of certain "official circles", thanks to the involvement of acad. N.N. Bogolyubov</li>
+     </ol>
+   </div> <!-- div id='tab_bibliography' -->
+
+   <div id='tab_software'>
+<h1>Programs used for Simulations in Quantum Infodynamics</h1>
+
+<p>All programs used for simulations in Quantum Infodynamics are freely available under <A HREF="http://www.gnu.org/licenses/licenses.html#GPL">GNU General Public License</A> in my <A HREF="https://github.com/tigran123/quantum-infodynamics">github quantum-infodynamics repository</A>. The main programs are solve.py, solanim.py and solplay.py. At some point I will describe how to use them, but for now you can look in the "bin" directory for the scripts showing the basic usage.
+
+<p>The main solver <A HREF="https://github.com/tigran123/quantum-infodynamics/blob/master/dynamics/solve.py">solve.py</A> is using the Spectral Split Propagator of Second Order method, described in the <A HREF="/bibliography.html#cabrera1">recent paper by Cabrera et al.</A> The \(x-p\) mesh grid is of fixed size (specified on the command line), but the time evolution is controlled via adaptive step size adjustment to match the specified absolute tolerance value (the "-tol" option).
+
+<p>The program <A HREF="https://github.com/tigran123/quantum-infodynamics/blob/master/dynamics/solanim.py">solanim.py</A> 
+creates the frames for subsequent turning into animation (using ffmpeg, see 
+<A HREF="https://github.com/tigran123/quantum-infodynamics/blob/master/dynamics/bin/harmonic-oscillator.sh">bin/harmonic-oscillator.sh</A>). Its input is the solution prepared by the main solver solve.py.
+
+<p>The program <A HREF="https://github.com/tigran123/quantum-infodynamics/blob/master/dynamics/solplay.py">solplay.py</A> is very similar to solanim.py but instead of generating frames it displays them on the screen. It can be used for quickly pre-viewing the results of simulation while waiting for all the frames made by solanim.py to be ready. But it can also save the animation to the file specifief on the command line (the "-o" option)
+
+<p>Presently I am designing the more generic infrastructure called "Quantum Infodynamics Explorer" which will allow to explore dynamical systems without using up huge amounts of disk and memory space. And when a particular interesting phenomena is detected during such a (potentially very long, lasting days and weeks) simulation run, it will have the ability to create a snapshot which will allow to re-create such scenario using the standard "saving to disk" solver program solve.py.
+   </div> <!-- div id='tab_software' -->
+
+   <div id='tab_contact'>
+      <h1>Contact Details</h1>
+      <p>You may contact this site's author in either of the following ways:
+      <ol>
+      <li>Email: <strong><a href="mailto:tigran@quantuminfodynamics.com">tigran@quantuminfodynamics.com</a></strong></li>
+      <li>Skype: <strong>tigran.aivazian</strong></li>
+      </ol>
+   </div> <!-- div id='tab_contact' -->
+</div> <!-- div id='tabs' -->
+
+<!-- Start of StatCounter Code for Default Guide -->
+<script type="text/javascript">
+var sc_project=11242309; 
+var sc_invisible=1; 
+var sc_security="896ad1ff"; 
+var scJsHost = (("https:" == document.location.protocol) ?
+"https://secure." : "http://www.");
+document.write("<sc"+"ript type='text/javascript' src='" +
+scJsHost+
+"statcounter.com/counter/counter.js'></"+"script>");
+</script>
+<noscript><div class="statcounter"><a title="web analytics"
+href="http://statcounter.com/" target="_blank"><img
+class="statcounter"
+src="//c.statcounter.com/11242309/0/896ad1ff/1/" alt="web
+analytics"></a></div></noscript>
+<!-- End of StatCounter Code for Default Guide -->
+
+</body>
+</html>
