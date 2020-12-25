@@ -1,0 +1,34 @@
+p, ol, h1, h2 {
+	font-family: Georgia, 'Times New Roman', Times, serif;
+}
+
+p, ol, ul, li {
+    font-size: 18px;
+	line-height: 22px;
+	text-align: justify;
+}
+
+.ui-widget-content a {
+  color: #0071b3;
+}
+
+a {
+  text-decoration: none;
+  border-bottom: 1px dotted;
+}
+
+a:hover, a:focus {
+  color: #018fe2;
+}
+
+a:hover, a:active, a:focus {
+   text-decoration: none;
+   border-bottom-style: solid;
+}
+
+body {
+   background-color: #DCF0E4;
+   margin: 0;
+}
+
+.ui-tabs .ui-tabs-panel { padding: 0.7em 0em 0.5em 0.3em; }
