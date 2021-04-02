@@ -1,7 +1,10 @@
 function sigint() {
    echo -n "SIGINT: "
-   pkill -P $$
-   echo "killed all child processes"
+   if pkill -P $$ ; then
+       echo "$0: killed all child processes"
+   else
+       echo "$0: Failed to kill child processes"
+   fi
    exit 1
 }
 
