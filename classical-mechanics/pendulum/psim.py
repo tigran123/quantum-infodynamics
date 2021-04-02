@@ -116,7 +116,14 @@ class PlotWindow(QMainWindow):
             if pendulums:
                 self.ani.event_source.stop()
                 p = pendulums.pop()
-                p.free()
+                p.line.remove()
+                del(p.line)
+                p.energy_text.remove()
+                del(p.energy_text)
+                while True:
+                    try: p.cs.pop_label()
+                    except IndexError: break
+                for c in p.cs.collections: c.remove()
                 self.ani._handle_resize()
                 self.ani._end_redraw(None)
                 self.ani.event_source.start()
@@ -156,7 +163,7 @@ class ControlWindow(QMainWindow):
         #i = 0
         #for p in pendulums:
         #    self.pendtabs.append(QWidget())
-        #    i = i + 1
+        #    i += 1
         #    self.tabs.addTab(self.pendtabs[-1], 'Pendulum &%d' % (i))
         self.setCentralWidget(self.tabs)
 
