@@ -243,16 +243,14 @@ class ControlWindow(QMainWindow):
     def frameforward(self):
         global anim_running, dt
         dt = abs(dt)
-        evolve_pendulums()
-        self.status_msg.setText('Animation frame forward')
+        self.status_msg.setText('Step forward')
         anim_running = False
         winp.ani.event_source.start()
 
     def frameback(self):
         global anim_running, dt
         dt = -abs(dt)
-        evolve_pendulums()
-        self.status_msg.setText('Animation frame backward')
+        self.status_msg.setText('Step backward')
         anim_running = False
         winp.ani.event_source.start()
 
@@ -269,6 +267,7 @@ def evolve_pendulums():
 
 def animate(i):
     if not anim_running: winp.ani.event_source.stop()
+    if i != 0: evolve_pendulums() # ignore 0'th frame as animate(0) is called THRICE by matplotlib
     winc.time_lcd.display('%.3f' % t)
     offsets = []
     for p in pendulums:
@@ -276,9 +275,6 @@ def animate(i):
         p.line.set_data(p.position())
         p.energy_text.set_text(r't=%.2f s, E=%.2f J/kg, $\varphi$=%.1f°, $\dot{\varphi}$=%.1f rad/s' % (t, p.energy(), p.phi*180/np.pi, p.phidot))
     winp.points.set_offsets(offsets)
-
-    # ignore 0'th frame because animate(0) is called THRICE by matplotlib!
-    if i != 0 and anim_running: evolve_pendulums()
 
     return tuple(p.line for p in pendulums) + tuple(p.energy_text for p in pendulums) + (winp.points,)
 
