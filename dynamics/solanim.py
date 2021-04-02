@@ -135,7 +135,7 @@ for k in time_range:
             ax[1].set_title(r"$\rho(x,t), E_0=$ % 6.3f, $E_{min}=$% 6.3f, $E_{max}=$% 6.3f" % (E[s][0],Emin[s],Emax[s]))
             rho_now = rho[s][time_index]
             ax[1].plot(xv, rho_now, color='black')
-            ax[1].plot(xv, rho[s][0], color='green', label=r'$\rho(x,0)$')
+            ax[1].plot(xv, rho[s][0], color='green', label=r'$\rho(x,$%.1f$)$' % (t[s][0]))
             ax[1].legend(prop=dict(size=12),loc=1)
             ax[1].fill_between(xv, 0, rho_now, where=rho_now>0, color='red', interpolate=True)
             ax[1].fill_between(xv, 0, rho_now, where=rho_now<0, color='blue', interpolate=True)
@@ -149,7 +149,7 @@ for k in time_range:
             ax[2].set_title(r"Momentum density $\varphi(p,t)$")
             phi_now = phi[s][time_index]
             ax[2].plot(pv, phi_now, color='black')
-            ax[2].plot(pv, phi[s][0], color='green', label=r'$\varphi(p,0)$')
+            ax[2].plot(pv, phi[s][0], color='green', label=r'$\varphi(p,$%.1f $)$' % (t[s][0]))
             ax[2].legend(prop=dict(size=12),loc=1)
             ax[2].fill_between(pv, 0, phi_now, where=phi_now>0, color='red', interpolate=True)
             ax[2].fill_between(pv, 0, phi_now, where=phi_now<0, color='blue', interpolate=True)
