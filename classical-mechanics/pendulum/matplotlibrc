@@ -1,2 +1,0 @@
-backend				: Qt5Agg
-axes.grid           : True   # display grid or not

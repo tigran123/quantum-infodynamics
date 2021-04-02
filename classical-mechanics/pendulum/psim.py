@@ -8,6 +8,9 @@
 
 import sys
 
+import matplotlib
+matplotlib.use('Qt5Agg')
+
 from matplotlib.animation import FuncAnimation
 from matplotlib.figure import Figure
 
@@ -42,6 +45,8 @@ class PlotWindow(QMainWindow):
         self.canvas = FigureCanvas(self.fig)
         self.ax1 = self.fig.add_subplot(121)
         self.ax2 = self.fig.add_subplot(122)
+        self.ax1.grid()
+        self.ax2.grid()
         self.ax1.set_aspect('equal')
         self.ax1.set_title('Mathematical Pendulum Simulation')
         self.ax1.set_xlabel('$x$ (m)')
