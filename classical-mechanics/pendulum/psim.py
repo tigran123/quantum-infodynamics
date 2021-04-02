@@ -18,7 +18,7 @@ from pendulum import Pendulum
 
 COMPANY = 'QuantumInfodynamics.com'
 PROGRAM = 'Mathematical Pendulum Simulator v0.3 (Qt)'
-PROG = 'MathematicalPendulum'
+PROG = 'MathematicalPendulumSimulator'
 LOGO = 'icons/Logo.jpg'
 
 t = 0.0 # global simulation time (has to be the same for all pendulums)
@@ -43,7 +43,7 @@ class PlotWindow(QMainWindow):
         self.ax1 = self.fig.add_subplot(121)
         self.ax2 = self.fig.add_subplot(122)
         self.ax1.set_aspect('equal')
-        self.ax1.set_title('Mathematical Pendulum')
+        self.ax1.set_title('Mathematical Pendulum Simulation')
         self.ax1.set_xlabel('$x$ (m)')
         self.ax1.set_ylabel('$y$ (m)')
         space_range = 2.0
@@ -120,7 +120,7 @@ class PlotWindow(QMainWindow):
                 self.ani._handle_resize()
                 self.ani._end_redraw(None)
                 self.ani.event_source.start()
-
+                # winc.tabs.removeTab(1) (pendulum tabs)
 
 class ControlWindow(QMainWindow):
     def __init__(self, geometry = None, state = None):
@@ -142,7 +142,7 @@ class ControlWindow(QMainWindow):
         self.setup_layout()
 
         self.setWindowIcon(QIcon(LOGO))
-        self.setWindowTitle('Mathematical Pendulum')
+        self.setWindowTitle(PROGRAM)
         if geometry: self.restoreGeometry(geometry)
         if state: self.restoreState(state)
         self.show()
@@ -151,11 +151,13 @@ class ControlWindow(QMainWindow):
         """Create tab widgets and set the container to be the central widget"""
         self.tabs = QTabWidget()
         self.controls = QWidget()
-        self.pend1 = QWidget()
-        self.pend2 = QWidget()
         self.tabs.addTab(self.controls, 'Control &Panel')
-        self.tabs.addTab(self.pend1, 'Pendulum &1')
-        self.tabs.addTab(self.pend2, 'Pendulum &2')
+        #self.pendtabs = []
+        #i = 0
+        #for p in pendulums:
+        #    self.pendtabs.append(QWidget())
+        #    i = i + 1
+        #    self.tabs.addTab(self.pendtabs[-1], 'Pendulum &%d' % (i))
         self.setCentralWidget(self.tabs)
 
     def create_menus(self):
@@ -265,7 +267,7 @@ def animate(i):
     for p in pendulums:
         offsets.append([p.phi, p.phidot])
         p.line.set_data(p.position())
-        p.energy_text.set_text(r'E/m = %.3f, $\varphi$=%.1f°' % (p.energy(), p.phi*180/np.pi))
+        p.energy_text.set_text(r'E/m=%.3f, $\varphi$=%.1f°, $\dot{\varphi}$=%.1f rad/s' % (p.energy(), p.phi*180/np.pi, p.phidot))
     winp.points.set_offsets(offsets)
 
     # ignore 0'th frame because animate(0) is called THRICE by matplotlib!
