@@ -267,7 +267,7 @@ def animate(i):
     for p in pendulums:
         offsets.append([p.phi, p.phidot])
         p.line.set_data(p.position())
-        p.energy_text.set_text(r'E/m=%.3f, $\varphi$=%.1f°, $\dot{\varphi}$=%.1f rad/s' % (p.energy(), p.phi*180/np.pi, p.phidot))
+        p.energy_text.set_text(r't=%.2f s, E=%.2f J/kg, $\varphi$=%.1f°, $\dot{\varphi}$=%.1f rad/s' % (t, p.energy(), p.phi*180/np.pi, p.phidot))
     winp.points.set_offsets(offsets)
 
     # ignore 0'th frame because animate(0) is called THRICE by matplotlib!
