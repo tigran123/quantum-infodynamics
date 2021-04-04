@@ -70,6 +70,7 @@ class PlotWindow(QMainWindow):
         self.ax2.set_ylim([-self.phidot_range, self.phidot_range])
         phim,phidotm = mgrid[-self.phi_range:self.phi_range:self.phi_points*1j,-self.phidot_range:self.phidot_range:self.phidot_points*1j]
         colors = []
+        self.fps_text = self.ax1.text(0.02, 0.05, '', transform=self.ax1.transAxes, color='k')
         texty = 0.95
         for p in pendulums:
             colors.append(p.color)
@@ -285,7 +286,7 @@ def animate(i):
     now = time()
     deltaT = now - start_time
     if deltaT > 3: # update FPS every 3 seconds
-        fps = frames/deltaT
+        winp.fps_text.set_text("FPS: %.1f" % float(frames/deltaT))
         start_time = now
         frames = 0
 
@@ -293,11 +294,10 @@ def animate(i):
     for p in pendulums:
         offsets.append([p.phi, p.phidot])
         p.line.set_data(p.position())
-        p.energy_text.set_text(r'FPS: %.1f, t=%.2f s, E=%.2f J/kg, $\varphi$=%.1f°, $\dot{\varphi}$=%.1f rad/s'
-                                % (fps, t, p.energy(), p.phi*180/pi, p.phidot))
+        p.energy_text.set_text(r'E=%.2f J/kg, $\varphi$=%.1f°, $\dot{\varphi}$=%.1f rad/s' % (p.energy(), p.phi*180/pi, p.phidot))
     winp.points.set_offsets(offsets)
 
-    return tuple(p.line for p in pendulums) + tuple(p.energy_text for p in pendulums) + (winp.points,)
+    return tuple(p.line for p in pendulums) + (winp.fps_text,) + tuple(p.energy_text for p in pendulums) + (winp.points,)
 
 pendulums = [Pendulum(phi=pi, phidot=0, L=1.0, color='b'),
              Pendulum(phi=0.1*pi/2, color='k'),
