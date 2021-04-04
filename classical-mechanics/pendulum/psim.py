@@ -13,8 +13,8 @@ matplotlib.use('Qt5Agg')
 
 from matplotlib.animation import FuncAnimation
 from matplotlib.figure import Figure
-
-import numpy as np
+from time import time
+from numpy import pi, mgrid
 
 from qtapi import *
 from pendulum import Pendulum
@@ -27,6 +27,11 @@ LOGO = 'icons/Logo.jpg'
 t = 0.0 # global simulation time (has to be the same for all pendulums)
 dt = 0.005 # ODE integration fixed timestep
 anim_running = False # change to True to start the animation immediately
+
+# for calculating frames per second in animate()
+frames = 0
+fps = 0
+start_time = time()
 
 def main_exit():
      global settings
@@ -57,13 +62,13 @@ class PlotWindow(QMainWindow):
         self.ax2.set_title('Phase Space Trajectories')
         self.ax2.set_xlabel(r'$\varphi$ (rad)')
         self.ax2.set_ylabel(r'$\dot{\varphi}$ (rad/s)')
-        self.phi_range = 1.1*np.pi
+        self.phi_range = 1.1*pi
         self.phi_points = 200
         self.phidot_range = 10.0
         self.phidot_points = 200
         self.ax2.set_xlim([-self.phi_range, self.phi_range])
         self.ax2.set_ylim([-self.phidot_range, self.phidot_range])
-        phim,phidotm = np.mgrid[-self.phi_range:self.phi_range:self.phi_points*1j,-self.phidot_range:self.phidot_range:self.phidot_points*1j]
+        phim,phidotm = mgrid[-self.phi_range:self.phi_range:self.phi_points*1j,-self.phidot_range:self.phidot_range:self.phidot_points*1j]
         colors = []
         texty = 0.95
         for p in pendulums:
@@ -271,23 +276,34 @@ def evolve_pendulums():
     t += dt
 
 def animate(i):
+    global frames, fps, start_time
     if not anim_running: winp.ani.event_source.stop()
     if i != 0: evolve_pendulums() # ignore 0'th frame as animate(0) is called THRICE by matplotlib
     winc.time_lcd.display('%.3f' % t)
+
+    frames += 1
+    now = time()
+    deltaT = now - start_time
+    if deltaT > 3: # update FPS every 3 seconds
+        fps = frames/deltaT
+        start_time = now
+        frames = 0
+
     offsets = []
     for p in pendulums:
         offsets.append([p.phi, p.phidot])
         p.line.set_data(p.position())
-        p.energy_text.set_text(r't=%.2f s, E=%.2f J/kg, $\varphi$=%.1f°, $\dot{\varphi}$=%.1f rad/s' % (t, p.energy(), p.phi*180/np.pi, p.phidot))
+        p.energy_text.set_text(r'FPS: %.1f, t=%.2f s, E=%.2f J/kg, $\varphi$=%.1f°, $\dot{\varphi}$=%.1f rad/s'
+                                % (fps, t, p.energy(), p.phi*180/pi, p.phidot))
     winp.points.set_offsets(offsets)
 
     return tuple(p.line for p in pendulums) + tuple(p.energy_text for p in pendulums) + (winp.points,)
 
-pendulums = [Pendulum(phi=np.pi, phidot=0, L=1.0, color='b'),
-             Pendulum(phi=0.1*np.pi/2, color='k'),
-             Pendulum(phi=0.1*np.pi/2 + 0.01*np.pi/2, color='r'),
-             Pendulum(phi=np.pi/2, color='g'),
-             Pendulum(phi=np.pi/2 + 0.01*np.pi/2, color='m')]
+pendulums = [Pendulum(phi=pi, phidot=0, L=1.0, color='b'),
+             Pendulum(phi=0.1*pi/2, color='k'),
+             Pendulum(phi=0.1*pi/2 + 0.01*pi/2, color='r'),
+             Pendulum(phi=pi/2, color='g'),
+             Pendulum(phi=pi/2 + 0.01*pi/2, color='m')]
 
 app = QApplication(sys.argv)
 settings = QSettings(COMPANY, PROG)
