@@ -264,10 +264,16 @@ class ControlWindow(QMainWindow):
             self.playpausebtn.setToolTip('Start/pause the animation')
             self.frameforwardbtn.setToolTip('Step forward one time step')
             self.framebackbtn.setToolTip('Step back one time step')
+            self.time_lcd.setToolTip('Simulation time in seconds')
+            self.label_dt.setToolTip('Current value of ODE integration time step dt in seconds')
+            self.slider.setToolTip('Control ODE integration time step dt')
         else:
             self.playpausebtn.setToolTip(None)
             self.frameforwardbtn.setToolTip(None)
             self.framebackbtn.setToolTip(None)
+            self.time_lcd.setToolTip(None)
+            self.label_dt.setToolTip(None)
+            self.slider.setToolTip(None)
 
     def playpause_animation(self):
         playpause()
