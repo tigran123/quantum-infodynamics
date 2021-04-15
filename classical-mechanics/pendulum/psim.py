@@ -26,6 +26,7 @@ LOGO = 'icons/Logo.jpg'
 
 t = 0.0 # global simulation time (has to be the same for all pendulums)
 dt = 0.005 # ODE integration fixed timestep
+dtlim = 1.0 #  -dtlim <= dt <= +dtlim
 anim_running = False # change to True to start the animation immediately
 
 # for calculating frames per second in animate()
@@ -33,15 +34,20 @@ frames = 0
 fps = 0
 start_time = time()
 
+def update_dt(value):
+    global dt
+    dt = dtlim*value/1000
+    winc.label_dt.setText('dt = %.4f s' % dt)
+
 def main_exit():
-     global settings
-     settings.setValue('plot_geometry', winp.saveGeometry())
-     settings.setValue('plot_windowState', winp.saveState())
-     settings.setValue('control_geometry', winc.saveGeometry())
-     settings.setValue('control_windowState', winc.saveState())
-     del settings # to force the writing of settings to storage
-     print('Exiting the program')
-     sys.exit()
+    global settings
+    settings.setValue('plot_geometry', winp.saveGeometry())
+    settings.setValue('plot_windowState', winp.saveState())
+    settings.setValue('control_geometry', winc.saveGeometry())
+    settings.setValue('control_windowState', winc.saveState())
+    del settings # to force the writing of settings to storage
+    print('Exiting the program')
+    sys.exit()
 
 def single_step(dir):
     global dt, anim_running
@@ -156,6 +162,7 @@ class ControlWindow(QMainWindow):
         self.create_menus()
         self.create_time_indicator()
         self.create_statusbar()
+        self.create_slider()
 
         self.playicon = QIcon('icons/play.png')
         self.pauseicon = QIcon('icons/pause.png')
@@ -216,6 +223,15 @@ class ControlWindow(QMainWindow):
         self.aboutQtAction.triggered.connect(self.aboutQt)
         self.helpMenu.addAction(self.aboutQtAction)
 
+    def create_slider(self):
+        self.slider = QSlider(Qt.Horizontal, self)
+        self.slider.setRange(-1000, 1000)
+        self.slider.setPageStep(5)
+        self.slider.valueChanged.connect(update_dt)
+        self.label_dt = QLabel('dt = %.4f s' % dt)
+        self.label_dt.setAlignment(Qt.AlignLeft)
+        self.label_dt.setMinimumWidth(100)
+
     def setup_layout(self):
         """Create and connect the layouts for the main control panel"""
         self.controls.grid = QGridLayout()
@@ -223,14 +239,16 @@ class ControlWindow(QMainWindow):
         self.controls.grid.addWidget(self.framebackbtn, 0, 0)
         self.controls.grid.addWidget(self.playpausebtn, 0, 1)
         self.controls.grid.addWidget(self.frameforwardbtn, 0, 2)
-        self.controls.grid.addWidget(self.time_label, 1, 0)
-        self.controls.grid.addWidget(self.time_lcd, 1, 1)
+        self.controls.grid.addWidget(self.time_label, 0, 3)
+        self.controls.grid.addWidget(self.time_lcd, 0, 4)
+        self.controls.grid.addWidget(self.label_dt, 1, 0, 1, 3)
+        self.controls.grid.addWidget(self.slider, 1, 3, 1, 2)
 
     def create_time_indicator(self):
         """Create the label and LCD window for the current time"""
         self.time_label = QLabel('Time (s):')
         self.time_lcd = QLCDNumber(self)
-        self.time_lcd.setDigitCount(8)
+        self.time_lcd.setDigitCount(12)
         self.time_lcd.setSegmentStyle(QLCDNumber.Flat)
         self.time_lcd.setStyleSheet('QLCDNumber {background: #8CB398;}')
 

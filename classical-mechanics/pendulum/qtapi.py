@@ -14,6 +14,7 @@ QTabWidget = QtWidgets.QTabWidget
 QAction = QtWidgets.QAction
 QLCDNumber = QtWidgets.QLCDNumber
 QLabel = QtWidgets.QLabel
+QSlider = QtWidgets.QSlider
 QApplication = QtWidgets.QApplication
 QPushButton = QtWidgets.QPushButton
 QToolButton = QtWidgets.QToolButton
