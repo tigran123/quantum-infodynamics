@@ -43,6 +43,22 @@ def main_exit():
      print('Exiting the program')
      sys.exit()
 
+def single_step(dir):
+    global dt, anim_running
+    dt = abs(dt) if dir == 'forward' else -abs(dt)
+    winc.status_msg.setText('Step ' + dir)
+    anim_running = False
+    winp.ani.event_source.start()
+
+def playpause():
+    global anim_running
+    winc.frameforwardbtn.setEnabled(anim_running)
+    winc.framebackbtn.setEnabled(anim_running)
+    winc.status_msg.setText('Animation ' + ('paused' if anim_running else 'running'))
+    winc.playpausebtn.setIcon(winc.playicon if anim_running else winc.pauseicon)
+    winp.ani.event_source.stop() if anim_running else winp.ani.event_source.start()
+    anim_running = not anim_running
+
 class PlotWindow(QMainWindow):
     def __init__(self, geometry = None, state = None):
         super().__init__()
@@ -97,8 +113,7 @@ class PlotWindow(QMainWindow):
         global anim_running, dt
 
         if event.key == ' ':
-            self.ani.event_source.stop() if anim_running else self.ani.event_source.start()
-            anim_running = not anim_running
+            playpause()
         elif event.key == 'ctrl+q':
             main_exit()
         elif event.key == '+':
@@ -114,15 +129,9 @@ class PlotWindow(QMainWindow):
             self.ani._handle_resize()
             self.ani._end_redraw(None)
         elif event.key == '.':
-            dt = abs(dt)
-            evolve_pendulums()
-            anim_running = False
-            self.ani.event_source.start()
+            single_step('forward')
         elif event.key == ',':
-            dt = -abs(dt)
-            evolve_pendulums()
-            anim_running = False
-            self.ani.event_source.start()
+            single_step('backward')
         elif event.key == 'delete':
             if pendulums:
                 self.ani.event_source.stop()
@@ -243,27 +252,13 @@ class ControlWindow(QMainWindow):
             self.framebackbtn.setToolTip(None)
 
     def playpause_animation(self):
-        global anim_running
-        self.frameforwardbtn.setEnabled(anim_running)
-        self.framebackbtn.setEnabled(anim_running)
-        self.status_msg.setText('Animation ' + ('paused' if anim_running else 'running'))
-        self.playpausebtn.setIcon(self.playicon if anim_running else self.pauseicon)
-        winp.ani.event_source.stop() if anim_running else winp.ani.event_source.start()
-        anim_running = not anim_running
+        playpause()
 
     def frameforward(self):
-        global anim_running, dt
-        dt = abs(dt)
-        self.status_msg.setText('Step forward')
-        anim_running = False
-        winp.ani.event_source.start()
+        single_step('forward')
 
     def frameback(self):
-        global anim_running, dt
-        dt = -abs(dt)
-        self.status_msg.setText('Step backward')
-        anim_running = False
-        winp.ani.event_source.start()
+        single_step('backward')
 
     def about(self):
         QMessageBox.about(self, PROGRAM, "<p>Computer simulation of mathematical pendulums with the analysis of the trajectory in the phase space.</p><p>To make a suggestion or to report a bug, please visit our github repository at: <A HREF='https://github.com/tigran123/quantum-infodynamics'>https://github.com/tigran123/quantum-infodynamics</A></p>")
