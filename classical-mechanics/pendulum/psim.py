@@ -52,8 +52,8 @@ def single_step(dir):
 
 def playpause():
     global anim_running
-    winc.frameforwardbtn.setEnabled(anim_running)
-    winc.framebackbtn.setEnabled(anim_running)
+    #winc.frameforwardbtn.setEnabled(anim_running)
+    #winc.framebackbtn.setEnabled(anim_running)
     winc.status_msg.setText('Animation ' + ('paused' if anim_running else 'running'))
     winc.playpausebtn.setIcon(winc.playicon if anim_running else winc.pauseicon)
     winp.ani.event_source.stop() if anim_running else winp.ani.event_source.start()
