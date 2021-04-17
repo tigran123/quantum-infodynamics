@@ -37,7 +37,7 @@ start_time = time()
 def update_dt(value):
     global dt
     dt = dtlim*value/1000
-    winc.label_dt.setText('dt = %.4f s' % dt)
+    winc.label_dt.setText('Δt = %.4f s' % dt)
 
 def main_exit():
     global settings
@@ -228,7 +228,7 @@ class ControlWindow(QMainWindow):
         self.slider.setRange(-1000, 1000)
         self.slider.setPageStep(5)
         self.slider.valueChanged.connect(update_dt)
-        self.label_dt = QLabel('dt = %.4f s' % dt)
+        self.label_dt = QLabel('Δt = %.4f s' % dt)
         self.label_dt.setAlignment(Qt.AlignLeft)
         self.label_dt.setMinimumWidth(100)
 
@@ -265,8 +265,8 @@ class ControlWindow(QMainWindow):
             self.frameforwardbtn.setToolTip('Step forward one time step')
             self.framebackbtn.setToolTip('Step back one time step')
             self.time_lcd.setToolTip('Simulation time in seconds')
-            self.label_dt.setToolTip('Current value of ODE integration time step dt in seconds')
-            self.slider.setToolTip('Control ODE integration time step dt')
+            self.label_dt.setToolTip('Current value of ODE integration time step Δt in seconds')
+            self.slider.setToolTip('Control ODE integration time step Δt')
         else:
             self.playpausebtn.setToolTip(None)
             self.frameforwardbtn.setToolTip(None)
