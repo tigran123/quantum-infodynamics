@@ -43,7 +43,7 @@ class Pendulum:
         return self.Hamiltonian(self.phi, self.phidot)
 
     def __derivs(self, state, t):
-        """Return the RHS of the ODEs of motion"""
+        """Return the RHS of the ODEs of motion, used by .evolve() method"""
         return [state[1], 0.0 if abs(state[0]) == pi else -self.G*sin(state[0])/self.L]
 
     def evolve(self, t1, t2):
