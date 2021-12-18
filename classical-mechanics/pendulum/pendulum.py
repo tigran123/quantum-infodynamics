@@ -42,13 +42,13 @@ class Pendulum:
         """Return the total (Kinetic+Potential) energy per unit mass of the current state"""
         return self.Hamiltonian(self.phi, self.phidot)
 
-    def derivs(self, state, t):
+    def __derivs(self, state, t):
         """Return the RHS of the ODEs of motion"""
         return [state[1], 0.0 if abs(state[0]) == pi else -self.G*sin(state[0])/self.L]
 
     def evolve(self, t1, t2):
         """Evolve the pendulum from the moment of time t1 to t2"""
-        self.phi,self.phidot = odeint(self.derivs, [self.phi,self.phidot], [t1, t2])[1]
+        self.phi,self.phidot = odeint(self.__derivs, [self.phi,self.phidot], [t1, t2])[1]
         # the phase space is a cylinder, so we must wrap phi around to remain within [-pi, pi]
         if self.phi > pi:
             self.phi -= 2*pi
