@@ -1,5 +1,4 @@
-#!/usr/bin/env python3.8
-
+#!/usr/bin/env python3
 """
   Mathematical Pendulum Simulator (main program)
   Author: Tigran Aivazian <aivazian.tigran@gmail.com>
@@ -297,8 +296,9 @@ def evolve_pendulums():
 
 def animate(i):
     global frames, fps, start_time
+    if i == 0: return tuple(p.line for p in pendulums) # ignore 0'th frame as animate(0) is called THRICE by matplotlib
     if not anim_running: winp.ani.event_source.stop()
-    if i != 0: evolve_pendulums() # ignore 0'th frame as animate(0) is called THRICE by matplotlib
+    evolve_pendulums()
     winc.time_lcd.display('%.3f' % t)
 
     frames += 1
@@ -321,7 +321,7 @@ def animate(i):
 pendulums = [Pendulum(phi=pi, phidot=0, L=1.0, color='b'),
              Pendulum(phi=0.1*pi/2, color='k'),
              Pendulum(phi=0.1*pi/2 + 0.01*pi/2, color='r'),
-             Pendulum(phi=pi/2, color='g'),
+             Pendulum(phi=pi/2, phidot=5.1, color='g'),
              Pendulum(phi=pi/2 + 0.01*pi/2, color='m')]
 
 app = QApplication(sys.argv)
