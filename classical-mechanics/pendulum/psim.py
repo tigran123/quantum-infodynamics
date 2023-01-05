@@ -19,7 +19,7 @@ from qtapi import *
 from pendulum import Pendulum
 
 COMPANY = 'Bibles.org.uk'
-PROGRAM = 'Mathematical Pendulum Simulator v1.0 (Qt)'
+PROGRAM = 'Mathematical Pendulum Simulator v1.0'
 PROG = 'MathematicalPendulumSimulator'
 LOGO = 'icons/Logo.jpg'
 
