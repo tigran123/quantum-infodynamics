@@ -18,8 +18,8 @@ from numpy import pi, mgrid
 from qtapi import *
 from pendulum import Pendulum
 
-COMPANY = 'QuantumInfodynamics.com'
-PROGRAM = 'Mathematical Pendulum Simulator v0.3 (Qt)'
+COMPANY = 'Bibles.org.uk'
+PROGRAM = 'Mathematical Pendulum Simulator v1.0 (Qt)'
 PROG = 'MathematicalPendulumSimulator'
 LOGO = 'icons/Logo.jpg'
 
@@ -284,7 +284,7 @@ class ControlWindow(QMainWindow):
         single_step('backward')
 
     def about(self):
-        QMessageBox.about(self, PROGRAM, "<p>Computer simulation of mathematical pendulums with the analysis of the trajectory in the phase space.</p><p>To make a suggestion or to report a bug, please visit our github repository at: <A HREF='https://github.com/tigran123/quantum-infodynamics'>https://github.com/tigran123/quantum-infodynamics</A></p>")
+        QMessageBox.about(self, PROGRAM, "<p>Computer simulation of mathematical pendulums in the the phase space.</p><p>To report a bug, please visit our github repository at: <A HREF='https://github.com/tigran123/quantum-infodynamics'>https://github.com/tigran123/quantum-infodynamics</A></p>")
 
     def aboutQt(self):
         QMessageBox.aboutQt(self, PROGRAM)
