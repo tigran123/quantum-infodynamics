@@ -99,7 +99,7 @@ class PlotWindow(QMainWindow):
             p.energy_text = self.ax1.text(0.02, texty, '', transform=self.ax1.transAxes, color=p.color)
             texty -= 0.05
             p.cs = self.ax2.contour(phim, phidotm, p.Hamiltonian(phim,phidotm), levels=[p.energy()], linewidths=0.8, colors=p.color)
-            p.cs.clabel(fontsize=9, inline=False)
+            #p.cs.clabel(fontsize=9, inline=False)
         self.points = self.ax2.scatter([None]*len(colors),[None]*len(colors), color=colors)
         self.canvas.mpl_connect('key_press_event', self.keypress)
         self.ani = FuncAnimation(self.fig, animate, blit=True, interval=0, frames=1000) # frames= used only for saving to file
@@ -149,10 +149,9 @@ class PlotWindow(QMainWindow):
                     try: p.cs.pop_label()
                     except IndexError: break
                 for c in p.cs.collections: c.remove()
-                self.ani._handle_resize()
+                #self.ani._handle_resize()
                 self.ani._end_redraw(None)
                 self.ani.event_source.start()
-                # winc.tabs.removeTab(1) (pendulum tabs)
 
 class ControlWindow(QMainWindow):
     def __init__(self, geometry = None, state = None):
@@ -319,10 +318,10 @@ def animate(i):
     return tuple(p.line for p in pendulums) + (winp.fps_text,) + tuple(p.energy_text for p in pendulums) + (winp.points,)
 
 pendulums = [Pendulum(phi=pi, phidot=0, L=1.0, color='b'),
-             Pendulum(phi=0.1*pi/2, color='k'),
-             Pendulum(phi=0.1*pi/2 + 0.01*pi/2, color='r'),
+             Pendulum(phi=0.3*pi/2, color='k'),
+             Pendulum(phi=0.3*pi/2 + 0.01*pi/2, color='r'),
              Pendulum(phi=pi/2, phidot=5.1, color='g'),
-             Pendulum(phi=pi/2 + 0.01*pi/2, color='m')]
+             Pendulum(phi=pi/2, color='m')]
 
 app = QApplication(sys.argv)
 settings = QSettings(COMPANY, PROG)
