@@ -229,7 +229,7 @@ class ControlWindow(QMainWindow):
         self.slider.valueChanged.connect(update_dt)
         self.label_dt = QLabel('Δt = %.4f s' % dt)
         self.label_dt.setAlignment(Qt.AlignLeft)
-        self.label_dt.setMinimumWidth(100)
+        self.label_dt.setMinimumWidth(120)
 
     def setup_layout(self):
         """Create and connect the layouts for the main control panel"""
