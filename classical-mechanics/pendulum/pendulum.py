@@ -34,9 +34,7 @@ class Pendulum:
         """Return the total (Kinetic+Potential) energy per unit mass of the specified state"""
         L = self.L
         G = self.G
-        T = 0.5*L**2*phidot**2
-        U = -G*L*cos(phi)
-        return T + U
+        return 0.5*L**2*phidot**2 - G*L*cos(phi)
 
     def energy(self):
         """Return the total (Kinetic+Potential) energy per unit mass of the current state"""
