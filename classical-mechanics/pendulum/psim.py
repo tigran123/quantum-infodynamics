@@ -115,8 +115,6 @@ class PlotWindow(QMainWindow):
 
     def keypress(self, event):
         """Handler for key presses, registered with matplotlib in the constructor of PlotWindow()"""
-        global anim_running, dt
-
         if event.key == ' ':
             playpause()
         elif event.key == 'ctrl+q':
@@ -125,13 +123,11 @@ class PlotWindow(QMainWindow):
             self.ax1.set_xlim([-2,2])
             self.ax1.set_ylim([-2,2])
             self.canvas.draw()
-            self.ani._handle_resize()
             self.ani._end_redraw(None)
         elif event.key == '-':
             self.ax1.set_xlim([-1,1])
             self.ax1.set_ylim([-1,1])
             self.canvas.draw()
-            self.ani._handle_resize()
             self.ani._end_redraw(None)
         elif event.key == '.':
             single_step('forward')
@@ -149,7 +145,6 @@ class PlotWindow(QMainWindow):
                     try: p.cs.pop_label()
                     except IndexError: break
                 for c in p.cs.collections: c.remove()
-                #self.ani._handle_resize()
                 self.ani._end_redraw(None)
                 self.ani.event_source.start()
 
