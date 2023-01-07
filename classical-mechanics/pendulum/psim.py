@@ -74,7 +74,7 @@ class PlotWindow(QMainWindow):
         self.ax1.grid()
         self.ax2.grid()
         self.ax1.set_aspect('equal')
-        self.ax1.set_title('Mathematical Pendulum Simulation')
+        self.ax1.set_title(PROGRAM)
         self.ax1.set_xlabel('$x$ (m)')
         self.ax1.set_ylabel('$y$ (m)')
         space_range = 2.0
