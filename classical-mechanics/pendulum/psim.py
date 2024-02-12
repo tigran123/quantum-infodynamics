@@ -27,7 +27,7 @@ t = 0.0 # global simulation time (has to be the same for all pendulums)
 dt = 0.005 # ODE integration fixed timestep
 dtlim = 1.0 #  -dtlim <= dt <= +dtlim
 anim_running = False # change to True to start the animation immediately
-anim_save = True # set to True to save animation to disk
+anim_save = False # set to True to save animation to disk
 if anim_save: save_frames=10000 # number of frames to save, fps set in ani.save() call
 
 # for calculating FPS in animate()
