@@ -28,7 +28,7 @@ dt = 0.005 # ODE integration fixed timestep
 dtlim = 1.0 #  -dtlim <= dt <= +dtlim
 anim_running = False # change to True to start the animation immediately
 anim_save = False # set to True to save animation to disk
-if anim_save: save_frames=10000 # number of frames to save, fps set in ani.save() call
+save_frames=10000 # number of frames to save, fps set in ani.save() call
 
 # for calculating FPS in animate()
 frames = 0 ; fps = 0 ; start_time = time()
