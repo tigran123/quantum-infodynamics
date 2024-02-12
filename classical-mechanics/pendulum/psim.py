@@ -27,11 +27,11 @@ t = 0.0 # global simulation time (has to be the same for all pendulums)
 dt = 0.005 # ODE integration fixed timestep
 dtlim = 1.0 #  -dtlim <= dt <= +dtlim
 anim_running = False # change to True to start the animation immediately
+anim_save = True # set to True to save animation to disk
+if anim_save: save_frames=10000 # number of frames to save, fps set in ani.save() call
 
-# for calculating frames per second in animate()
-frames = 0
-fps = 0
-start_time = time()
+# for calculating FPS in animate()
+frames = 0 ; fps = 0 ; start_time = time()
 
 def update_dt(value):
     global dt
@@ -77,7 +77,7 @@ class PlotWindow(QMainWindow):
         self.ax1.set_title(PROGRAM)
         self.ax1.set_xlabel('$x$ (m)')
         self.ax1.set_ylabel('$y$ (m)')
-        space_range = 2.0
+        space_range = 1.5
         self.ax1.set_xlim([-space_range,space_range])
         self.ax1.set_ylim([-space_range,space_range])
         self.ax2.set_title('Phase Space Trajectories')
@@ -85,13 +85,14 @@ class PlotWindow(QMainWindow):
         self.ax2.set_ylabel(r'$\dot{\varphi}$ (rad/s)')
         self.phi_range = 1.1*pi
         self.phi_points = 200
-        self.phidot_range = 10.0
+        self.phidot_range = 8.0
         self.phidot_points = 200
         self.ax2.set_xlim([-self.phi_range, self.phi_range])
         self.ax2.set_ylim([-self.phidot_range, self.phidot_range])
         phim,phidotm = mgrid[-self.phi_range:self.phi_range:self.phi_points*1j,-self.phidot_range:self.phidot_range:self.phidot_points*1j]
         colors = []
-        self.fps_text = self.ax1.text(0.02, 0.05, '', transform=self.ax1.transAxes, color='k')
+        self.fps_text = self.ax1.text(0.02, 0.05, '', transform=self.ax1.transAxes)
+        self.time_text = self.ax1.text(0.02, 0.1, '', transform=self.ax1.transAxes)
         texty = 0.95
         for p in pendulums:
             colors.append(p.color)
@@ -102,7 +103,7 @@ class PlotWindow(QMainWindow):
             #p.cs.clabel(fontsize=9, inline=False)
         self.points = self.ax2.scatter([None]*len(colors),[None]*len(colors), color=colors)
         self.canvas.mpl_connect('key_press_event', self.keypress)
-        self.ani = FuncAnimation(self.fig, animate, blit=True, interval=0, frames=1000) # frames= used only for saving to file
+        self.ani = FuncAnimation(self.fig, animate, blit=True, interval=0, frames=save_frames) # frames= used only for saving to file
         self.canvas.setFocusPolicy(Qt.StrongFocus)
         self.canvas.setFocus()
         self.setCentralWidget(self.canvas)
@@ -295,22 +296,24 @@ def animate(i):
     evolve_pendulums()
     winc.time_lcd.display('%.3f' % t)
 
-    frames += 1
-    now = time()
-    deltaT = now - start_time
-    if deltaT > 3: # update FPS every 3 seconds
-        winp.fps_text.set_text("FPS: %.1f" % float(frames/deltaT))
-        start_time = now
-        frames = 0
+    if not anim_save: # don't update or show FPS when saving animation to file
+        frames += 1
+        now = time()
+        deltaT = now - start_time
+        if deltaT > 3: # update FPS every 3 seconds
+            winp.fps_text.set_text("FPS: %.1f" % float(frames/deltaT))
+            start_time = now
+            frames = 0
 
     offsets = []
     for p in pendulums:
         offsets.append([p.phi, p.phidot])
         p.line.set_data(p.position())
         p.energy_text.set_text(r'E=%.2f J/kg, $\varphi$=%.1f°, $\dot{\varphi}$=%.1f rad/s' % (p.energy(), p.phi*180/pi, p.phidot))
+    winp.time_text.set_text("Time t=%.3f s" % t)
     winp.points.set_offsets(offsets)
 
-    return tuple(p.line for p in pendulums) + (winp.fps_text,) + tuple(p.energy_text for p in pendulums) + (winp.points,)
+    return tuple(p.line for p in pendulums) + (winp.fps_text,) + (winp.time_text,) + tuple(p.energy_text for p in pendulums) + (winp.points,)
 
 pendulums = [Pendulum(phi=pi, phidot=0, L=1.0, color='b'),
              Pendulum(phi=0.3*pi/2, color='k'),
@@ -324,7 +327,10 @@ winp = PlotWindow(geometry = settings.value('plot_geometry'), state = settings.v
 winc = ControlWindow(geometry = settings.value('control_geometry'), state = settings.value('control_windowState'))
 app.aboutToQuit.connect(main_exit)
 
-# Uncomment this line only for saving animation to file (as per 'frames=' of FuncAnimation() constructor
-#winp.fig.tight_layout(); anim_running = True ; winp.ani.save('pendulum.mp4', fps=30, extra_args=['-vcodec', 'libx264']) ; sys.exit()
+if anim_save:
+    winp.fig.tight_layout();
+    anim_running = True
+    winp.ani.save('pendulum.mp4', dpi=150, fps=30, extra_args=['-vcodec', 'libx264'])
+    sys.exit() # bypass our exit handler main_exit()
 
 sys.exit(app.exec_())
