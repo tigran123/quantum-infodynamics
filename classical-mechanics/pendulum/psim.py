@@ -26,6 +26,7 @@ dtlim = 1.0 #  -dtlim <= dt <= +dtlim
 anim_running = False # if True start the animation immediately
 anim_save = False # set to True to save animation to disk
 save_frames=1000 # number of frames to save, fps set in ani.save() call
+cw = None
 
 # for calculating FPS in pw_animate()
 frames = 0 ; fps = 0 ; start_time = time()
@@ -33,7 +34,7 @@ frames = 0 ; fps = 0 ; start_time = time()
 def update_dt(value):
     global dt
     dt = dtlim*value/1000
-    cw.label_dt.setText('Δt = %.4f s' % dt)
+    if cw: cw.label_dt.setText('Δt = %.4f s' % dt)
 
 def main_exit():
     global settings
@@ -48,21 +49,22 @@ def main_exit():
 def step_forward():
     global dt, anim_running
     dt = abs(dt)
-    cw.status_msg.setText('Step forward')
+    if cw: cw.status_msg.setText('Step forward')
     anim_running = False
     pw.ani.event_source.start()
 
 def step_backward():
     global dt, anim_running
     dt = -abs(dt)
-    cw.status_msg.setText('Step backward')
+    if cw: cw.status_msg.setText('Step backward')
     anim_running = False
     pw.ani.event_source.start()
 
 def playpause():
     global anim_running
-    cw.status_msg.setText('Animation ' + ('paused' if anim_running else 'running'))
-    cw.playpausebtn.setIcon(cw.playicon if anim_running else cw.pauseicon)
+    if cw:
+        cw.status_msg.setText('Animation ' + ('paused' if anim_running else 'running'))
+        cw.playpausebtn.setIcon(cw.playicon if anim_running else cw.pauseicon)
     pw.ani.event_source.stop() if anim_running else pw.ani.event_source.start()
     anim_running = not anim_running
 
@@ -156,7 +158,7 @@ class PlotWindow(QMainWindow):
         if i == 0: return tuple(p.line for p in pendulums) # ignore 0'th frame as pw_animate(0) is called THRICE by matplotlib
         if not anim_running: pw.ani.event_source.stop()
         evolve_pendulums()
-        cw.time_lcd.display('%.3f' % t)
+        if cw: cw.time_lcd.display('%.3f' % t)
 
         if not anim_save: # don't update or show FPS when saving animation to file
             frames += 1
@@ -317,12 +319,12 @@ pendulums = [Pendulum(phi=pi, phidot=0, L=1.0, color='b'),
 app = QApplication(sys.argv)
 settings = QSettings(COMPANY, PROG)
 pw = PlotWindow(geometry = settings.value('plot_geometry'), state = settings.value('plot_windowState'))
-cw = ControlWindow(geometry = settings.value('control_geometry'), state = settings.value('control_windowState'))
-app.aboutToQuit.connect(main_exit)
 
 if anim_save:
     anim_running = True
     pw.ani.save('pendulum.mp4', dpi=150, fps=30, extra_args=['-vcodec', 'libx264'])
-    sys.exit() # bypass our exit handler main_exit()
+    sys.exit() # bypass our exit handler main_exit() as we don't bind to it in non-interactive scenario
 else:
-	sys.exit(app.exec_())
+    cw = ControlWindow(geometry = settings.value('control_geometry'), state = settings.value('control_windowState'))
+    app.aboutToQuit.connect(main_exit)
+    sys.exit(app.exec_())
