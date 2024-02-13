@@ -6,15 +6,12 @@
 """
 
 import sys
-
 import matplotlib
 matplotlib.use('Qt5Agg')
-
 from matplotlib.animation import FuncAnimation
 from matplotlib.figure import Figure
 from time import time
 from numpy import pi, mgrid
-
 from qtapi import *
 from pendulum import Pendulum
 
@@ -23,12 +20,12 @@ PROGRAM = 'Mathematical Pendulum Simulator v1.0'
 PROG = 'MathematicalPendulumSimulator'
 LOGO = 'icons/Logo.jpg'
 
-t = 0.0 # global simulation time (has to be the same for all pendulums)
-dt = 0.005 # ODE integration fixed timestep
+t = 0.0 # global simulation time (the same for all pendulums)
+dt = 0.005 # initial ODE integration timestep
 dtlim = 1.0 #  -dtlim <= dt <= +dtlim
-anim_running = False # change to True to start the animation immediately
-anim_save = False # set to True to save animation to disk
-save_frames=10000 # number of frames to save, fps set in ani.save() call
+anim_running = False # if True start the animation immediately
+anim_save = True # set to True to save animation to disk
+save_frames=100 # number of frames to save, fps set in ani.save() call
 
 # for calculating FPS in animate()
 frames = 0 ; fps = 0 ; start_time = time()
@@ -100,7 +97,6 @@ class PlotWindow(QMainWindow):
             p.energy_text = self.ax1.text(0.02, texty, '', transform=self.ax1.transAxes, color=p.color)
             texty -= 0.05
             p.cs = self.ax2.contour(phim, phidotm, p.Hamiltonian(phim,phidotm), levels=[p.energy()], linewidths=0.8, colors=p.color)
-            #p.cs.clabel(fontsize=9, inline=False)
         self.points = self.ax2.scatter([None]*len(colors),[None]*len(colors), color=colors)
         self.canvas.mpl_connect('key_press_event', self.keypress)
         self.ani = FuncAnimation(self.fig, animate, blit=True, interval=0, frames=save_frames) # frames= used only for saving to file
@@ -112,6 +108,7 @@ class PlotWindow(QMainWindow):
         self.setWindowTitle('Plotting Window')
         if geometry: self.restoreGeometry(geometry)
         if state: self.restoreState(state)
+        self.fig.tight_layout();
         self.show()
 
     def keypress(self, event):
@@ -251,7 +248,7 @@ class ControlWindow(QMainWindow):
         self.statusbar = self.statusBar()
         self.statusbar.setStyleSheet('QStatusBar {border-top: 1px outset grey;}')
         self.status_msg = QLabel('Program ready')
-        self.statusbar.addPermanentWidget(self.status_msg) # to prevent ovewriting status by other widgets
+        self.statusbar.addPermanentWidget(self.status_msg) # prevent ovewriting status by other widgets
 
     def tooltips_toggle(self, state):
         if state:
@@ -328,9 +325,8 @@ winc = ControlWindow(geometry = settings.value('control_geometry'), state = sett
 app.aboutToQuit.connect(main_exit)
 
 if anim_save:
-    winp.fig.tight_layout();
     anim_running = True
     winp.ani.save('pendulum.mp4', dpi=150, fps=30, extra_args=['-vcodec', 'libx264'])
     sys.exit() # bypass our exit handler main_exit()
-
-sys.exit(app.exec_())
+else:
+	sys.exit(app.exec_())
