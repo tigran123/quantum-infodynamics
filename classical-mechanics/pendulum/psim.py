@@ -24,23 +24,23 @@ t = 0.0 # global simulation time (the same for all pendulums)
 dt = 0.005 # initial ODE integration timestep
 dtlim = 1.0 #  -dtlim <= dt <= +dtlim
 anim_running = False # if True start the animation immediately
-anim_save = True # set to True to save animation to disk
-save_frames=10000 # number of frames to save, fps set in ani.save() call
+anim_save = False # set to True to save animation to disk
+save_frames=1000 # number of frames to save, fps set in ani.save() call
 
-# for calculating FPS in animate()
+# for calculating FPS in pw_animate()
 frames = 0 ; fps = 0 ; start_time = time()
 
 def update_dt(value):
     global dt
     dt = dtlim*value/1000
-    winc.label_dt.setText('Δt = %.4f s' % dt)
+    cw.label_dt.setText('Δt = %.4f s' % dt)
 
 def main_exit():
     global settings
-    settings.setValue('plot_geometry', winp.saveGeometry())
-    settings.setValue('plot_windowState', winp.saveState())
-    settings.setValue('control_geometry', winc.saveGeometry())
-    settings.setValue('control_windowState', winc.saveState())
+    settings.setValue('plot_geometry', pw.saveGeometry())
+    settings.setValue('plot_windowState', pw.saveState())
+    settings.setValue('control_geometry', cw.saveGeometry())
+    settings.setValue('control_windowState', cw.saveState())
     del settings # to force the writing of settings to storage
     print('Exiting the program')
     sys.exit()
@@ -48,17 +48,15 @@ def main_exit():
 def single_step(dir):
     global dt, anim_running
     dt = abs(dt) if dir == 'forward' else -abs(dt)
-    winc.status_msg.setText('Step ' + dir)
+    cw.status_msg.setText('Step ' + dir)
     anim_running = False
-    winp.ani.event_source.start()
+    pw.ani.event_source.start()
 
 def playpause():
     global anim_running
-    #winc.frameforwardbtn.setEnabled(anim_running)
-    #winc.framebackbtn.setEnabled(anim_running)
-    winc.status_msg.setText('Animation ' + ('paused' if anim_running else 'running'))
-    winc.playpausebtn.setIcon(winc.playicon if anim_running else winc.pauseicon)
-    winp.ani.event_source.stop() if anim_running else winp.ani.event_source.start()
+    cw.status_msg.setText('Animation ' + ('paused' if anim_running else 'running'))
+    cw.playpausebtn.setIcon(cw.playicon if anim_running else cw.pauseicon)
+    pw.ani.event_source.stop() if anim_running else pw.ani.event_source.start()
     anim_running = not anim_running
 
 class PlotWindow(QMainWindow):
@@ -98,8 +96,8 @@ class PlotWindow(QMainWindow):
             texty -= 0.05
             p.cs = self.ax2.contour(phim, phidotm, p.Hamiltonian(phim,phidotm), levels=[p.energy()], linewidths=0.8, colors=p.color)
         self.points = self.ax2.scatter([None]*len(colors),[None]*len(colors), color=colors)
-        self.canvas.mpl_connect('key_press_event', self.keypress)
-        self.ani = FuncAnimation(self.fig, animate, blit=True, interval=0, frames=save_frames) # frames= used only for saving to file
+        self.canvas.mpl_connect('key_press_event', self.pw_keypress)
+        self.ani = FuncAnimation(self.fig, self.pw_animate, blit=True, interval=0, frames=save_frames) # frames= used only for saving to file
         self.canvas.setFocusPolicy(Qt.StrongFocus)
         self.canvas.setFocus()
         self.setCentralWidget(self.canvas)
@@ -111,7 +109,7 @@ class PlotWindow(QMainWindow):
         self.fig.tight_layout();
         self.show()
 
-    def keypress(self, event):
+    def pw_keypress(self, event):
         """Handler for key presses, registered with matplotlib in the constructor of PlotWindow()"""
         if event.key == ' ':
             playpause()
@@ -146,25 +144,51 @@ class PlotWindow(QMainWindow):
                 self.ani._end_redraw(None)
                 self.ani.event_source.start()
 
+    def pw_animate(self, i):
+        global frames, fps, start_time
+        if i == 0: return tuple(p.line for p in pendulums) # ignore 0'th frame as pw_animate(0) is called THRICE by matplotlib
+        if not anim_running: pw.ani.event_source.stop()
+        evolve_pendulums()
+        cw.time_lcd.display('%.3f' % t)
+
+        if not anim_save: # don't update or show FPS when saving animation to file
+            frames += 1
+            now = time()
+            deltaT = now - start_time
+            if deltaT > 3: # update FPS every 3 seconds
+                pw.fps_text.set_text("FPS: %.1f" % float(frames/deltaT))
+                start_time = now
+                frames = 0
+
+        offsets = []
+        for p in pendulums:
+            offsets.append([p.phi, p.phidot])
+            p.line.set_data(p.position())
+            p.energy_text.set_text(r'E=%.2f J/kg, $\varphi$=%.1f°, $\dot{\varphi}$=%.1f rad/s' % (p.energy(), p.phi*180/pi, p.phidot))
+        pw.time_text.set_text("Time t=%.3f s" % t)
+        pw.points.set_offsets(offsets)
+
+        return tuple(p.line for p in pendulums) + (pw.fps_text,) + (pw.time_text,) + tuple(p.energy_text for p in pendulums) + (pw.points,)
+
 class ControlWindow(QMainWindow):
     def __init__(self, geometry = None, state = None):
         super().__init__()
-        self.create_tabs()
-        self.create_menus()
-        self.create_time_indicator()
-        self.create_statusbar()
-        self.create_slider()
+        self.cw_create_tabs()
+        self.cw_create_menus()
+        self.cw_create_time_indicator()
+        self.cw_create_statusbar()
+        self.cw_create_slider()
 
         self.playicon = QIcon('icons/play.png')
         self.pauseicon = QIcon('icons/pause.png')
         self.playpausebtn = QToolButton(self, icon=self.playicon)
         self.frameforwardbtn = QToolButton(self, icon=QIcon('icons/forward.png'))
         self.framebackbtn = QToolButton(self, icon=QIcon('icons/rewind'))
-        self.playpausebtn.clicked.connect(self.playpause_animation)
-        self.frameforwardbtn.clicked.connect(self.frameforward)
-        self.framebackbtn.clicked.connect(self.frameback)
+        self.playpausebtn.clicked.connect(self.cw_playpause_animation)
+        self.frameforwardbtn.clicked.connect(self.cw_frameforward)
+        self.framebackbtn.clicked.connect(self.cw_frameback)
 
-        self.setup_layout()
+        self.cw_setup_layout()
 
         self.setWindowIcon(QIcon(LOGO))
         self.setWindowTitle(PROGRAM)
@@ -172,7 +196,7 @@ class ControlWindow(QMainWindow):
         if state: self.restoreState(state)
         self.show()
 
-    def create_tabs(self):
+    def cw_create_tabs(self):
         """Create tab widgets and set the container to be the central widget"""
         self.tabs = QTabWidget()
         self.controls = QWidget()
@@ -185,7 +209,7 @@ class ControlWindow(QMainWindow):
         #    self.tabs.addTab(self.pendtabs[-1], 'Pendulum &%d' % (i))
         self.setCentralWidget(self.tabs)
 
-    def create_menus(self):
+    def cw_create_menus(self):
         """Create menubar, menu actions and attach them to the menubar"""
         self.menubar = self.menuBar()
         self.menubar.setNativeMenuBar(False)
@@ -201,20 +225,20 @@ class ControlWindow(QMainWindow):
 
         self.tooltipsAction = QAction('Show &tooltips', self, checkable=True, checked=False)
         self.tooltipsAction.setStatusTip('Toggle showing tooltip popups')
-        self.tooltipsAction.triggered.connect(self.tooltips_toggle)
+        self.tooltipsAction.triggered.connect(self.cw_tooltips_toggle)
         self.viewMenu.addAction(self.tooltipsAction)
 
         self.aboutAction = QAction(QIcon('icons/about.png'), '&About', self)
         self.aboutAction.setStatusTip('Information about the program')
-        self.aboutAction.triggered.connect(self.about)
+        self.aboutAction.triggered.connect(self.cw_about)
         self.helpMenu.addAction(self.aboutAction)
 
         self.aboutQtAction = QAction(QIcon('icons/qt.png'), 'About &Qt', self)
         self.aboutQtAction.setStatusTip('Information about the Qt version')
-        self.aboutQtAction.triggered.connect(self.aboutQt)
+        self.aboutQtAction.triggered.connect(self.cw_aboutQt)
         self.helpMenu.addAction(self.aboutQtAction)
 
-    def create_slider(self):
+    def cw_create_slider(self):
         self.slider = QSlider(Qt.Horizontal, self)
         self.slider.setRange(-1000, 1000)
         self.slider.setPageStep(5)
@@ -223,7 +247,7 @@ class ControlWindow(QMainWindow):
         self.label_dt.setAlignment(Qt.AlignLeft)
         self.label_dt.setMinimumWidth(120)
 
-    def setup_layout(self):
+    def cw_setup_layout(self):
         """Create and connect the layouts for the main control panel"""
         self.controls.grid = QGridLayout()
         self.controls.setLayout(self.controls.grid)
@@ -235,7 +259,7 @@ class ControlWindow(QMainWindow):
         self.controls.grid.addWidget(self.label_dt, 1, 0, 1, 3)
         self.controls.grid.addWidget(self.slider, 1, 3, 1, 2)
 
-    def create_time_indicator(self):
+    def cw_create_time_indicator(self):
         """Create the label and LCD window for the current time"""
         self.time_label = QLabel('Time (s):')
         self.time_lcd = QLCDNumber(self)
@@ -243,14 +267,14 @@ class ControlWindow(QMainWindow):
         self.time_lcd.setSegmentStyle(QLCDNumber.Flat)
         self.time_lcd.setStyleSheet('QLCDNumber {background: #8CB398;}')
 
-    def create_statusbar(self):
+    def cw_create_statusbar(self):
         """Create status bar and permanent message widget for the status info"""
         self.statusbar = self.statusBar()
         self.statusbar.setStyleSheet('QStatusBar {border-top: 1px outset grey;}')
         self.status_msg = QLabel('Program ready')
         self.statusbar.addPermanentWidget(self.status_msg) # prevent ovewriting status by other widgets
 
-    def tooltips_toggle(self, state):
+    def cw_tooltips_toggle(self, state):
         if state:
             self.playpausebtn.setToolTip('Start/pause the animation')
             self.frameforwardbtn.setToolTip('Step forward one time step')
@@ -266,51 +290,25 @@ class ControlWindow(QMainWindow):
             self.label_dt.setToolTip(None)
             self.slider.setToolTip(None)
 
-    def playpause_animation(self):
+    def cw_playpause_animation(self):
         playpause()
 
-    def frameforward(self):
+    def cw_frameforward(self):
         single_step('forward')
 
-    def frameback(self):
+    def cw_frameback(self):
         single_step('backward')
 
-    def about(self):
+    def cw_about(self):
         QMessageBox.about(self, PROGRAM, "<p>Computer simulation of mathematical pendulums in the the phase space.</p><p>To report a bug, please visit our github repository at: <A HREF='https://github.com/tigran123/quantum-infodynamics'>https://github.com/tigran123/quantum-infodynamics</A></p>")
 
-    def aboutQt(self):
+    def cw_aboutQt(self):
         QMessageBox.aboutQt(self, PROGRAM)
 
 def evolve_pendulums():
     global t
     for p in pendulums: p.evolve(t, t+dt)
     t += dt
-
-def animate(i):
-    global frames, fps, start_time
-    if i == 0: return tuple(p.line for p in pendulums) # ignore 0'th frame as animate(0) is called THRICE by matplotlib
-    if not anim_running: winp.ani.event_source.stop()
-    evolve_pendulums()
-    winc.time_lcd.display('%.3f' % t)
-
-    if not anim_save: # don't update or show FPS when saving animation to file
-        frames += 1
-        now = time()
-        deltaT = now - start_time
-        if deltaT > 3: # update FPS every 3 seconds
-            winp.fps_text.set_text("FPS: %.1f" % float(frames/deltaT))
-            start_time = now
-            frames = 0
-
-    offsets = []
-    for p in pendulums:
-        offsets.append([p.phi, p.phidot])
-        p.line.set_data(p.position())
-        p.energy_text.set_text(r'E=%.2f J/kg, $\varphi$=%.1f°, $\dot{\varphi}$=%.1f rad/s' % (p.energy(), p.phi*180/pi, p.phidot))
-    winp.time_text.set_text("Time t=%.3f s" % t)
-    winp.points.set_offsets(offsets)
-
-    return tuple(p.line for p in pendulums) + (winp.fps_text,) + (winp.time_text,) + tuple(p.energy_text for p in pendulums) + (winp.points,)
 
 pendulums = [Pendulum(phi=pi, phidot=0, L=1.0, color='b'),
              Pendulum(phi=0.3*pi/2, color='k'),
@@ -320,13 +318,13 @@ pendulums = [Pendulum(phi=pi, phidot=0, L=1.0, color='b'),
 
 app = QApplication(sys.argv)
 settings = QSettings(COMPANY, PROG)
-winp = PlotWindow(geometry = settings.value('plot_geometry'), state = settings.value('plot_windowState'))
-winc = ControlWindow(geometry = settings.value('control_geometry'), state = settings.value('control_windowState'))
+pw = PlotWindow(geometry = settings.value('plot_geometry'), state = settings.value('plot_windowState'))
+cw = ControlWindow(geometry = settings.value('control_geometry'), state = settings.value('control_windowState'))
 app.aboutToQuit.connect(main_exit)
 
 if anim_save:
     anim_running = True
-    winp.ani.save('pendulum.mp4', dpi=150, fps=30, extra_args=['-vcodec', 'libx264'])
+    pw.ani.save('pendulum.mp4', dpi=150, fps=30, extra_args=['-vcodec', 'libx264'])
     sys.exit() # bypass our exit handler main_exit()
 else:
 	sys.exit(app.exec_())
