@@ -13,8 +13,8 @@ class Pendulum:
        The motion of pendulum does not depend on the mass, so by "energy" we mean "energy per unit mass"
     """
     def __init__(self,
-                 phi    =  pi,  # initial angle phi, in radians
-                 phidot =  0.0,    # initial angular velocity = dphi/dt, in radian/s
+                 phi    =  pi,  # initial angle phi in radians
+                 phidot =  0.0,    # initial angular velocity = dphi/dt in radian/s
                  L      =  1.0,    # length of pendulum in m
                  G      =  9.80665,# standard gravity in m/s^2
                  color  = 'k'):    # plain black colour by default
@@ -22,7 +22,7 @@ class Pendulum:
         self.phidot = phidot
         self.L = L
         self.G = G
-        self.color = color # colour to paint this pendulum
+        self.color = color # colour to paint this pendulum with
 
     def position(self):
         """Return the current position of the pendulum"""
