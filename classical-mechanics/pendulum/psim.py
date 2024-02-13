@@ -45,10 +45,17 @@ def main_exit():
     print('Exiting the program')
     sys.exit()
 
-def single_step(dir):
+def step_forward():
     global dt, anim_running
-    dt = abs(dt) if dir == 'forward' else -abs(dt)
-    cw.status_msg.setText('Step ' + dir)
+    dt = abs(dt)
+    cw.status_msg.setText('Step forward')
+    anim_running = False
+    pw.ani.event_source.start()
+
+def step_backward():
+    global dt, anim_running
+    dt = -abs(dt)
+    cw.status_msg.setText('Step backward')
     anim_running = False
     pw.ani.event_source.start()
 
@@ -126,9 +133,9 @@ class PlotWindow(QMainWindow):
             self.canvas.draw()
             self.ani._end_redraw(None)
         elif event.key == '.':
-            single_step('forward')
+            step_forward()
         elif event.key == ',':
-            single_step('backward')
+            step_backward()
         elif event.key == 'delete':
             if pendulums:
                 self.ani.event_source.stop()
@@ -184,9 +191,9 @@ class ControlWindow(QMainWindow):
         self.playpausebtn = QToolButton(self, icon=self.playicon)
         self.frameforwardbtn = QToolButton(self, icon=QIcon('icons/forward.png'))
         self.framebackbtn = QToolButton(self, icon=QIcon('icons/rewind'))
-        self.playpausebtn.clicked.connect(self.cw_playpause_animation)
-        self.frameforwardbtn.clicked.connect(self.cw_frameforward)
-        self.framebackbtn.clicked.connect(self.cw_frameback)
+        self.playpausebtn.clicked.connect(playpause)
+        self.frameforwardbtn.clicked.connect(step_forward)
+        self.framebackbtn.clicked.connect(step_backward)
 
         self.cw_setup_layout()
 
@@ -289,15 +296,6 @@ class ControlWindow(QMainWindow):
             self.time_lcd.setToolTip(None)
             self.label_dt.setToolTip(None)
             self.slider.setToolTip(None)
-
-    def cw_playpause_animation(self):
-        playpause()
-
-    def cw_frameforward(self):
-        single_step('forward')
-
-    def cw_frameback(self):
-        single_step('backward')
 
     def cw_about(self):
         QMessageBox.about(self, PROGRAM, "<p>Computer simulation of mathematical pendulums in the the phase space.</p><p>To report a bug, please visit our github repository at: <A HREF='https://github.com/tigran123/quantum-infodynamics'>https://github.com/tigran123/quantum-infodynamics</A></p>")
