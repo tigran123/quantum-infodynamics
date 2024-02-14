@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python3.12
 """
   Mathematical Pendulum Simulator (main program)
   Author: Tigran Aivazian <aivazian.tigran@gmail.com>
