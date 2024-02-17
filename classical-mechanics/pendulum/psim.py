@@ -10,6 +10,7 @@ import matplotlib
 matplotlib.use('Qt5Agg')
 from matplotlib.animation import FuncAnimation
 from matplotlib.figure import Figure
+from argparse import ArgumentParser as argp
 from time import time
 from numpy import pi, mgrid
 from qtapi import *
@@ -20,13 +21,27 @@ PROGRAM = 'Mathematical Pendulum Simulator v1.0'
 PROG = 'MathematicalPendulumSimulator'
 LOGO = 'icons/Logo.jpg'
 
+def str2bool(v):
+    if isinstance(v, bool):
+        return v
+    if v.lower() in ('yes', 'true', 't', 'y', '1'):
+        return True
+    elif v.lower() in ('no', 'false', 'f', 'n', '0'):
+        return False
+    else:
+        raise argp.ArgumentTypeError('Boolean value expected.')
+
+parser = argp(description=PROGRAM)
+parser.add_argument("-cw", help="Display control window (default=Yes)", dest="cw", const=True, type=str2bool, nargs='?', default=True)
+args = parser.parse_args()
+
 t = 0.0 # global simulation time (the same for all pendulums)
 dt = 0.005 # initial ODE integration timestep
 dtlim = 1.0 #  -dtlim <= dt <= +dtlim
 anim_running = False # if True start the animation immediately
 anim_save = False # set to True to save animation to disk
 save_frames=1000 # number of frames to save, fps set in ani.save() call
-cw = None
+cw = None # initialised only if ControlWindow object is created
 
 # for calculating FPS in pw_animate()
 frames = 0 ; fps = 0 ; start_time = time()
@@ -40,8 +55,9 @@ def main_exit():
     global settings
     settings.setValue('plot_geometry', pw.saveGeometry())
     settings.setValue('plot_windowState', pw.saveState())
-    settings.setValue('control_geometry', cw.saveGeometry())
-    settings.setValue('control_windowState', cw.saveState())
+    if cw:
+        settings.setValue('control_geometry', cw.saveGeometry())
+        settings.setValue('control_windowState', cw.saveState())
     del settings # to force the writing of settings to storage
     print('Exiting the program')
     sys.exit()
@@ -51,21 +67,21 @@ def step_forward():
     dt = abs(dt)
     if cw: cw.status_msg.setText('Step forward')
     anim_running = False
-    pw.ani.event_source.start()
+    pw.ani.resume()
 
 def step_backward():
     global dt, anim_running
     dt = -abs(dt)
     if cw: cw.status_msg.setText('Step backward')
     anim_running = False
-    pw.ani.event_source.start()
+    pw.ani.resume()
 
 def playpause():
     global anim_running
     if cw:
         cw.status_msg.setText('Animation ' + ('paused' if anim_running else 'running'))
         cw.playpausebtn.setIcon(cw.playicon if anim_running else cw.pauseicon)
-    pw.ani.event_source.stop() if anim_running else pw.ani.event_source.start()
+    pw.ani.pause() if anim_running else pw.ani.resume()
     anim_running = not anim_running
 
 class PlotWindow(QMainWindow):
@@ -106,7 +122,7 @@ class PlotWindow(QMainWindow):
             p.cs = self.ax2.contour(phim, phidotm, p.Hamiltonian(phim,phidotm), levels=[p.energy()], linewidths=0.8, colors=p.color)
         self.points = self.ax2.scatter([None]*len(colors),[None]*len(colors), color=colors)
         self.canvas.mpl_connect('key_press_event', self.pw_keypress)
-        self.ani = FuncAnimation(self.fig, self.pw_animate, blit=True, interval=0, frames=save_frames) # frames= used only for saving to file
+        self.ani = FuncAnimation(self.fig, self.pw_animate, init_func=self.pw_init_animate, blit=True, interval=0, frames=save_frames)
         self.canvas.setFocusPolicy(Qt.StrongFocus)
         self.canvas.setFocus()
         self.setCentralWidget(self.canvas)
@@ -140,7 +156,7 @@ class PlotWindow(QMainWindow):
             step_backward()
         elif event.key == 'delete':
             if pendulums:
-                self.ani.event_source.stop()
+                self.ani.pause()
                 p = pendulums.pop()
                 p.line.remove()
                 del(p.line)
@@ -151,12 +167,15 @@ class PlotWindow(QMainWindow):
                     except IndexError: break
                 for c in p.cs.collections: c.remove()
                 self.ani._end_redraw(None)
-                self.ani.event_source.start()
+                self.ani.resume()
+
+    def pw_init_animate(self):
+        return tuple(p.line for p in pendulums)
 
     def pw_animate(self, i):
         global frames, fps, start_time
-        if i == 0: return tuple(p.line for p in pendulums) # ignore 0'th frame as pw_animate(0) is called THRICE by matplotlib
-        if not anim_running: pw.ani.event_source.stop()
+        if i == 0: return tuple(p.line for p in pendulums) # ignore 0'th frame (XXX: this should be fixed eventually)
+        if not anim_running: pw.ani.pause()
         evolve_pendulums()
         if cw: cw.time_lcd.display('%.3f' % t)
 
@@ -173,7 +192,7 @@ class PlotWindow(QMainWindow):
         for p in pendulums:
             offsets.append([p.phi, p.phidot])
             p.line.set_data(p.position())
-            p.energy_text.set_text(r'E=%.2f J/kg, $\varphi$=%.1f°, $\dot{\varphi}$=%.1f rad/s' % (p.energy(), p.phi*180/pi, p.phidot))
+            p.energy_text.set_text(r'E=%.2f J/kg, $\varphi$=%.3f°, $\dot{\varphi}$=%.3f rad/s' % (p.energy(), p.phi*180/pi, p.phidot))
         pw.time_text.set_text("Time t=%.3f s" % t)
         pw.points.set_offsets(offsets)
 
@@ -311,10 +330,12 @@ def evolve_pendulums():
     t += dt
 
 pendulums = [Pendulum(phi=pi, phidot=0, L=1.0, color='b'),
-             Pendulum(phi=0.3*pi/2, color='k'),
-             Pendulum(phi=0.3*pi/2 + 0.01*pi/2, color='r'),
-             Pendulum(phi=pi/2, phidot=5.1, color='g'),
-             Pendulum(phi=pi/2, color='m')]
+             Pendulum(phi=0, phidot=0, L=1.0, color='b'),
+             Pendulum(phi=0.4*pi, color='k'),
+             Pendulum(phi=0.4*pi + 0.01*pi/2, color='r'),
+             Pendulum(phi=pi/2, phidot=4.42869, color='g'),
+             Pendulum(phi=pi/2, phidot=4.8, color='m'),
+             Pendulum(phi=pi/2, phidot=4, color='c')]
 
 app = QApplication(sys.argv)
 settings = QSettings(COMPANY, PROG)
@@ -325,6 +346,6 @@ if anim_save:
     pw.ani.save('pendulum.mp4', dpi=150, fps=30, extra_args=['-vcodec', 'libx264'])
     sys.exit() # bypass our exit handler main_exit() as we don't bind to it in non-interactive scenario
 else:
-    cw = ControlWindow(geometry = settings.value('control_geometry'), state = settings.value('control_windowState'))
+    if args.cw: cw = ControlWindow(geometry = settings.value('control_geometry'), state = settings.value('control_windowState'))
     app.aboutToQuit.connect(main_exit)
     sys.exit(app.exec_())
