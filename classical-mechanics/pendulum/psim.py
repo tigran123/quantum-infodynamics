@@ -33,14 +33,16 @@ def str2bool(v):
 
 parser = argp(description=PROGRAM)
 parser.add_argument("-cw", help="Display control window (default=Yes)", dest="cw", const=True, type=str2bool, nargs='?', default=True)
+parser.add_argument("-save", help="Save animation to file (default=Noe)", dest="anim_save", const=True, type=str2bool, nargs='?', default=False)
 args = parser.parse_args()
+
+anim_save = args.anim_save
 
 t = 0.0 # global simulation time (the same for all pendulums)
 dt = 0.005 # initial ODE integration timestep
 dtlim = 1.0 #  -dtlim <= dt <= +dtlim
 anim_running = False # if True start the animation immediately
-anim_save = False # set to True to save animation to disk
-save_frames=1000000 # number of frames to save, fps set in ani.save() call
+save_frames=10000000 # number of frames to save, fps set in ani.save() call
 cw = None # initialised only if ControlWindow object is created
 
 # for calculating FPS in pw_animate()
@@ -137,6 +139,7 @@ class PlotWindow(QMainWindow):
                     pw.fps_text.set_text("FPS: %.1f" % float(frames/deltaT))
                     start_time = now
                     frames = 0
+            elif i % 100 == 0: print("%d frames saved, you may ^C now" % i)
             offsets = []
             for p in pendulums:
                 offsets.append([p.phi, p.phidot])
