@@ -119,7 +119,7 @@ class PlotWindow(QMainWindow):
         for p in pendulums:
             colors.append(p.color)
             p.line, = self.ax1.plot([], [], 'o-', lw=2, color=p.color)
-            p.energy_text = self.ax1.text(0.02, texty, '', transform=self.ax1.transAxes, color=p.color)
+            p.state_text = self.ax1.text(0.02, texty, '', transform=self.ax1.transAxes, color=p.color)
             texty -= 0.05
             p.cs = self.ax2.contour(phim, phidotm, p.Hamiltonian(phim,phidotm), levels=[p.energy()], linewidths=0.8, colors=p.color)
         self.points = self.ax2.scatter([None]*len(colors),[None]*len(colors), color=colors)
@@ -144,12 +144,12 @@ class PlotWindow(QMainWindow):
             for p in pendulums:
                 offsets.append([p.phi, p.phidot])
                 p.line.set_data(p.position())
-                p.energy_text.set_text(r'E=%.2f J/kg, $\varphi$=%.3f°, $\dot{\varphi}$=%.3f rad/s' % (p.energy(), p.phi*180/pi, p.phidot))
+                p.state_text.set_text(r'$\varphi$=%.3f°, $\dot{\varphi}$=%.3f rad/s' % (p.phi*180/pi, p.phidot))
             pw.time_text.set_text("Time t=%.3f s" % t)
             pw.points.set_offsets(offsets)
             for p in pendulums: p.evolve(t, t+dt)
             t += dt
-            return tuple(p.line for p in pendulums) + (pw.fps_text,) + (pw.time_text,) + tuple(p.energy_text for p in pendulums) + (pw.points,)
+            return tuple(p.line for p in pendulums) + (pw.fps_text,) + (pw.time_text,) + tuple(p.state_text for p in pendulums) + (pw.points,)
 
         self.ani = FuncAnimation(self.fig, animate, init_func=init_animate, blit=True, interval=0, frames=save_frames)
         self.canvas.setFocusPolicy(Qt.StrongFocus)
@@ -189,8 +189,8 @@ class PlotWindow(QMainWindow):
                 p = pendulums.pop()
                 p.line.remove()
                 del(p.line)
-                p.energy_text.remove()
-                del(p.energy_text)
+                p.state_text.remove()
+                del(p.state_text)
                 while True:
                     try: p.cs.pop_label()
                     except IndexError: break
