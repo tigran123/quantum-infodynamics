@@ -40,7 +40,7 @@ dt = 0.005 # initial ODE integration timestep
 dtlim = 1.0 #  -dtlim <= dt <= +dtlim
 anim_running = False # if True start the animation immediately
 anim_save = False # set to True to save animation to disk
-save_frames=1000 # number of frames to save, fps set in ani.save() call
+save_frames=1000000 # number of frames to save, fps set in ani.save() call
 cw = None # initialised only if ControlWindow object is created
 
 # for calculating FPS in pw_animate()
@@ -122,7 +122,33 @@ class PlotWindow(QMainWindow):
             p.cs = self.ax2.contour(phim, phidotm, p.Hamiltonian(phim,phidotm), levels=[p.energy()], linewidths=0.8, colors=p.color)
         self.points = self.ax2.scatter([None]*len(colors),[None]*len(colors), color=colors)
         self.canvas.mpl_connect('key_press_event', self.pw_keypress)
-        self.ani = FuncAnimation(self.fig, self.pw_animate, init_func=self.pw_init_animate, blit=True, interval=0, frames=save_frames)
+
+        def init_animate(): return tuple(p.line for p in pendulums)
+        def animate(i):
+            global frames, fps, start_time, t
+            if i == 0: return tuple(p.line for p in pendulums)
+            if not anim_running: pw.ani.pause()
+            if cw: cw.time_lcd.display('%.3f' % t)
+            if not anim_save: # don't update or show FPS when saving animation to file
+                frames += 1
+                now = time()
+                deltaT = now - start_time
+                if deltaT > 3: # update FPS every 3 seconds
+                    pw.fps_text.set_text("FPS: %.1f" % float(frames/deltaT))
+                    start_time = now
+                    frames = 0
+            offsets = []
+            for p in pendulums:
+                offsets.append([p.phi, p.phidot])
+                p.line.set_data(p.position())
+                p.energy_text.set_text(r'E=%.2f J/kg, $\varphi$=%.3f°, $\dot{\varphi}$=%.3f rad/s' % (p.energy(), p.phi*180/pi, p.phidot))
+            pw.time_text.set_text("Time t=%.3f s" % t)
+            pw.points.set_offsets(offsets)
+            for p in pendulums: p.evolve(t, t+dt)
+            t += dt
+            return tuple(p.line for p in pendulums) + (pw.fps_text,) + (pw.time_text,) + tuple(p.energy_text for p in pendulums) + (pw.points,)
+
+        self.ani = FuncAnimation(self.fig, animate, init_func=init_animate, blit=True, interval=0, frames=save_frames)
         self.canvas.setFocusPolicy(Qt.StrongFocus)
         self.canvas.setFocus()
         self.setCentralWidget(self.canvas)
@@ -168,35 +194,6 @@ class PlotWindow(QMainWindow):
                 for c in p.cs.collections: c.remove()
                 self.ani._end_redraw(None)
                 self.ani.resume()
-
-    def pw_init_animate(self):
-        return tuple(p.line for p in pendulums)
-
-    def pw_animate(self, i):
-        global frames, fps, start_time
-        if i == 0: return tuple(p.line for p in pendulums) # ignore 0'th frame (XXX: this should be fixed eventually)
-        if not anim_running: pw.ani.pause()
-        evolve_pendulums()
-        if cw: cw.time_lcd.display('%.3f' % t)
-
-        if not anim_save: # don't update or show FPS when saving animation to file
-            frames += 1
-            now = time()
-            deltaT = now - start_time
-            if deltaT > 3: # update FPS every 3 seconds
-                pw.fps_text.set_text("FPS: %.1f" % float(frames/deltaT))
-                start_time = now
-                frames = 0
-
-        offsets = []
-        for p in pendulums:
-            offsets.append([p.phi, p.phidot])
-            p.line.set_data(p.position())
-            p.energy_text.set_text(r'E=%.2f J/kg, $\varphi$=%.3f°, $\dot{\varphi}$=%.3f rad/s' % (p.energy(), p.phi*180/pi, p.phidot))
-        pw.time_text.set_text("Time t=%.3f s" % t)
-        pw.points.set_offsets(offsets)
-
-        return tuple(p.line for p in pendulums) + (pw.fps_text,) + (pw.time_text,) + tuple(p.energy_text for p in pendulums) + (pw.points,)
 
 class ControlWindow(QMainWindow):
     def __init__(self, geometry = None, state = None):
@@ -323,11 +320,6 @@ class ControlWindow(QMainWindow):
 
     def cw_aboutQt(self):
         QMessageBox.aboutQt(self, PROGRAM)
-
-def evolve_pendulums():
-    global t
-    for p in pendulums: p.evolve(t, t+dt)
-    t += dt
 
 pendulums = [
              Pendulum(phi=pi, phidot=0, L=1.0, color='b'),
