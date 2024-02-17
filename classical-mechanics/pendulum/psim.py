@@ -329,13 +329,15 @@ def evolve_pendulums():
     for p in pendulums: p.evolve(t, t+dt)
     t += dt
 
-pendulums = [Pendulum(phi=pi, phidot=0, L=1.0, color='b'),
+pendulums = [
+             Pendulum(phi=pi, phidot=0, L=1.0, color='b'),
              Pendulum(phi=0, phidot=0, L=1.0, color='b'),
              Pendulum(phi=0.4*pi, color='k'),
              Pendulum(phi=0.4*pi + 0.01*pi/2, color='r'),
              Pendulum(phi=pi/2, phidot=4.42869, color='g'),
              Pendulum(phi=pi/2, phidot=4.8, color='m'),
-             Pendulum(phi=pi/2, phidot=4, color='c')]
+             Pendulum(phi=pi/2, phidot=4, color='c')
+            ]
 
 app = QApplication(sys.argv)
 settings = QSettings(COMPANY, PROG)
