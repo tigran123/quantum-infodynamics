@@ -67,14 +67,18 @@ def main_exit():
 def step_forward():
     global dt, anim_running
     dt = abs(dt)
-    if cw: cw.status_msg.setText('Step forward')
+    if cw:
+        cw.label_dt.setText('Δt = %.4f s' % dt)
+        cw.status_msg.setText('Step forward')
     anim_running = False
     pw.ani.resume()
 
 def step_backward():
     global dt, anim_running
     dt = -abs(dt)
-    if cw: cw.status_msg.setText('Step backward')
+    if cw:
+        cw.label_dt.setText('Δt = %.4f s' % dt)
+        cw.status_msg.setText('Step backward')
     anim_running = False
     pw.ani.resume()
 
