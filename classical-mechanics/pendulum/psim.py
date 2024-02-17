@@ -260,14 +260,16 @@ class ControlWindow(QMainWindow):
         self.tooltipsAction.triggered.connect(self.cw_tooltips_toggle)
         self.viewMenu.addAction(self.tooltipsAction)
 
+        def about(): QMessageBox.about(self, PROGRAM, "<p>Computer simulation of mathematical pendulums in the the phase space.</p><p>To report a bug, please visit our github repository at: <A HREF='https://github.com/tigran123/quantum-infodynamics'>https://github.com/tigran123/quantum-infodynamics</A></p>")
         self.aboutAction = QAction(QIcon('icons/about.png'), '&About', self)
         self.aboutAction.setStatusTip('Information about the program')
-        self.aboutAction.triggered.connect(self.cw_about)
+        self.aboutAction.triggered.connect(about)
         self.helpMenu.addAction(self.aboutAction)
 
+        def aboutQt(): QMessageBox.aboutQt(self, PROGRAM)
         self.aboutQtAction = QAction(QIcon('icons/qt.png'), 'About &Qt', self)
         self.aboutQtAction.setStatusTip('Information about the Qt version')
-        self.aboutQtAction.triggered.connect(self.cw_aboutQt)
+        self.aboutQtAction.triggered.connect(aboutQt)
         self.helpMenu.addAction(self.aboutQtAction)
 
     def cw_create_slider(self):
@@ -321,12 +323,6 @@ class ControlWindow(QMainWindow):
             self.time_lcd.setToolTip(None)
             self.label_dt.setToolTip(None)
             self.slider.setToolTip(None)
-
-    def cw_about(self):
-        QMessageBox.about(self, PROGRAM, "<p>Computer simulation of mathematical pendulums in the the phase space.</p><p>To report a bug, please visit our github repository at: <A HREF='https://github.com/tigran123/quantum-infodynamics'>https://github.com/tigran123/quantum-infodynamics</A></p>")
-
-    def cw_aboutQt(self):
-        QMessageBox.aboutQt(self, PROGRAM)
 
 pendulums = [
              Pendulum(phi=pi, phidot=0, L=1.0, color='b'),
