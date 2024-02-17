@@ -33,7 +33,7 @@ def str2bool(v):
 
 parser = argp(description=PROGRAM)
 parser.add_argument("-cw", help="Display control window (default=Yes)", dest="cw", const=True, type=str2bool, nargs='?', default=True)
-parser.add_argument("-save", help="Save animation to file (default=Noe)", dest="anim_save", const=True, type=str2bool, nargs='?', default=False)
+parser.add_argument("-save", help="Save animation to file (default=No)", dest="anim_save", const=True, type=str2bool, nargs='?', default=False)
 args = parser.parse_args()
 
 anim_save = args.anim_save
