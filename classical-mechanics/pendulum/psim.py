@@ -340,7 +340,7 @@ pw = PlotWindow(geometry = settings.value('plot_geometry'), state = settings.val
 
 if anim_save:
     anim_running = True
-    pw.ani.save('pendulum.mp4', dpi=150, fps=30, extra_args=['-vcodec', 'libx264'])
+    pw.ani.save('pendulum.mp4', dpi=100, fps=30, extra_args=['-vcodec', 'libx264']) # on 4k screen pass dpi=100 to get FHD mp4
     sys.exit() # bypass our own main_exit() to avoid messing up plotting window state
 else:
     if args.cw: cw = ControlWindow(geometry = settings.value('control_geometry'), state = settings.value('control_windowState'))
