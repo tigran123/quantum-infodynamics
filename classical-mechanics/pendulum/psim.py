@@ -34,9 +34,10 @@ def str2bool(v):
 parser = argp(description=PROGRAM)
 parser.add_argument("-cw", help="Display control window (default=Yes)", dest="cw", const=True, type=str2bool, nargs='?', default=True)
 parser.add_argument("-save", help="Save animation to file (default=No)", dest="anim_save", const=True, type=str2bool, nargs='?', default=False)
+parser.add_argument("-dpi",  action="store", help="Resolution for the saved video file (default=100 dpi)", dest="dpi", type=int, default=100)
 args = parser.parse_args()
 
-anim_save = args.anim_save
+(anim_save, dpi) = (args.anim_save, args.dpi)
 
 t = 0.0 # global simulation time (the same for all pendulums)
 dt = 0.005 # initial ODE integration timestep
@@ -340,7 +341,7 @@ pw = PlotWindow(geometry = settings.value('plot_geometry'), state = settings.val
 
 if anim_save:
     anim_running = True
-    pw.ani.save('pendulum.mp4', dpi=100, fps=30, extra_args=['-vcodec', 'libx264']) # on 4k screen pass dpi=100 to get FHD mp4
+    pw.ani.save('pendulum.mp4', dpi=dpi, fps=30, extra_args=['-vcodec', 'libx264'])
     sys.exit() # bypass our own main_exit() to avoid messing up plotting window state
 else:
     if args.cw: cw = ControlWindow(geometry = settings.value('control_geometry'), state = settings.value('control_windowState'))
