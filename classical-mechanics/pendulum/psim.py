@@ -29,7 +29,7 @@ def str2bool(v):
     elif v.lower() in ('no', 'false', 'f', 'n', '0'):
         return False
     else:
-        raise argp.ArgumentTypeError('Boolean value expected.')
+        raise ValueError
 
 parser = argp(description=PROGRAM)
 parser.add_argument("-cw", help="Display control window (default=Yes)", dest="cw", const=True, type=str2bool, nargs='?', default=True)
