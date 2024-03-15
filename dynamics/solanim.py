@@ -1,5 +1,3 @@
-#!/usr/bin/env python3.8
-
 """
   solanim.py --- Quantum Infodynamics Tools - Solution Animator
 
@@ -16,6 +14,10 @@ from argparse import ArgumentParser as argp
 
 from time import time
 t_start = time()
+
+import warnings
+#warnings.filterwarnings("ignore", module="matplotlib")
+warnings.filterwarnings("ignore")
 
 # our own modules
 from midnorm import MidpointNormalize
@@ -132,7 +134,7 @@ for k in time_range:
         ax[0].set_ylim([p1[s],p2[s]-dp[s]])
 
         if not Wonly:
-            ax[1].set_title(r"$\rho(x,t), E_0=$ % 6.3f, $E_{min}=$% 6.3f, $E_{max}=$% 6.3f" % (E[s][0],Emin[s],Emax[s]))
+            ax[1].set_title(r"$\rho(x,t), E_0=$ % .2e, $E_{min}=$% .2e, $E_{max}=$% .2e" % (E[s][0],Emin[s],Emax[s]))
             rho_now = rho[s][time_index]
             ax[1].plot(xv, rho_now, color='black')
             ax[1].plot(xv, rho[s][0], color='green', label=r'$\rho(x,$%.1f$)$' % (t[s][0]))

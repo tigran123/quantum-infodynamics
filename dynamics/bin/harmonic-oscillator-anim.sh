@@ -11,8 +11,8 @@ function sigint() {
 trap sigint SIGINT
 
 #workdir=$TMPDIR/harmonic-oscillator
-workdir=/data/work/harmonic-oscillator
-#workdir=harmonic-oscillator
+#workdir=/data/work/harmonic-oscillator
+workdir=harmonic-oscillator
 mkdir -p $workdir/frames{1,2,3}
 
 QR=$workdir/qr
@@ -21,6 +21,7 @@ QN=$workdir/qn
 CN=$workdir/cn
 
 FPS=20
+PYTHON=python3.12
 
 MOVIE_FILE=harmonic-oscillator-solanim.mp4
 
@@ -30,7 +31,7 @@ for ((i=1; i <= $nproc; i++));
 do
     for ((stage=1; stage <= 3; stage++));
     do
-        ./solanim.py -P $nproc -p $i -d $workdir/frames$stage -s ${QR}$stage -s ${CR}$stage -s ${QN}$stage -s ${CN}$stage &
+        $PYTHON solanim.py -P $nproc -p $i -d $workdir/frames$stage -s ${QR}$stage -s ${CR}$stage -s ${QN}$stage -s ${CN}$stage &
     done
 done
 wait

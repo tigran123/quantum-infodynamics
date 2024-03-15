@@ -1,5 +1,3 @@
-#!/usr/bin/env python3.8
-
 """
    initgauss.py --- Quantum Infodynamics Tools (Cauchy Data Generator)
    Author: Tigran Aivazian <aivazian.tigran@gmail.com>

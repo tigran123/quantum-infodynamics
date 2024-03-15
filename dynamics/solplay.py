@@ -1,5 +1,3 @@
-#!/usr/bin/env python3.8
-
 """
   solplay.py --- Quantum Infodynamics Tools - Solution Playback
   Author: Tigran Aivazian <aivazian.tigran@gmail.com>

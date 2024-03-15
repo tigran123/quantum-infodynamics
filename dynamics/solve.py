@@ -1,5 +1,3 @@
-#!/usr/bin/env python3.8
-
 """
    solve.py --- Quantum Infodynamics Tools (Spectral Split Propagator of Second Order with Adaptive Timestep Control)
    Author: Tigran Aivazian <aivazian.tigran@gmail.com>
@@ -103,11 +101,13 @@ Lam = fftshift(lamv)[:,newaxis]
 
 def qd(f, x, dx):
     """qdf(x,dx) --- quantum differential of function f(x) at a point x on the increment dx"""
-    hbar = 1.0 # Planck's constant enters the theory _only_ via quantum differential
+    #hbar = 1.0545718e-34 # Planck's constant enters the theory _only_ via quantum differential
+    hbar = 1.0 # in 'natural units'
     return (f(x+1j*hbar*dx/2.) - f(x-1j*hbar*dx/2.))/(1j*hbar)
 
 #c = 137.03604 # speed of light in a.u.
-c = 1.0 # speed of light in 'natural units'
+c =  1.0 # speed of light in 'natural units'
+#c = 299792458.0 # speed of light in SI
 
 def dTdp_rel(p):
     if mass == 0.0:
@@ -115,7 +115,7 @@ def dTdp_rel(p):
     else:
         return c*p/sqrt(p**2 + mass**2*c**2)
 
-def solve_spectral(Winit, expU, expT):
+def solve_spectral_mt(Winit, expU, expT):
     B = fft(Winit, axis=0, threads=4) # (x,p) -> (lambda,p)
     B *= expT
     B = ifft(B, axis=0, threads=4) # (lambda,p) -> (x,p)
@@ -125,6 +125,18 @@ def solve_spectral(Winit, expU, expT):
     B = fft(B, axis=0, threads=4) # (x,p) -> (lambda,p)
     B *= expT
     B = ifft(B, axis=0, threads=4) # (lambda,p) -> (x,p)
+    return real(B) # to avoid python warning
+
+def solve_spectral(Winit, expU, expT):
+    B = fft(Winit, axis=0) # (x,p) -> (lambda,p)
+    B *= expT
+    B = ifft(B, axis=0) # (lambda,p) -> (x,p)
+    B = fft(B, axis=1) # (x,p) -> (x,theta)
+    B *= expU
+    B = ifft(B, axis=1) # (x,theta) -> (x,p)
+    B = fft(B, axis=0) # (x,p) -> (lambda,p)
+    B *= expT
+    B = ifft(B, axis=0) # (lambda,p) -> (x,p)
     return real(B) # to avoid python warning
 
 def adjust_step(cur_dt, Winit, maxtries=15):
@@ -198,22 +210,22 @@ t_end = timer()
 pr_msg("solved in %.2fs, %d steps (%.2f steps/second)" % (t_end - t_start, Nt, Nt/(t_end - t_start)))
 
 if mm:
-    t_start = timer()
+    #t_start = timer()
     nbytes = W.itemsize*Nt*Nx*Np
     W.base.resize(nbytes)
     W.flush()
     del W
     W = memmap(oWfilename, dtype='float64', mode='r+', shape=(Nt, Nx, Np))
-    pr_msg("Wigner function resized to shape (%d,%d,%d), %d bytes in %.2fs" % (Nt, Nx, Np, nbytes, timer() - t_start))
+    #pr_msg("Wigner function resized to shape (%d,%d,%d), %d bytes in %.2fs" % (Nt, Nx, Np, nbytes, timer() - t_start))
 
-t_start = timer()
+#t_start = timer()
 if mm:
     W[:] = ifftshift(W, axes=(1,2))
 else:
     W = ifftshift(W, axes=(1,2))
-pr_msg("Wigner function shifted in %.2fs" % (timer() - t_start))
+#pr_msg("Wigner function shifted in %.2fs" % (timer() - t_start))
 
-t_start = timer()
+#t_start = timer()
 rho = sum(W, axis=2)*dp
 phi = sum(W, axis=1)*dx
 H = real(T(pp)+Umod.U(xx))
@@ -233,9 +245,9 @@ params = {'Wmin': amin(W), 'Wmax': amax(W), 'rho_min': amin(rho), 'rho_max': ama
           'phi_min': amin(phi), 'phi_max': amax(phi), 'Wfilename': oWfilename, 'Nt': Nt,
           'x0': x0, 'x1': x1, 'x2': x2, 'Nx': Nx, 'p0': p0, 'p1': p1, 'p2': p2, 'Np': Np, 'descr': descr}
 
-pr_msg("parameters calculated in %.2fs" % (timer() - t_start))
+#pr_msg("parameters calculated in %.2fs" % (timer() - t_start))
 
-t_start = timer()
+#t_start = timer()
 savez(args.ofilename, t=tv, rho=rho, phi=phi, H=H, E=E, deltaX=deltaX, deltaP=deltaP, H0=H0, params=params)
 
 if not mm:
@@ -243,4 +255,4 @@ if not mm:
     fp[:] = W[:]
     del fp # causes the flush of memmap
 
-pr_msg("solution saved in %.2fs" % (timer() - t_start))
+#pr_msg("solution saved in %.2fs" % (timer() - t_start))
