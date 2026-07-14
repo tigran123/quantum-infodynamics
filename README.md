@@ -9,19 +9,46 @@ This repository contains the programs and any other materials related to Quantum
 
 For more information see the project's website at http://quantuminfodynamics.com
 
-### Tested with the following versions:
+### Mathematical Pendulum Simulator (classical-mechanics/pendulum/psim.py)
 
-* Python 3.12.2
+An interactive study of the mathematical pendulum: any number of pendulums are simulated
+simultaneously and drawn, each in its own colour, both in real space and as points moving
+along their energy level curves in the phase space portrait (φ, φ̇) — a cylinder unrolled
+onto [-π, π], with the separatrix passing through the unstable equilibrium.
 
-* numpy 1.26.4
+* Each pendulum has its own tab in the control window: initial conditions (φ and φ̇ — in
+  radians or degrees — the length L and the colour) are edited there and applied when the
+  pendulum is stopped; while it runs, the φ and φ̇ fields track its current state instead.
+* Start/Stop freezes and resumes each pendulum individually; the '+' button creates a new
+  pendulum, frozen until started; Delete removes one.
+* Global time controls: play/pause, single stepping forwards and backwards in time and a
+  slider for the ODE integration time step Δt.
+* The Record button captures exactly what is shown on the screen into an mp4 file (piped
+  to ffmpeg); stopping the animation finishes the recording.
 
-* scipy 1.12.0
+Run it from its own virtual environment:
 
-* matplotlib 3.8.2
+```sh
+cd classical-mechanics/pendulum
+uv venv && uv pip install -r requirements.txt
+.venv/bin/python psim.py
+```
 
-* PyFFTW 0.12.0
+### Versions currently in use
 
-* PyQt5 5.15.10
+* Python 3.12.13
+
+* numpy 2.5.1
+
+* scipy 1.18.0
+
+* matplotlib 3.11.0
+
+* PyQt6 6.11.0
+
+* ffmpeg 8.0 (assembles and records the mp4 videos)
+
+* PyFFTW 0.12.0 (optional, for the dynamics/ solvers)
 
 ### Minimal pre-requisites for using our python programs
 
