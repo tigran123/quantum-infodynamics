@@ -26,6 +26,7 @@ QHBoxLayout = QtWidgets.QHBoxLayout
 QDoubleSpinBox = QtWidgets.QDoubleSpinBox
 QColorDialog = QtWidgets.QColorDialog
 QRadioButton = QtWidgets.QRadioButton
+QCheckBox = QtWidgets.QCheckBox
 QButtonGroup = QtWidgets.QButtonGroup
 QMenuBar = QtWidgets.QMenuBar
 QFileDialog = QtWidgets.QFileDialog

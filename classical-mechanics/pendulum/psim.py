@@ -17,7 +17,6 @@ from matplotlib.animation import FuncAnimation
 from subprocess import Popen, PIPE, DEVNULL
 from matplotlib.figure import Figure
 from matplotlib.colors import to_hex
-from argparse import ArgumentParser as argp
 from time import perf_counter, strftime
 from numpy import pi, mgrid, empty
 from qtapi import *
@@ -28,33 +27,18 @@ PROGRAM = 'Mathematical Pendulum Simulator v1.0'
 PROG = 'MathematicalPendulumSimulator'
 LOGO = 'icons/Logo.jpg'
 
-def str2bool(v):
-    if isinstance(v, bool):
-        return v
-    if v.lower() in ('yes', 'true', 't', 'y', '1'):
-        return True
-    elif v.lower() in ('no', 'false', 'f', 'n', '0'):
-        return False
-    else:
-        raise ValueError
-
-parser = argp(description=PROGRAM)
-parser.add_argument("-cw", help="Display control window (default=Yes)", dest="cw", const=True, type=str2bool, nargs='?', default=True)
-args = parser.parse_args()
-
 t = 0.0 # global simulation time (the same for all pendulums)
 dt = 0.005 # initial ODE integration timestep
 dtlim = 1.0 #  -dtlim <= dt <= +dtlim
 anim_running = False # if True start the animation immediately
-cw = None # initialised only if ControlWindow object is created
 
 # for calculating FPS in pw_animate()
-frames = 0 ; fps = 0 ; start_time = perf_counter()
+frames = 0 ; start_time = perf_counter()
 
 def update_dt(value):
     global dt
     dt = dtlim*value/1000
-    if cw: cw.label_dt.setText('Δt = %.4f s' % dt)
+    cw.label_dt.setText('Δt = %.4f s' % dt)
 
 def main_exit():
     global settings
@@ -63,9 +47,9 @@ def main_exit():
         except Exception: pass
     settings.setValue('plot_geometry', pw.saveGeometry())
     settings.setValue('plot_windowState', pw.saveState())
-    if cw:
-        settings.setValue('control_geometry', cw.saveGeometry())
-        settings.setValue('control_windowState', cw.saveState())
+    settings.setValue('control_geometry', cw.saveGeometry())
+    settings.setValue('control_windowState', cw.saveState())
+    settings.setValue('show_text', cw.textcheck.isChecked())
     del settings # to force the writing of settings to storage
     print('Exiting the program')
     sys.exit()
@@ -73,16 +57,15 @@ def main_exit():
 def stop_recording_ui():
     """Finalise the current recording and reflect it in the control window"""
     (nframes, filename) = pw.stop_recording()
-    if cw: cw.cw_record_reset('Saved %d frames to %s' % (nframes, filename))
+    cw.cw_record_reset('Saved %d frames to %s' % (nframes, filename))
 
 def step_forward():
     global dt, anim_running
     recorded = bool(pw.writer)
     if recorded: stop_recording_ui() # stopping the animation finishes the recording
     dt = abs(dt)
-    if cw:
-        cw.label_dt.setText('Δt = %.4f s' % dt)
-        if not recorded: cw.status_msg.setText('Step forward') # keep the 'Saved ...' message visible
+    cw.label_dt.setText('Δt = %.4f s' % dt)
+    if not recorded: cw.status_msg.setText('Step forward') # keep the 'Saved ...' message visible
     anim_running = False
     pw.ani.resume()
 
@@ -91,9 +74,8 @@ def step_backward():
     recorded = bool(pw.writer)
     if recorded: stop_recording_ui() # stopping the animation finishes the recording
     dt = -abs(dt)
-    if cw:
-        cw.label_dt.setText('Δt = %.4f s' % dt)
-        if not recorded: cw.status_msg.setText('Step backward') # keep the 'Saved ...' message visible
+    cw.label_dt.setText('Δt = %.4f s' % dt)
+    if not recorded: cw.status_msg.setText('Step backward') # keep the 'Saved ...' message visible
     anim_running = False
     pw.ani.resume()
 
@@ -101,9 +83,8 @@ def playpause():
     global anim_running
     recorded = anim_running and pw.writer
     if recorded: stop_recording_ui() # stopping the animation finishes the recording
-    if cw:
-        if not recorded: cw.status_msg.setText('Animation ' + ('paused' if anim_running else 'running')) # keep the 'Saved ...' message visible
-        cw.playpausebtn.setIcon(cw.playicon if anim_running else cw.pauseicon)
+    if not recorded: cw.status_msg.setText('Animation ' + ('paused' if anim_running else 'running')) # keep the 'Saved ...' message visible
+    cw.playpausebtn.setIcon(cw.playicon if anim_running else cw.pauseicon)
     pw.ani.pause() if anim_running else pw.ani.resume()
     anim_running = not anim_running
 
@@ -117,8 +98,10 @@ def next_color():
     return 'k'
 
 def state_str(p):
-    """Return the state of pendulum p formatted for its state text artist"""
-    return r'$\varphi$=%.3f°, $\dot{\varphi}$=%.3f rad/s' % (p.phi*180/pi, p.phidot)
+    """Return the state of pendulum p formatted for its state text artist.
+       Plain text, NOT mathtext: mathtext would be re-parsed on every frame
+       (the string changes every frame), costing ~half of the total frame time."""
+    return 'φ=%.3f°, φ̇=%.3f rad/s' % (p.phi*180/pi, p.phidot)
 
 def add_pendulum(p):
     """Add pendulum p to the simulation and (if present) the control window"""
@@ -129,7 +112,7 @@ def add_pendulum(p):
     pw.update_scatter()
     pw.update_limits()
     pw.refresh()
-    if cw: cw.add_tab(p)
+    cw.add_tab(p)
     pw.ani.resume()
 
 def delete_pendulum(p):
@@ -141,7 +124,7 @@ def delete_pendulum(p):
     pw.update_scatter()
     pw.update_limits()
     pw.refresh()
-    if cw: cw.remove_tab(p)
+    cw.remove_tab(p)
     pw.ani.resume()
 
 CAPTION_ACTIVE = '#1e50c8'   # caption bar colour of the active window (blue)
@@ -275,6 +258,7 @@ class PlotWindow(CaptionedWindow):
     def __init__(self, geometry = None, state = None):
         super().__init__()
         self.writer = None # ffmpeg process active while the animation is being recorded
+        self.show_text = True # render the state and time texts in the plot
         self.fig = Figure(figsize=(19.2,10.8))
         self.canvas = FigureCanvas(self.fig)
         self.ax1 = self.fig.add_subplot(121)
@@ -296,8 +280,7 @@ class PlotWindow(CaptionedWindow):
         self.ax2.set_xlim([-self.phi_range, self.phi_range])
         self.ax2.set_ylim([-self.phidot_range, self.phidot_range])
         self.phim,self.phidotm = mgrid[-self.phi_range:self.phi_range:self.phi_points*1j,-self.phidot_range:self.phidot_range:self.phidot_points*1j]
-        self.fps_text = self.ax1.text(0.02, 0.05, '', transform=self.ax1.transAxes, animated=True)
-        self.time_text = self.ax1.text(0.02, 0.1, '', transform=self.ax1.transAxes, animated=True)
+        self.time_text = self.ax1.text(0.02, 0.05, '', transform=self.ax1.transAxes, animated=True)
         for p in pendulums: self.add_artists(p)
         self.restack_texts()
         self.points = self.ax2.scatter([], [], animated=True)
@@ -306,28 +289,28 @@ class PlotWindow(CaptionedWindow):
 
         def init_animate(): return tuple(p.line for p in pendulums)
         def animate(i):
-            global frames, fps, start_time, t
+            global frames, start_time, t
             if i == 0: return tuple(p.line for p in pendulums)
             if not anim_running: pw.ani.pause()
-            if cw:
-                cw.time_lcd.display('%.3f' % t)
-                cw.sync_current_tab()
+            cw.time_lcd.display('%.3f' % t)
+            cw.sync_current_tab()
             frames += 1
             now = perf_counter()
             deltaT = now - start_time
             if deltaT > 3: # update FPS every 3 seconds
-                pw.fps_text.set_text("FPS: %.1f" % float(frames/deltaT))
+                cw.fps_label.setText('FPS: %.1f' % (frames/deltaT))
                 start_time = now
                 frames = 0
             for p in pendulums:
                 p.line.set_data(p.position())
-                p.state_text.set_text(state_str(p))
-            pw.time_text.set_text("Time t=%.3f s" % t)
+            if pw.show_text:
+                for p in pendulums: p.state_text.set_text(state_str(p))
+                pw.time_text.set_text("Time t=%.3f s" % t)
             pw.update_scatter()
             for p in pendulums:
                 if p.live: p.evolve(t, t+dt)
             t += dt
-            return tuple(p.line for p in pendulums) + (pw.fps_text,) + (pw.time_text,) + tuple(p.state_text for p in pendulums) + (pw.points,)
+            return tuple(p.line for p in pendulums) + (pw.time_text,) + tuple(p.state_text for p in pendulums) + (pw.points,)
 
         self.ani = RecordableFuncAnimation(self, self.fig, animate, init_func=init_animate, blit=True, interval=0, cache_frame_data=False)
         self.canvas.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
@@ -355,7 +338,7 @@ class PlotWindow(CaptionedWindow):
            the background captured for blitting (which would leave ghosts on the plot)."""
         p.line, = self.ax1.plot([], [], 'o-', lw=2, color=p.color, animated=True)
         p.line.set_data(p.position())
-        p.state_text = self.ax1.text(0.02, 0.95, state_str(p), transform=self.ax1.transAxes, color=p.color, animated=True)
+        p.state_text = self.ax1.text(0.02, 0.95, state_str(p), transform=self.ax1.transAxes, color=p.color, animated=True, visible=self.show_text)
         p.cs = self.make_contour(p)
 
     def remove_artists(self, p):
@@ -390,6 +373,18 @@ class PlotWindow(CaptionedWindow):
             self.points.set_color([p.color for p in pendulums])
         else:
             self.points.set_offsets(empty((0,2)))
+
+    def set_show_text(self, show):
+        """Show/hide the state and time texts in the plot: superfluous interactively
+           (the control window shows the same data, and not rendering them makes the
+           animation faster), but valuable in a recording."""
+        self.show_text = show
+        if show: # bring the texts up to date: they are not updated while hidden
+            for p in pendulums: p.state_text.set_text(state_str(p))
+            self.time_text.set_text('Time t=%.3f s' % t)
+        self.time_text.set_visible(show)
+        for p in pendulums: p.state_text.set_visible(show)
+        self.refresh()
 
     def update_limits(self):
         """Rescale the space plot to fit the longest pendulum entirely"""
@@ -432,7 +427,7 @@ class PlotWindow(CaptionedWindow):
                 proc.stdin.close()
                 proc.wait()
             except Exception: pass
-            if cw: cw.cw_record_reset('Recording stopped: %s' % err)
+            cw.cw_record_reset('Recording stopped: %s' % err)
 
     def stop_recording(self):
         """Finalise the video file and return (number of frames, filename)"""
@@ -607,6 +602,10 @@ class ControlWindow(CaptionedWindow):
         self.framebackbtn.clicked.connect(step_backward)
         self.recordbtn = QPushButton('&Record')
         self.recordbtn.clicked.connect(self.cw_record)
+        self.textcheck = QCheckBox('Show state &text')
+        self.textcheck.setChecked(settings.value('show_text', True, type=bool))
+        if not self.textcheck.isChecked(): pw.set_show_text(False) # the plot shows the texts by default
+        self.textcheck.toggled.connect(lambda checked: pw.set_show_text(checked))
 
         self.cw_setup_layout()
 
@@ -749,20 +748,24 @@ class ControlWindow(CaptionedWindow):
         self.controls.grid.addWidget(self.frameforwardbtn, 0, 2)
         self.controls.grid.addWidget(self.time_label, 0, 3)
         self.controls.grid.addWidget(self.time_lcd, 0, 4)
+        self.controls.grid.addWidget(self.fps_label, 0, 5)
         self.controls.grid.addWidget(self.label_dt, 1, 0, 1, 3)
         self.controls.grid.addWidget(self.slider, 1, 3, 1, 2)
         self.controls.grid.addWidget(self.units_label, 2, 0)
         self.controls.grid.addWidget(self.radbtn, 2, 1)
         self.controls.grid.addWidget(self.degbtn, 2, 2)
         self.controls.grid.addWidget(self.recordbtn, 3, 0, 1, 2)
+        self.controls.grid.addWidget(self.textcheck, 3, 2, 1, 2)
 
     def cw_create_time_indicator(self):
-        """Create the label and LCD window for the current time"""
+        """Create the label and LCD window for the current time and the FPS readout"""
         self.time_label = QLabel('Time (s):')
         self.time_lcd = QLCDNumber(self)
         self.time_lcd.setDigitCount(12)
         self.time_lcd.setSegmentStyle(QLCDNumber.SegmentStyle.Flat)
         self.time_lcd.setStyleSheet('QLCDNumber {background: #8CB398;}')
+        self.fps_label = QLabel('FPS: —')
+        self.fps_label.setMinimumWidth(80)
 
     def cw_create_statusbar(self):
         """Create status bar and permanent message widget for the status info"""
@@ -780,6 +783,8 @@ class ControlWindow(CaptionedWindow):
             self.label_dt.setToolTip('Current value of ODE integration time step Δt in seconds')
             self.slider.setToolTip('Control ODE integration time step Δt')
             self.recordbtn.setToolTip('Record the animation to a video file until it is paused')
+            self.textcheck.setToolTip('Render the state and time texts in the plotting window')
+            self.fps_label.setToolTip('Animation frames rendered per second')
             self.addbtn.setToolTip('Create a new pendulum')
             self.radbtn.setToolTip('Show angles in radians')
             self.degbtn.setToolTip('Show angles in degrees')
@@ -794,6 +799,8 @@ class ControlWindow(CaptionedWindow):
             self.radbtn.setToolTip(None)
             self.degbtn.setToolTip(None)
             self.recordbtn.setToolTip(None)
+            self.textcheck.setToolTip(None)
+            self.fps_label.setToolTip(None)
 
 pendulums = [
              Pendulum(phi=pi, phidot=0, L=1.0, color='b'),
@@ -809,6 +816,6 @@ app = QApplication(sys.argv)
 settings = QSettings(COMPANY, PROG)
 pw = PlotWindow(geometry = settings.value('plot_geometry'), state = settings.value('plot_windowState'))
 
-if args.cw: cw = ControlWindow(geometry = settings.value('control_geometry'), state = settings.value('control_windowState'))
+cw = ControlWindow(geometry = settings.value('control_geometry'), state = settings.value('control_windowState'))
 app.aboutToQuit.connect(main_exit)
 sys.exit(app.exec())
