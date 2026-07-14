@@ -28,6 +28,7 @@ QColorDialog = QtWidgets.QColorDialog
 QRadioButton = QtWidgets.QRadioButton
 QButtonGroup = QtWidgets.QButtonGroup
 QMenuBar = QtWidgets.QMenuBar
+QFileDialog = QtWidgets.QFileDialog
 Qt = QtCore.Qt
 QSettings = QtCore.QSettings
 QEvent = QtCore.QEvent

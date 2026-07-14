@@ -14,10 +14,11 @@ environ.setdefault('QT_QPA_PLATFORM', 'xcb')
 import matplotlib
 matplotlib.use('QtAgg')
 from matplotlib.animation import FuncAnimation
+from subprocess import Popen, PIPE, DEVNULL
 from matplotlib.figure import Figure
 from matplotlib.colors import to_hex
 from argparse import ArgumentParser as argp
-from time import perf_counter
+from time import perf_counter, strftime
 from numpy import pi, mgrid, empty
 from qtapi import *
 from pendulum import Pendulum
@@ -39,17 +40,12 @@ def str2bool(v):
 
 parser = argp(description=PROGRAM)
 parser.add_argument("-cw", help="Display control window (default=Yes)", dest="cw", const=True, type=str2bool, nargs='?', default=True)
-parser.add_argument("-save", help="Save animation to file (default=No)", dest="anim_save", const=True, type=str2bool, nargs='?', default=False)
-parser.add_argument("-dpi",  action="store", help="Resolution for the saved video file (default=100 dpi)", dest="dpi", type=int, default=100)
 args = parser.parse_args()
-
-(anim_save, dpi) = (args.anim_save, args.dpi)
 
 t = 0.0 # global simulation time (the same for all pendulums)
 dt = 0.005 # initial ODE integration timestep
 dtlim = 1.0 #  -dtlim <= dt <= +dtlim
 anim_running = False # if True start the animation immediately
-save_frames=10000000 # number of frames to save, fps set in ani.save() call
 cw = None # initialised only if ControlWindow object is created
 
 # for calculating FPS in pw_animate()
@@ -62,6 +58,9 @@ def update_dt(value):
 
 def main_exit():
     global settings
+    if pw.writer: # finalise the video file of an unfinished recording
+        try: pw.stop_recording()
+        except Exception: pass
     settings.setValue('plot_geometry', pw.saveGeometry())
     settings.setValue('plot_windowState', pw.saveState())
     if cw:
@@ -71,28 +70,39 @@ def main_exit():
     print('Exiting the program')
     sys.exit()
 
+def stop_recording_ui():
+    """Finalise the current recording and reflect it in the control window"""
+    (nframes, filename) = pw.stop_recording()
+    if cw: cw.cw_record_reset('Saved %d frames to %s' % (nframes, filename))
+
 def step_forward():
     global dt, anim_running
+    recorded = bool(pw.writer)
+    if recorded: stop_recording_ui() # stopping the animation finishes the recording
     dt = abs(dt)
     if cw:
         cw.label_dt.setText('Δt = %.4f s' % dt)
-        cw.status_msg.setText('Step forward')
+        if not recorded: cw.status_msg.setText('Step forward') # keep the 'Saved ...' message visible
     anim_running = False
     pw.ani.resume()
 
 def step_backward():
     global dt, anim_running
+    recorded = bool(pw.writer)
+    if recorded: stop_recording_ui() # stopping the animation finishes the recording
     dt = -abs(dt)
     if cw:
         cw.label_dt.setText('Δt = %.4f s' % dt)
-        cw.status_msg.setText('Step backward')
+        if not recorded: cw.status_msg.setText('Step backward') # keep the 'Saved ...' message visible
     anim_running = False
     pw.ani.resume()
 
 def playpause():
     global anim_running
+    recorded = anim_running and pw.writer
+    if recorded: stop_recording_ui() # stopping the animation finishes the recording
     if cw:
-        cw.status_msg.setText('Animation ' + ('paused' if anim_running else 'running'))
+        if not recorded: cw.status_msg.setText('Animation ' + ('paused' if anim_running else 'running')) # keep the 'Saved ...' message visible
         cw.playpausebtn.setIcon(cw.playicon if anim_running else cw.pauseicon)
     pw.ani.pause() if anim_running else pw.ani.resume()
     anim_running = not anim_running
@@ -247,9 +257,24 @@ class CaptionedWindow(QMainWindow):
         self.unsetCursor()
         super().leaveEvent(event)
 
+class RecordableFuncAnimation(FuncAnimation):
+    """FuncAnimation which pipes every frame composited on the screen to the recording
+       ffmpeg process (if one is active) of the PlotWindow owning it. NB: this overrides
+       the private _post_draw() because the frame is complete in the canvas buffer only
+       after it has run and matplotlib offers no public post-compositing hook; blitted
+       frames do not emit draw_event."""
+    def __init__(self, window, *args, **kwargs):
+        self.window = window # must be set before super().__init__(), which calls _post_draw()
+        super().__init__(*args, **kwargs)
+
+    def _post_draw(self, framedata, blit):
+        super()._post_draw(framedata, blit)
+        if self.window.writer and framedata is not None: self.window.grab_frame()
+
 class PlotWindow(CaptionedWindow):
     def __init__(self, geometry = None, state = None):
         super().__init__()
+        self.writer = None # ffmpeg process active while the animation is being recorded
         self.fig = Figure(figsize=(19.2,10.8))
         self.canvas = FigureCanvas(self.fig)
         self.ax1 = self.fig.add_subplot(121)
@@ -287,15 +312,13 @@ class PlotWindow(CaptionedWindow):
             if cw:
                 cw.time_lcd.display('%.3f' % t)
                 cw.sync_current_tab()
-            if not anim_save: # don't update or show FPS when saving animation to file
-                frames += 1
-                now = perf_counter()
-                deltaT = now - start_time
-                if deltaT > 3: # update FPS every 3 seconds
-                    pw.fps_text.set_text("FPS: %.1f" % float(frames/deltaT))
-                    start_time = now
-                    frames = 0
-            elif i % 100 == 0: print("%d frames saved, you may ^C now" % i)
+            frames += 1
+            now = perf_counter()
+            deltaT = now - start_time
+            if deltaT > 3: # update FPS every 3 seconds
+                pw.fps_text.set_text("FPS: %.1f" % float(frames/deltaT))
+                start_time = now
+                frames = 0
             for p in pendulums:
                 p.line.set_data(p.position())
                 p.state_text.set_text(state_str(p))
@@ -306,7 +329,7 @@ class PlotWindow(CaptionedWindow):
             t += dt
             return tuple(p.line for p in pendulums) + (pw.fps_text,) + (pw.time_text,) + tuple(p.state_text for p in pendulums) + (pw.points,)
 
-        self.ani = FuncAnimation(self.fig, animate, init_func=init_animate, blit=True, interval=0, frames=save_frames, cache_frame_data=False)
+        self.ani = RecordableFuncAnimation(self, self.fig, animate, init_func=init_animate, blit=True, interval=0, cache_frame_data=False)
         self.canvas.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
         self.canvas.setFocus()
         self.setCentralWidget(self.canvas)
@@ -383,6 +406,40 @@ class PlotWindow(CaptionedWindow):
         self.ani._blit_cache.clear()
         self.canvas.draw()
         self.ani._end_redraw(None)
+
+    def start_recording(self, filename):
+        """Start recording the animation into a video file. Every frame composited on
+           the screen is piped raw to ffmpeg, so the video contains exactly what is
+           seen, at the current window resolution, with no extra rendering cost."""
+        (w, h) = self.canvas.get_width_height(physical=True)
+        proc = Popen(['ffmpeg', '-loglevel', 'quiet', '-y',
+                      '-f', 'rawvideo', '-pix_fmt', 'rgba', '-s', '%dx%d' % (w, h), '-r', '30', '-i', '-',
+                      '-vf', 'crop=trunc(iw/2)*2:trunc(ih/2)*2', # h264 requires even dimensions
+                      '-vcodec', 'libx264', '-pix_fmt', 'yuv420p', filename],
+                     stdin=PIPE, stdout=DEVNULL, stderr=DEVNULL)
+        (self.rec_filename, self.rec_frames, self.rec_size, self.writer) = (filename, 0, (w, h), proc)
+
+    def grab_frame(self):
+        """Pipe the current contents of the canvas to the recording ffmpeg process"""
+        try:
+            if self.canvas.get_width_height(physical=True) != self.rec_size:
+                raise RuntimeError('the window was resized')
+            self.writer.stdin.write(self.canvas.buffer_rgba())
+            self.rec_frames += 1
+        except Exception as err:
+            (proc, self.writer) = (self.writer, None)
+            try:
+                proc.stdin.close()
+                proc.wait()
+            except Exception: pass
+            if cw: cw.cw_record_reset('Recording stopped: %s' % err)
+
+    def stop_recording(self):
+        """Finalise the video file and return (number of frames, filename)"""
+        (proc, self.writer) = (self.writer, None)
+        proc.stdin.close()
+        proc.wait()
+        return (self.rec_frames, self.rec_filename)
 
     def pw_keypress(self, event):
         """Handler for key presses, registered with matplotlib in the constructor of PlotWindow()"""
@@ -548,6 +605,8 @@ class ControlWindow(CaptionedWindow):
         self.playpausebtn.clicked.connect(playpause)
         self.frameforwardbtn.clicked.connect(step_forward)
         self.framebackbtn.clicked.connect(step_backward)
+        self.recordbtn = QPushButton('&Record')
+        self.recordbtn.clicked.connect(self.cw_record)
 
         self.cw_setup_layout()
 
@@ -600,6 +659,28 @@ class ControlWindow(CaptionedWindow):
         """Switch all pendulum tabs between radians and degrees"""
         self.degrees = degrees
         for tab in self.pendtabs: tab.set_units(degrees)
+
+    def cw_record(self):
+        """Start recording the animation into a new video file, from the current moment.
+           The recording is finished by stopping the animation (pause or single-step)."""
+        filename, _ = QFileDialog.getSaveFileName(self, 'Record the animation to',
+                          strftime('pendulum-%Y%m%d-%H%M%S.mp4'), 'Video files (*.mp4);;All files (*)')
+        if not filename: return
+        try:
+            pw.start_recording(filename)
+        except Exception as err:
+            self.status_msg.setText('Recording failed: %s' % err)
+            return
+        self.recordbtn.setText('Recording...')
+        self.recordbtn.setEnabled(False)
+        self.status_msg.setText('Recording to %s, pause the animation to finish' % filename)
+        if not anim_running: playpause() # frames are captured only while the animation runs
+
+    def cw_record_reset(self, msg):
+        """Return the record button to its idle state and show msg in the status bar"""
+        self.recordbtn.setEnabled(True)
+        self.recordbtn.setText('&Record')
+        self.status_msg.setText(msg)
 
     def sync_current_tab(self):
         """Keep the φ and φ̇ fields of the visible pendulum tab tracking the simulation"""
@@ -673,6 +754,7 @@ class ControlWindow(CaptionedWindow):
         self.controls.grid.addWidget(self.units_label, 2, 0)
         self.controls.grid.addWidget(self.radbtn, 2, 1)
         self.controls.grid.addWidget(self.degbtn, 2, 2)
+        self.controls.grid.addWidget(self.recordbtn, 3, 0, 1, 2)
 
     def cw_create_time_indicator(self):
         """Create the label and LCD window for the current time"""
@@ -697,6 +779,7 @@ class ControlWindow(CaptionedWindow):
             self.time_lcd.setToolTip('Simulation time in seconds')
             self.label_dt.setToolTip('Current value of ODE integration time step Δt in seconds')
             self.slider.setToolTip('Control ODE integration time step Δt')
+            self.recordbtn.setToolTip('Record the animation to a video file until it is paused')
             self.addbtn.setToolTip('Create a new pendulum')
             self.radbtn.setToolTip('Show angles in radians')
             self.degbtn.setToolTip('Show angles in degrees')
@@ -710,6 +793,7 @@ class ControlWindow(CaptionedWindow):
             self.addbtn.setToolTip(None)
             self.radbtn.setToolTip(None)
             self.degbtn.setToolTip(None)
+            self.recordbtn.setToolTip(None)
 
 pendulums = [
              Pendulum(phi=pi, phidot=0, L=1.0, color='b'),
@@ -725,11 +809,6 @@ app = QApplication(sys.argv)
 settings = QSettings(COMPANY, PROG)
 pw = PlotWindow(geometry = settings.value('plot_geometry'), state = settings.value('plot_windowState'))
 
-if anim_save:
-    anim_running = True
-    pw.ani.save('pendulum.mp4', dpi=dpi, fps=30, extra_args=['-vcodec', 'libx264'])
-    sys.exit() # bypass our own main_exit() to avoid messing up plotting window state
-else:
-    if args.cw: cw = ControlWindow(geometry = settings.value('control_geometry'), state = settings.value('control_windowState'))
-    app.aboutToQuit.connect(main_exit)
-    sys.exit(app.exec())
+if args.cw: cw = ControlWindow(geometry = settings.value('control_geometry'), state = settings.value('control_windowState'))
+app.aboutToQuit.connect(main_exit)
+sys.exit(app.exec())
