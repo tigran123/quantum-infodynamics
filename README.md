@@ -5,7 +5,7 @@ This repository contains the programs and any other materials related to Quantum
 
 * dynamics [MAIN] --- Tools for simulating any [info]dynamical system on both the quantum and the classical level, relativistic and non-relativistic
 
-* classical-mechanics/pendulum --- Mathematical Pendulum Simulator (GUI, using PyQt5 and matplotlib)
+* classical-mechanics/pendulum --- Mathematical Pendulum Simulator (GUI, using PyQt6 and matplotlib)
 
 For more information see the project's website at http://quantuminfodynamics.com
 

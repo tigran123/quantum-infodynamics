@@ -17,12 +17,14 @@ class Pendulum:
                  phidot =  0.0,    # initial angular velocity = dphi/dt in radian/s
                  L      =  1.0,    # length of pendulum in m
                  G      =  9.80665,# standard gravity in m/s^2
-                 color  = 'k'):    # plain black colour by default
+                 color  = 'k',     # plain black colour by default
+                 live   = True):   # simulated (True) or staged, i.e. drawn frozen (False)
         self.phi = phi
         self.phidot = phidot
         self.L = L
         self.G = G
         self.color = color # colour to paint this pendulum with
+        self.live = live
 
     def position(self):
         """Return the current position of the pendulum"""
