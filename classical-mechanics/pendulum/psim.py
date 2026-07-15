@@ -39,8 +39,7 @@ frames = 0 ; start_time = perf_counter()
 
 def update_dt(value):
     global dt
-    dt = dtlim*value/1000
-    cw.label_dt.setText('Δt = %.4f s' % dt)
+    dt = value
 
 def main_exit():
     """Save the state before quitting; connected to app.aboutToQuit, when the windows
@@ -70,7 +69,7 @@ def step_forward():
     recorded = bool(pw.writer)
     if recorded: stop_recording_ui() # stopping the animation finishes the recording
     dt = abs(dt)
-    cw.label_dt.setText('Δt = %.4f s' % dt)
+    cw.dt_spin.setValue(dt)
     if not recorded: cw.status_msg.setText('Step forward') # keep the 'Saved ...' message visible
     anim_running = False
     single_step = True
@@ -81,7 +80,7 @@ def step_backward():
     recorded = bool(pw.writer)
     if recorded: stop_recording_ui() # stopping the animation finishes the recording
     dt = -abs(dt)
-    cw.label_dt.setText('Δt = %.4f s' % dt)
+    cw.dt_spin.setValue(dt)
     if not recorded: cw.status_msg.setText('Step backward') # keep the 'Saved ...' message visible
     anim_running = False
     single_step = True
@@ -510,8 +509,8 @@ class PendulumTab(QWidget):
         self.degrees = False # angle units of this tab's φ and φ̇ fields: radians (False) or degrees (True)
         self.color = to_hex(p.color)
 
-        self.phi_spin = QDoubleSpinBox(decimals=4)
-        self.phidot_spin = QDoubleSpinBox(decimals=4)
+        self.phi_spin = QDoubleSpinBox(decimals=3)
+        self.phidot_spin = QDoubleSpinBox(decimals=3)
         self.set_unit_ranges()
         self.set_phi(p.phi)
         self.set_phidot(p.phidot)
@@ -648,7 +647,7 @@ class ControlWindow(CaptionedWindow):
         self.setup_caption(PROGRAM, below=self.menubar)
         self.cw_create_time_indicator()
         self.cw_create_statusbar()
-        self.cw_create_slider()
+        self.cw_create_dt_control()
 
         self.playicon = QIcon('icons/play.png')
         self.pauseicon = QIcon('icons/pause.png')
@@ -779,39 +778,59 @@ class ControlWindow(CaptionedWindow):
         self.aboutQtAction.triggered.connect(aboutQt)
         self.helpMenu.addAction(self.aboutQtAction)
 
-    def cw_create_slider(self):
-        self.slider = QSlider(Qt.Orientation.Horizontal, self)
-        self.slider.setRange(-1000, 1000)
-        self.slider.setPageStep(5)
-        self.slider.valueChanged.connect(update_dt)
-        self.label_dt = QLabel('Δt = %.4f s' % dt)
-        self.label_dt.setAlignment(Qt.AlignmentFlag.AlignLeft)
-        self.label_dt.setMinimumWidth(120)
+    def cw_create_dt_control(self):
+        """Create the spinbox controlling the ODE integration timestep Δt (negative runs time backwards)"""
+        self.dt_spin = QDoubleSpinBox(decimals=3, minimum=-dtlim, maximum=dtlim, singleStep=0.001, suffix=' s')
+        self.dt_spin.setValue(dt)
+        # apply typed values only on Enter/focus-out, not on every keystroke: the
+        # intermediate values (e.g. the '0' while typing '0.01') would hit the running simulation
+        self.dt_spin.setKeyboardTracking(False)
+        self.dt_spin.valueChanged.connect(update_dt)
+        self.label_dt = QLabel('Δt:')
 
     def cw_setup_layout(self):
-        """Create and connect the layouts for the main control panel"""
-        self.controls.grid = QGridLayout()
-        self.controls.setLayout(self.controls.grid)
-        self.controls.grid.addWidget(self.framebackbtn, 0, 0)
-        self.controls.grid.addWidget(self.playpausebtn, 0, 1)
-        self.controls.grid.addWidget(self.frameforwardbtn, 0, 2)
-        self.controls.grid.addWidget(self.time_label, 0, 3)
-        self.controls.grid.addWidget(self.time_lcd, 0, 4)
-        self.controls.grid.addWidget(self.fps_label, 0, 5)
-        self.controls.grid.addWidget(self.label_dt, 1, 0, 1, 3)
-        self.controls.grid.addWidget(self.slider, 1, 3, 1, 2)
-        self.controls.grid.addWidget(self.recordbtn, 2, 0, 1, 2)
-        self.controls.grid.addWidget(self.textcheck, 2, 2, 1, 2)
+        """Create and connect the layouts for the main control panel: one hbox per row
+           (a shared grid would couple column widths across unrelated rows)"""
+        transport = QHBoxLayout()
+        transport.setSpacing(4)
+        for b in (self.framebackbtn, self.playpausebtn, self.frameforwardbtn):
+            b.setIconSize(QSize(24, 24))
+            transport.addWidget(b)
+        row1 = QHBoxLayout()
+        row1.addLayout(transport)
+        row1.addSpacing(24)
+        row1.addWidget(self.time_label)
+        row1.addWidget(self.time_lcd)
+        row1.addSpacing(24)
+        row1.addWidget(self.label_dt)
+        row1.addWidget(self.dt_spin)
+        row1.addStretch(1)
+        row2 = QHBoxLayout()
+        row2.addWidget(self.recordbtn)
+        row2.addWidget(self.textcheck)
+        row2.addStretch(1)
+        # the FPS readout is about rendering, not physics: tuck it into the bottom-right corner
+        fpsrow = QHBoxLayout()
+        fpsrow.addStretch(1)
+        fpsrow.addWidget(self.fps_label)
+        vbox = QVBoxLayout(self.controls)
+        vbox.addLayout(row1)
+        vbox.addLayout(row2)
+        vbox.addStretch(1)
+        vbox.addLayout(fpsrow)
 
     def cw_create_time_indicator(self):
         """Create the label and LCD window for the current time and the FPS readout"""
         self.time_label = QLabel('Time (s):')
         self.time_lcd = QLCDNumber(self)
-        self.time_lcd.setDigitCount(12)
+        self.time_lcd.setDigitCount(9) # up to '99999.999'
         self.time_lcd.setSegmentStyle(QLCDNumber.SegmentStyle.Flat)
         self.time_lcd.setStyleSheet('QLCDNumber {background: #8CB398;}')
+        self.time_lcd.setFixedSize(150, 28) # keep the LCD from ballooning with the window
         self.fps_label = QLabel('FPS: —')
         self.fps_label.setMinimumWidth(80)
+        # right-aligned so its right edge stays put in the corner as the number changes width
+        self.fps_label.setAlignment(Qt.AlignmentFlag.AlignRight)
 
     def cw_create_statusbar(self):
         """Create status bar and permanent message widget for the status info"""
@@ -826,8 +845,7 @@ class ControlWindow(CaptionedWindow):
             self.frameforwardbtn.setToolTip('Step forward one time step')
             self.framebackbtn.setToolTip('Step back one time step')
             self.time_lcd.setToolTip('Simulation time in seconds')
-            self.label_dt.setToolTip('Current value of ODE integration time step Δt in seconds')
-            self.slider.setToolTip('Control ODE integration time step Δt')
+            self.dt_spin.setToolTip('ODE integration time step Δt in seconds; negative runs time backwards')
             self.recordbtn.setToolTip('Record the animation to a video file until it is paused')
             self.textcheck.setToolTip('Render the state and time texts in the plotting window')
             self.fps_label.setToolTip('Animation frames rendered per second')
@@ -837,8 +855,7 @@ class ControlWindow(CaptionedWindow):
             self.frameforwardbtn.setToolTip(None)
             self.framebackbtn.setToolTip(None)
             self.time_lcd.setToolTip(None)
-            self.label_dt.setToolTip(None)
-            self.slider.setToolTip(None)
+            self.dt_spin.setToolTip(None)
             self.addbtn.setToolTip(None)
             self.recordbtn.setToolTip(None)
             self.textcheck.setToolTip(None)

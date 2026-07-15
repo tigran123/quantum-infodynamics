@@ -32,6 +32,7 @@ QMenuBar = QtWidgets.QMenuBar
 QFileDialog = QtWidgets.QFileDialog
 Qt = QtCore.Qt
 QObject = QtCore.QObject
+QSize = QtCore.QSize
 QSettings = QtCore.QSettings
 QEvent = QtCore.QEvent
 QIcon = QtGui.QIcon
