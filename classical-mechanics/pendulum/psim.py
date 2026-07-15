@@ -18,6 +18,7 @@ from subprocess import Popen, PIPE, DEVNULL
 from matplotlib.figure import Figure
 from matplotlib.colors import to_hex
 from time import perf_counter, strftime
+from gc import collect
 from numpy import pi, mgrid, empty
 from qtapi import *
 from pendulum import Pendulum
@@ -31,6 +32,7 @@ t = 0.0 # global simulation time (the same for all pendulums)
 dt = 0.005 # initial ODE integration timestep
 dtlim = 1.0 #  -dtlim <= dt <= +dtlim
 anim_running = False # if True start the animation immediately
+single_step = False # set by step_forward()/step_backward(): the next frame may advance the simulation while paused
 
 # for calculating FPS in pw_animate()
 frames = 0 ; start_time = perf_counter()
@@ -41,7 +43,12 @@ def update_dt(value):
     cw.label_dt.setText('Δt = %.4f s' % dt)
 
 def main_exit():
-    global settings
+    """Save the state before quitting; connected to app.aboutToQuit, when the windows
+       are still alive. NB: quitting is always via app.quit(), never sys.exit() from
+       inside a Qt slot: raising SystemExit there finalises the interpreter (destroying
+       the QApplication) while the C++ event loop is still on the stack below, which
+       segfaults in sip depending on the destruction order."""
+    pw.ani.event_source.stop() # no more animation callbacks during teardown
     if pw.writer: # finalise the video file of an unfinished recording
         try: pw.stop_recording()
         except Exception: pass
@@ -50,9 +57,8 @@ def main_exit():
     settings.setValue('control_geometry', cw.saveGeometry())
     settings.setValue('control_windowState', cw.saveState())
     settings.setValue('show_text', cw.textcheck.isChecked())
-    del settings # to force the writing of settings to storage
+    settings.sync() # force the writing of settings to storage
     print('Exiting the program')
-    sys.exit()
 
 def stop_recording_ui():
     """Finalise the current recording and reflect it in the control window"""
@@ -60,32 +66,38 @@ def stop_recording_ui():
     cw.cw_record_reset('Saved %d frames to %s' % (nframes, filename))
 
 def step_forward():
-    global dt, anim_running
+    global dt, anim_running, single_step
     recorded = bool(pw.writer)
     if recorded: stop_recording_ui() # stopping the animation finishes the recording
     dt = abs(dt)
     cw.label_dt.setText('Δt = %.4f s' % dt)
     if not recorded: cw.status_msg.setText('Step forward') # keep the 'Saved ...' message visible
     anim_running = False
+    single_step = True
     pw.ani.resume()
 
 def step_backward():
-    global dt, anim_running
+    global dt, anim_running, single_step
     recorded = bool(pw.writer)
     if recorded: stop_recording_ui() # stopping the animation finishes the recording
     dt = -abs(dt)
     cw.label_dt.setText('Δt = %.4f s' % dt)
     if not recorded: cw.status_msg.setText('Step backward') # keep the 'Saved ...' message visible
     anim_running = False
+    single_step = True
     pw.ani.resume()
 
 def playpause():
-    global anim_running
+    global anim_running, frames, start_time
     recorded = anim_running and pw.writer
     if recorded: stop_recording_ui() # stopping the animation finishes the recording
     if not recorded: cw.status_msg.setText('Animation ' + ('paused' if anim_running else 'running')) # keep the 'Saved ...' message visible
     cw.playpausebtn.setIcon(cw.playicon if anim_running else cw.pauseicon)
-    pw.ani.pause() if anim_running else pw.ani.resume()
+    if anim_running:
+        pw.ani.pause()
+    else:
+        (frames, start_time) = (0, perf_counter()) # a fresh FPS measurement window
+        pw.ani.resume()
     anim_running = not anim_running
 
 PALETTE = ['b', 'k', 'r', 'g', 'm', 'c', 'y', 'orange', 'purple', 'brown']
@@ -96,6 +108,13 @@ def next_color():
     for c in PALETTE:
         if c not in used: return c
     return 'k'
+
+def color_icon(color):
+    """Return a small solid rectangle of the given colour, used as the icon of a
+       pendulum's tab so the user can see which tab controls which pendulum"""
+    pm = QPixmap(12, 12)
+    pm.fill(QColor(to_hex(color)))
+    return QIcon(pm)
 
 def state_str(p):
     """Return the state of pendulum p formatted for its state text artist.
@@ -155,6 +174,7 @@ class CaptionBar(QWidget):
         layout.addWidget(self.title)
         layout.addStretch(1)
         for b in (self.minbtn, self.maxbtn, self.closebtn):
+            b.setFocusPolicy(Qt.FocusPolicy.NoFocus)
             b.setStyleSheet(btnstyle)
             layout.addWidget(b)
         self.set_active(True)
@@ -240,6 +260,18 @@ class CaptionedWindow(QMainWindow):
         self.unsetCursor()
         super().leaveEvent(event)
 
+class CursorReset(QObject):
+    """Application-wide event filter (installed on the QApplication) resetting the
+       resize-feedback cursor of a CaptionedWindow as soon as the pointer enters any
+       of its child widgets. The window itself receives no mouse-move events while
+       the pointer is over a child, so without this the double-arrow cursor set over
+       the resize strip would stay stuck over the whole window."""
+    def eventFilter(self, obj, event):
+        if event.type() == QEvent.Type.Enter and isinstance(obj, QWidget):
+            win = obj.window()
+            if isinstance(win, CaptionedWindow) and obj is not win: win.unsetCursor()
+        return False
+
 class RecordableFuncAnimation(FuncAnimation):
     """FuncAnimation which pipes every frame composited on the screen to the recording
        ffmpeg process (if one is active) of the PlotWindow owning it. NB: this overrides
@@ -280,7 +312,7 @@ class PlotWindow(CaptionedWindow):
         self.ax2.set_xlim([-self.phi_range, self.phi_range])
         self.ax2.set_ylim([-self.phidot_range, self.phidot_range])
         self.phim,self.phidotm = mgrid[-self.phi_range:self.phi_range:self.phi_points*1j,-self.phidot_range:self.phidot_range:self.phidot_points*1j]
-        self.time_text = self.ax1.text(0.02, 0.05, '', transform=self.ax1.transAxes, animated=True)
+        self.time_text = self.ax1.text(0.02, 0.05, 'Time t=%.3f s' % t, transform=self.ax1.transAxes, animated=True)
         for p in pendulums: self.add_artists(p)
         self.restack_texts()
         self.points = self.ax2.scatter([], [], animated=True)
@@ -289,9 +321,18 @@ class PlotWindow(CaptionedWindow):
 
         def init_animate(): return tuple(p.line for p in pendulums)
         def animate(i):
-            global frames, start_time, t
-            if i == 0: return tuple(p.line for p in pendulums)
-            if not anim_running: pw.ani.pause()
+            global frames, start_time, t, single_step
+            artists = tuple(p.line for p in pendulums) + (pw.time_text,) + tuple(p.state_text for p in pendulums) + (pw.points,)
+            if i == 0: return artists
+            if not anim_running:
+                pw.ani.pause()
+                # while paused the timer may still fire once: at startup, and whenever
+                # refresh() runs (its _end_redraw() restarts the event source). Unless a
+                # single step was explicitly requested, the simulation must not advance.
+                if not single_step: return artists
+            # consume the step request; also clear one left stale by a step request
+            # that was superseded by free running before its frame could fire
+            single_step = False
             cw.time_lcd.display('%.3f' % t)
             cw.sync_current_tab()
             frames += 1
@@ -310,7 +351,7 @@ class PlotWindow(CaptionedWindow):
             for p in pendulums:
                 if p.live: p.evolve(t, t+dt)
             t += dt
-            return tuple(p.line for p in pendulums) + (pw.time_text,) + tuple(p.state_text for p in pendulums) + (pw.points,)
+            return artists
 
         self.ani = RecordableFuncAnimation(self, self.fig, animate, init_func=init_animate, blit=True, interval=0, cache_frame_data=False)
         self.canvas.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
@@ -441,7 +482,7 @@ class PlotWindow(CaptionedWindow):
         if event.key == ' ':
             playpause()
         elif event.key == 'ctrl+q':
-            main_exit()
+            app.quit()
         elif event.key == '+':
             self.ax1.set_xlim([-2,2])
             self.ax1.set_ylim([-2,2])
@@ -466,7 +507,7 @@ class PendulumTab(QWidget):
         super().__init__()
         self.p = p
         self.cw = cw
-        self.degrees = cw.degrees
+        self.degrees = False # angle units of this tab's φ and φ̇ fields: radians (False) or degrees (True)
         self.color = to_hex(p.color)
 
         self.phi_spin = QDoubleSpinBox(decimals=4)
@@ -477,6 +518,7 @@ class PendulumTab(QWidget):
         self.L_spin = QDoubleSpinBox(decimals=3, minimum=0.01, maximum=10.0, singleStep=0.1, suffix=' m')
         self.L_spin.setValue(p.L)
         self.colorbtn = QPushButton()
+        self.colorbtn.setFixedWidth(60)
         self.colorbtn.setStyleSheet('background-color: %s;' % self.color)
         self.colorbtn.clicked.connect(self.choose_color)
 
@@ -487,18 +529,35 @@ class PendulumTab(QWidget):
         self.set_editable(not p.live)
         self.delbtn = QPushButton('De&lete')
         self.delbtn.clicked.connect(self.delete)
+        # the units toggle is per-tab: it changes only how this tab displays φ and φ̇
+        # (the plot window always uses radians)
+        self.radbtn = QRadioButton('&Radians')
+        self.degbtn = QRadioButton('&Degrees')
+        self.radbtn.setChecked(True)
+        self.unitsgroup = QButtonGroup(self)
+        self.unitsgroup.addButton(self.radbtn)
+        self.unitsgroup.addButton(self.degbtn)
+        self.degbtn.toggled.connect(self.set_units)
+        # the buttons must never take keyboard focus, or pressing Space would 'click'
+        # whichever happened to be focused; they are operated by mouse or Alt+mnemonic
+        for b in (self.applybtn, self.startbtn, self.delbtn, self.colorbtn, self.radbtn, self.degbtn):
+            b.setFocusPolicy(Qt.FocusPolicy.NoFocus)
 
-        form = QFormLayout()
-        form.addRow('φ', self.phi_spin)
-        form.addRow('φ̇', self.phidot_spin)
-        form.addRow('L', self.L_spin)
-        form.addRow('Colour', self.colorbtn)
+        fields = QHBoxLayout()
+        for (label, spin) in (('φ', self.phi_spin), ('φ̇', self.phidot_spin), ('L', self.L_spin)):
+            fields.addWidget(QLabel(label))
+            fields.addWidget(spin)
+        fields.addStretch(1)
         buttons = QHBoxLayout()
         buttons.addWidget(self.applybtn)
         buttons.addWidget(self.startbtn)
         buttons.addWidget(self.delbtn)
+        buttons.addWidget(self.colorbtn)
+        buttons.addWidget(self.radbtn)
+        buttons.addWidget(self.degbtn)
+        buttons.addStretch(1)
         vbox = QVBoxLayout()
-        vbox.addLayout(form)
+        vbox.addLayout(fields)
         vbox.addLayout(buttons)
         vbox.addStretch(1)
         self.setLayout(vbox)
@@ -563,6 +622,7 @@ class PendulumTab(QWidget):
             p.phidot = self.phidot()
         p.L = self.L_spin.value()
         p.color = self.color
+        self.cw.tabs.setTabIcon(self.cw.tabs.indexOf(self), color_icon(p.color))
         pw.update_artists(p)
         pw.ani.resume()
         self.cw.status_msg.setText('Pendulum updated')
@@ -583,14 +643,12 @@ class PendulumTab(QWidget):
 class ControlWindow(CaptionedWindow):
     def __init__(self, geometry = None, state = None):
         super().__init__()
-        self.degrees = False # angle units of the pendulum tabs: radians (False) or degrees (True)
         self.cw_create_tabs()
         self.cw_create_menus()
         self.setup_caption(PROGRAM, below=self.menubar)
         self.cw_create_time_indicator()
         self.cw_create_statusbar()
         self.cw_create_slider()
-        self.cw_create_units()
 
         self.playicon = QIcon('icons/play.png')
         self.pauseicon = QIcon('icons/pause.png')
@@ -606,6 +664,12 @@ class ControlWindow(CaptionedWindow):
         self.textcheck.setChecked(settings.value('show_text', True, type=bool))
         if not self.textcheck.isChecked(): pw.set_show_text(False) # the plot shows the texts by default
         self.textcheck.toggled.connect(lambda checked: pw.set_show_text(checked))
+        # the buttons must never take keyboard focus, or pressing Space would 'click'
+        # whichever happened to be focused (stepping the animation, reversing dt via the
+        # rewind button, creating pendulums via '+'); mouse or Alt+mnemonic only
+        for b in (self.playpausebtn, self.frameforwardbtn, self.framebackbtn,
+                  self.recordbtn, self.textcheck, self.addbtn):
+            b.setFocusPolicy(Qt.FocusPolicy.NoFocus)
 
         self.cw_setup_layout()
 
@@ -630,10 +694,11 @@ class ControlWindow(CaptionedWindow):
         self.setCentralWidget(self.tabs)
 
     def add_tab(self, p):
-        """Create a new tab for pendulum p"""
+        """Create a new tab for pendulum p, marked with a swatch of its colour"""
         tab = PendulumTab(p, self)
         self.pendtabs.append(tab)
-        self.tabs.addTab(tab, 'Pendulum &%d' % len(self.pendtabs))
+        i = self.tabs.addTab(tab, 'Pendulum &%d' % len(self.pendtabs))
+        self.tabs.setTabIcon(i, color_icon(p.color))
         return tab
 
     def remove_tab(self, p):
@@ -653,11 +718,6 @@ class ControlWindow(CaptionedWindow):
         add_pendulum(p)
         self.tabs.setCurrentWidget(self.pendtabs[-1])
         self.status_msg.setText('Pendulum %d created, press Start on its tab to simulate it' % len(self.pendtabs))
-
-    def cw_units_changed(self, degrees):
-        """Switch all pendulum tabs between radians and degrees"""
-        self.degrees = degrees
-        for tab in self.pendtabs: tab.set_units(degrees)
 
     def cw_record(self):
         """Start recording the animation into a new video file, from the current moment.
@@ -699,7 +759,7 @@ class ControlWindow(CaptionedWindow):
         self.exitAction = QAction(QIcon('icons/exit.png'), 'E&xit', self)
         self.exitAction.setShortcut('Ctrl+Q')
         self.exitAction.setStatusTip('Save current state and exit')
-        self.exitAction.triggered.connect(main_exit)
+        self.exitAction.triggered.connect(app.quit)
         self.fileMenu.addAction(self.exitAction)
 
         self.tooltipsAction = QAction('Show &tooltips', self, checkable=True, checked=False)
@@ -728,17 +788,6 @@ class ControlWindow(CaptionedWindow):
         self.label_dt.setAlignment(Qt.AlignmentFlag.AlignLeft)
         self.label_dt.setMinimumWidth(120)
 
-    def cw_create_units(self):
-        """Create the radio buttons for the choice of angle units in the pendulum tabs"""
-        self.units_label = QLabel('Angle units:')
-        self.radbtn = QRadioButton('&Radians')
-        self.degbtn = QRadioButton('&Degrees')
-        self.radbtn.setChecked(True)
-        self.unitsgroup = QButtonGroup(self)
-        self.unitsgroup.addButton(self.radbtn)
-        self.unitsgroup.addButton(self.degbtn)
-        self.degbtn.toggled.connect(self.cw_units_changed)
-
     def cw_setup_layout(self):
         """Create and connect the layouts for the main control panel"""
         self.controls.grid = QGridLayout()
@@ -751,11 +800,8 @@ class ControlWindow(CaptionedWindow):
         self.controls.grid.addWidget(self.fps_label, 0, 5)
         self.controls.grid.addWidget(self.label_dt, 1, 0, 1, 3)
         self.controls.grid.addWidget(self.slider, 1, 3, 1, 2)
-        self.controls.grid.addWidget(self.units_label, 2, 0)
-        self.controls.grid.addWidget(self.radbtn, 2, 1)
-        self.controls.grid.addWidget(self.degbtn, 2, 2)
-        self.controls.grid.addWidget(self.recordbtn, 3, 0, 1, 2)
-        self.controls.grid.addWidget(self.textcheck, 3, 2, 1, 2)
+        self.controls.grid.addWidget(self.recordbtn, 2, 0, 1, 2)
+        self.controls.grid.addWidget(self.textcheck, 2, 2, 1, 2)
 
     def cw_create_time_indicator(self):
         """Create the label and LCD window for the current time and the FPS readout"""
@@ -786,8 +832,6 @@ class ControlWindow(CaptionedWindow):
             self.textcheck.setToolTip('Render the state and time texts in the plotting window')
             self.fps_label.setToolTip('Animation frames rendered per second')
             self.addbtn.setToolTip('Create a new pendulum')
-            self.radbtn.setToolTip('Show angles in radians')
-            self.degbtn.setToolTip('Show angles in degrees')
         else:
             self.playpausebtn.setToolTip(None)
             self.frameforwardbtn.setToolTip(None)
@@ -796,8 +840,6 @@ class ControlWindow(CaptionedWindow):
             self.label_dt.setToolTip(None)
             self.slider.setToolTip(None)
             self.addbtn.setToolTip(None)
-            self.radbtn.setToolTip(None)
-            self.degbtn.setToolTip(None)
             self.recordbtn.setToolTip(None)
             self.textcheck.setToolTip(None)
             self.fps_label.setToolTip(None)
@@ -813,9 +855,19 @@ pendulums = [
             ]
 
 app = QApplication(sys.argv)
+cursor_reset = CursorReset()
+app.installEventFilter(cursor_reset)
 settings = QSettings(COMPANY, PROG)
 pw = PlotWindow(geometry = settings.value('plot_geometry'), state = settings.value('plot_windowState'))
 
 cw = ControlWindow(geometry = settings.value('control_geometry'), state = settings.value('control_windowState'))
 app.aboutToQuit.connect(main_exit)
-sys.exit(app.exec())
+rc = app.exec()
+# Destroy the windows NOW, while the QApplication still exists. Left to the interpreter
+# shutdown, the garbage collector destroys the module globals in arbitrary order, and
+# whenever the QApplication went before the windows, destroying a QWidget after its
+# QApplication is a use-after-free inside Qt/sip: an intermittent SIGSEGV on exit.
+# collect() is needed because the windows sit in reference cycles (window <-> animation).
+del pw, cw
+collect()
+sys.exit(rc)
