@@ -30,7 +30,7 @@ LOGO = 'icons/Logo.jpg'
 
 t = 0.0 # global simulation time (the same for all pendulums)
 dt = 0.005 # initial ODE integration timestep
-dtlim = 1.0 #  -dtlim <= dt <= +dtlim
+dtlim = 1.0 #  -dtlim <= dt <= +dtlim, adjustable on the Control tab
 anim_running = False # if True start the animation immediately
 single_step = False # set by step_forward()/step_backward(): the next frame may advance the simulation while paused
 
@@ -40,6 +40,11 @@ frames = 0 ; start_time = perf_counter()
 def update_dt(value):
     global dt
     dt = value
+
+def update_dtlim(value):
+    global dtlim
+    dtlim = value
+    cw.dt_spin.setRange(-dtlim, dtlim) # clamps dt (via its valueChanged) if now out of range
 
 def main_exit():
     """Save the state before quitting; connected to app.aboutToQuit, when the windows
@@ -64,8 +69,17 @@ def stop_recording_ui():
     (nframes, filename) = pw.stop_recording()
     cw.cw_record_reset('Saved %d frames to %s' % (nframes, filename))
 
+def commit_dt_edits():
+    """Apply a Δt or |Δt|-limit value still being typed. Keyboard tracking is off on these
+       spinboxes, so a typed value is normally applied on Enter/focus-out only — but the
+       transport buttons never take keyboard focus, so clicking them commits any pending
+       edit here, or the animation would run with the old Δt while the field shows the new one."""
+    cw.dtlim_spin.interpretText() # the limit first: a new limit must be in force before Δt is parsed
+    cw.dt_spin.interpretText()
+
 def step_forward():
     global dt, anim_running, single_step
+    commit_dt_edits()
     recorded = bool(pw.writer)
     if recorded: stop_recording_ui() # stopping the animation finishes the recording
     dt = abs(dt)
@@ -77,6 +91,7 @@ def step_forward():
 
 def step_backward():
     global dt, anim_running, single_step
+    commit_dt_edits()
     recorded = bool(pw.writer)
     if recorded: stop_recording_ui() # stopping the animation finishes the recording
     dt = -abs(dt)
@@ -88,6 +103,7 @@ def step_backward():
 
 def playpause():
     global anim_running, frames, start_time
+    commit_dt_edits()
     recorded = anim_running and pw.writer
     if recorded: stop_recording_ui() # stopping the animation finishes the recording
     if not recorded: cw.status_msg.setText('Animation ' + ('paused' if anim_running else 'running')) # keep the 'Saved ...' message visible
@@ -98,6 +114,16 @@ def playpause():
         (frames, start_time) = (0, perf_counter()) # a fresh FPS measurement window
         pw.ani.resume()
     anim_running = not anim_running
+
+def reset_time():
+    """Reset the simulation time to zero. The states of the pendulums are unaffected:
+       the dynamics is autonomous, so t is only a label on the current state."""
+    global t
+    t = 0.0
+    cw.time_lcd.display('%.3f' % t)
+    if pw.show_text: pw.time_text.set_text('Time t=%.3f s' % t)
+    if not anim_running: pw.refresh() # repaint the new time now, no frame will do it for us
+    cw.status_msg.setText('Time reset to zero')
 
 PALETTE = ['b', 'k', 'r', 'g', 'm', 'c', 'y', 'orange', 'purple', 'brown']
 
@@ -285,6 +311,17 @@ class RecordableFuncAnimation(FuncAnimation):
         super()._post_draw(framedata, blit)
         if self.window.writer and framedata is not None: self.window.grab_frame()
 
+    def pause(self):
+        """Stop the animation timer. Overrides Animation.pause() WITHOUT its flipping of
+           the drawn artists to animated=False: our artists must stay animated forever,
+           or any full draw while paused (refresh(), a resize) would bake them into the
+           blitting background, leaving permanent ghosts on the plot."""
+        self.event_source.stop()
+
+    def resume(self):
+        """Restart the animation timer (counterpart of pause(), same NB applies)"""
+        self.event_source.start()
+
 class PlotWindow(CaptionedWindow):
     def __init__(self, geometry = None, state = None):
         super().__init__()
@@ -332,6 +369,14 @@ class PlotWindow(CaptionedWindow):
             # consume the step request; also clear one left stale by a step request
             # that was superseded by free running before its frame could fire
             single_step = False
+            # evolve first, then render: everything below shows the state at the new time.
+            # Evolving after rendering would leave the state one Δt ahead of the display,
+            # revealed only by the NEXT frame: the first step after a Δt change would
+            # visibly advance by the old Δt, and anything reading the state while paused
+            # (pendulum tabs, Stop) would disagree with the plot.
+            for p in pendulums:
+                if p.live: p.evolve(t, t+dt)
+            t += dt
             cw.time_lcd.display('%.3f' % t)
             cw.sync_current_tab()
             frames += 1
@@ -347,9 +392,6 @@ class PlotWindow(CaptionedWindow):
                 for p in pendulums: p.state_text.set_text(state_str(p))
                 pw.time_text.set_text("Time t=%.3f s" % t)
             pw.update_scatter()
-            for p in pendulums:
-                if p.live: p.evolve(t, t+dt)
-            t += dt
             return artists
 
         self.ani = RecordableFuncAnimation(self, self.fig, animate, init_func=init_animate, blit=True, interval=0, cache_frame_data=False)
@@ -588,7 +630,13 @@ class PendulumTab(QWidget):
 
     def set_units(self, degrees):
         """Redisplay the φ and φ̇ fields in the given angle units (the internal state is always radians)"""
+        # The fields hold display-rounded values, so when a field is merely mirroring the
+        # pendulum (equal to it within display precision), convert the exact state instead
+        # of the field: otherwise φ=0.4π displayed as 1.257 rad would become 72.021°.
+        tol = 0.0005/RAD2DEG if self.degrees else 0.0005 # half a display step, in radians
         phi, phidot = self.phi(), self.phidot()
+        if abs(phi - self.p.phi) < tol: phi = self.p.phi
+        if abs(phidot - self.p.phidot) < tol: phidot = self.p.phidot
         self.degrees = degrees
         self.set_unit_ranges()
         self.set_phi(phi)
@@ -659,6 +707,8 @@ class ControlWindow(CaptionedWindow):
         self.framebackbtn.clicked.connect(step_backward)
         self.recordbtn = QPushButton('&Record')
         self.recordbtn.clicked.connect(self.cw_record)
+        self.zerobtn = QPushButton('&Zero')
+        self.zerobtn.clicked.connect(reset_time)
         self.textcheck = QCheckBox('Show state &text')
         self.textcheck.setChecked(settings.value('show_text', True, type=bool))
         if not self.textcheck.isChecked(): pw.set_show_text(False) # the plot shows the texts by default
@@ -667,7 +717,7 @@ class ControlWindow(CaptionedWindow):
         # whichever happened to be focused (stepping the animation, reversing dt via the
         # rewind button, creating pendulums via '+'); mouse or Alt+mnemonic only
         for b in (self.playpausebtn, self.frameforwardbtn, self.framebackbtn,
-                  self.recordbtn, self.textcheck, self.addbtn):
+                  self.recordbtn, self.zerobtn, self.textcheck, self.addbtn):
             b.setFocusPolicy(Qt.FocusPolicy.NoFocus)
 
         self.cw_setup_layout()
@@ -779,7 +829,8 @@ class ControlWindow(CaptionedWindow):
         self.helpMenu.addAction(self.aboutQtAction)
 
     def cw_create_dt_control(self):
-        """Create the spinbox controlling the ODE integration timestep Δt (negative runs time backwards)"""
+        """Create the spinboxes controlling the ODE integration timestep Δt (negative runs
+           time backwards) and the limit of its allowed range"""
         self.dt_spin = QDoubleSpinBox(decimals=3, minimum=-dtlim, maximum=dtlim, singleStep=0.001, suffix=' s')
         self.dt_spin.setValue(dt)
         # apply typed values only on Enter/focus-out, not on every keystroke: the
@@ -787,6 +838,11 @@ class ControlWindow(CaptionedWindow):
         self.dt_spin.setKeyboardTracking(False)
         self.dt_spin.valueChanged.connect(update_dt)
         self.label_dt = QLabel('Δt:')
+        self.dtlim_spin = QDoubleSpinBox(decimals=3, minimum=0.001, maximum=100.0, singleStep=0.1, suffix=' s')
+        self.dtlim_spin.setValue(dtlim)
+        self.dtlim_spin.setKeyboardTracking(False)
+        self.dtlim_spin.valueChanged.connect(update_dtlim) # NB: connected after setValue(), while cw is not yet bound
+        self.label_dtlim = QLabel('|Δt| ≤')
 
     def cw_setup_layout(self):
         """Create and connect the layouts for the main control panel: one hbox per row
@@ -801,9 +857,12 @@ class ControlWindow(CaptionedWindow):
         row1.addSpacing(24)
         row1.addWidget(self.time_label)
         row1.addWidget(self.time_lcd)
+        row1.addWidget(self.zerobtn)
         row1.addSpacing(24)
         row1.addWidget(self.label_dt)
         row1.addWidget(self.dt_spin)
+        row1.addWidget(self.label_dtlim)
+        row1.addWidget(self.dtlim_spin)
         row1.addStretch(1)
         row2 = QHBoxLayout()
         row2.addWidget(self.recordbtn)
@@ -845,7 +904,9 @@ class ControlWindow(CaptionedWindow):
             self.frameforwardbtn.setToolTip('Step forward one time step')
             self.framebackbtn.setToolTip('Step back one time step')
             self.time_lcd.setToolTip('Simulation time in seconds')
+            self.zerobtn.setToolTip('Reset the simulation time to zero')
             self.dt_spin.setToolTip('ODE integration time step Δt in seconds; negative runs time backwards')
+            self.dtlim_spin.setToolTip('Largest |Δt| settable in the Δt field, in seconds')
             self.recordbtn.setToolTip('Record the animation to a video file until it is paused')
             self.textcheck.setToolTip('Render the state and time texts in the plotting window')
             self.fps_label.setToolTip('Animation frames rendered per second')
@@ -855,7 +916,9 @@ class ControlWindow(CaptionedWindow):
             self.frameforwardbtn.setToolTip(None)
             self.framebackbtn.setToolTip(None)
             self.time_lcd.setToolTip(None)
+            self.zerobtn.setToolTip(None)
             self.dt_spin.setToolTip(None)
+            self.dtlim_spin.setToolTip(None)
             self.addbtn.setToolTip(None)
             self.recordbtn.setToolTip(None)
             self.textcheck.setToolTip(None)

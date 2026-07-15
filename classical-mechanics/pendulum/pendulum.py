@@ -49,8 +49,8 @@ class Pendulum:
     def evolve(self, t1, t2):
         """Evolve the pendulum from the moment of time t1 to t2"""
         self.phi,self.phidot = odeint(self.__derivs, [self.phi,self.phidot], [t1, t2])[1]
-        # the phase space is a cylinder, so we must wrap phi around to remain within [-pi, pi]
-        if self.phi > pi:
-            self.phi -= 2*pi
-        elif self.phi < -pi:
-            self.phi += 2*pi
+        # the phase space is a cylinder, so we must wrap phi around to remain within [-pi, pi];
+        # modulo, not a single +-2*pi correction: one step may advance phi by more than 2*pi
+        # when |phidot*(t2-t1)| is large (the guard also keeps the phi=pi equilibrium at +pi)
+        if abs(self.phi) > pi:
+            self.phi = (self.phi + pi) % (2*pi) - pi
