@@ -44,6 +44,9 @@ class Pendulum:
 
     def __derivs(self, state, t):
         """Return the RHS of the ODEs of motion, used by .evolve() method"""
+        # zero the torque at phi = +-pi to pin the unstable equilibrium there: sin(pi) in
+        # floating point is ~1.2e-16, not 0, and this residual grows as exp(sqrt(G/L)*t)
+        # near the hyperbolic point, toppling the balanced pendulum in ~10 s at default G/L
         return [state[1], 0.0 if abs(state[0]) == pi else -self.G*sin(state[0])/self.L]
 
     def evolve(self, t1, t2):
@@ -51,6 +54,7 @@ class Pendulum:
         self.phi,self.phidot = odeint(self.__derivs, [self.phi,self.phidot], [t1, t2])[1]
         # the phase space is a cylinder, so we must wrap phi around to remain within [-pi, pi];
         # modulo, not a single +-2*pi correction: one step may advance phi by more than 2*pi
-        # when |phidot*(t2-t1)| is large (the guard also keeps the phi=pi equilibrium at +pi)
+        # when |phidot*(t2-t1)| is large; strict '>' leaves phi = +pi untouched, so the
+        # equilibrium pinned in __derivs() stays at +pi instead of being relabelled as -pi
         if abs(self.phi) > pi:
             self.phi = (self.phi + pi) % (2*pi) - pi
