@@ -1,0 +1,8 @@
+# Python
+backend/.venv/
+__pycache__/
+.pytest_cache/
+
+# Node / build artifacts (dist is rebuilt by start.sh)
+frontend/node_modules/
+frontend/dist/

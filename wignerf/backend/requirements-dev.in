@@ -1,0 +1,6 @@
+# Development/test dependencies. Locked with:
+#   uv pip compile requirements-dev.in -o requirements-dev.txt
+pytest
+httpx
+websockets
+anyio

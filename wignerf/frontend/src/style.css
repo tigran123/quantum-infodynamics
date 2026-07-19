@@ -1,0 +1,11 @@
+@import "tailwindcss";
+
+html, body, #app {
+  height: 100%;
+  margin: 0;
+  background: #0a0a0a;
+  /* The app is a fixed full-screen layout; page-level scrollbars must
+     never appear (variable-width live readouts would otherwise make them
+     flicker on every frame). Inner regions manage their own overflow. */
+  overflow: hidden;
+}

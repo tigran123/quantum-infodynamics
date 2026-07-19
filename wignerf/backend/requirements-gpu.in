@@ -1,0 +1,6 @@
+# GPU-only extra (install on CUDA hosts, never on the VPS). Locked with:
+#   uv pip compile requirements-gpu.in -o requirements-gpu.txt
+# Driver 580.xx (CUDA 13.0). The [ctk] extra ships the CUDA toolkit headers
+# from PyPI — cupy 14 JIT-compiles kernels and needs them even when only
+# the driver is installed system-wide.
+cupy-cuda13x[ctk]

@@ -1,0 +1,9 @@
+# Base runtime dependencies. Locked with:
+#   uv pip compile requirements.in -o requirements.txt
+fastapi
+uvicorn[standard]
+pydantic
+numpy
+scipy
+sympy
+pyfftw
