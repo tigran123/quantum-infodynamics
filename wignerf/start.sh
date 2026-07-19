@@ -5,7 +5,9 @@
 #
 # Env:
 #   WIGNERF_PORT        listen port (default 8010; 8000 is urantia-library's)
-#   WIGNERF_DEVICE      auto | cpu | cuda:N (default auto)
+#   WIGNERF_DEVICE      auto | cpu | cuda:N | comma list "cuda:1,cuda:0"
+#                       (default auto = all CUDA devices, fastest first;
+#                       sessions spread variant workers across the pool)
 #   WIGNERF_HISTORY_MB  frame-history cap per session (default 32768 = 32 GiB;
 #                       set lower on RAM-constrained hosts like the VPS)
 set -e

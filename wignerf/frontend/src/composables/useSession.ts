@@ -14,6 +14,7 @@ import { decodeFrame, type Frame } from '../lib/protocol'
 export interface VariantStatus {
   variant: string
   dt: number
+  device: string
   steps_per_sec: number
   steps_total: number
 }
@@ -31,6 +32,7 @@ export interface SessionStatus {
   t_extent: [number | null, number | null]
   cursor: number
   history_bytes: number
+  devices: string[]
   per_variant: VariantStatus[]
 }
 

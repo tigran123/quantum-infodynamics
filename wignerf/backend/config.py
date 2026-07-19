@@ -2,8 +2,11 @@
 Environment-driven configuration (same convention as urantia-library:
 per-machine values come from the environment, code holds the defaults).
 
-WIGNERF_DEVICE       auto | cpu | cuda:N   (auto prefers CUDA device 1 —
-                     device 0 drives the displays on the main workstation)
+WIGNERF_DEVICE       auto | cpu | cuda:N | comma list ("cuda:1,cuda:0").
+                     Names a device POOL: sessions spread variant workers
+                     across it, costliest variants to the fastest device.
+                     auto = all CUDA devices fastest-first, else cpu; an
+                     explicit list is trusted as written (order = speed).
 WIGNERF_PORT         backend port; 8010 because urantia-library owns 8000
                      on the dev machine
 WIGNERF_HISTORY_MB   in-RAM frame history cap per session (default 32 GiB:

@@ -5,12 +5,15 @@ Each SolverWorker owns its own ArrayBackend instance, so FFT plans and
 buffers are never shared between threads (pyFFTW plan execution is not
 re-entrant; CuPy device context is per-thread).
 
-Device selection string (config.py reads WIGNERF_DEVICE):
-  "auto"   - CUDA device 1 if cupy imports and a second GPU exists (device 0
-             drives the displays on the main workstation), else the only
-             CUDA device, else CPU.
-  "cpu"    - NumPy; FFT provider chain: pyfftw -> scipy.fft -> numpy.fft.
-  "cuda:N" - CuPy on CUDA device N.
+Device selection (config.py reads WIGNERF_DEVICE). The spec names a POOL:
+resolve_devices() expands it to an ordered list of concrete devices,
+fastest first, and each session spreads its variant workers over that list
+(core/session.py assign_devices). ArrayBackend itself always binds ONE
+concrete device.
+  "auto"          - all CUDA devices fastest-first if cupy imports, else CPU.
+  "cpu"           - NumPy; FFT provider chain: pyfftw -> scipy.fft -> numpy.fft.
+  "cuda:N"        - CuPy on CUDA device N.
+  "cuda:1,cuda:0" - explicit pool; the written order IS the speed ranking.
 """
 
 from contextlib import nullcontext
@@ -41,6 +44,47 @@ def _import_cupy():
     return None
 
 
+def _gpu_speed_key(cupy, i):
+    """Crude compute ranking: SM count first (82 on the 3090 vs 68 on the
+    2080 Ti), total memory as the tiebreak. clockRate is deprecated (reads
+    0 under CUDA 13) so it cannot participate."""
+    props = cupy.cuda.runtime.getDeviceProperties(i)
+    return (props["multiProcessorCount"], props["totalGlobalMem"])
+
+
+def resolve_devices(spec):
+    """Expand a WIGNERF_DEVICE spec into an ordered list of concrete device
+    strings ("cuda:N" / "cpu"), fastest first. An explicit comma list is
+    trusted as written — its order is the speed ranking."""
+    parts = [p.strip() for p in spec.split(",") if p.strip()]
+    if not parts:
+        raise ValueError("empty device spec %r" % spec)
+    if parts == ["auto"]:
+        cupy = _import_cupy()
+        if cupy is None:
+            return ["cpu"]
+        n = cupy.cuda.runtime.getDeviceCount()
+        order = sorted(range(n), key=lambda i: _gpu_speed_key(cupy, i),
+                       reverse=True)
+        return ["cuda:%d" % i for i in order]
+    if len(set(parts)) != len(parts):
+        raise ValueError("duplicate devices in %r" % spec)
+    for p in parts:
+        if p == "cpu":
+            continue
+        if p == "auto":
+            raise ValueError("'auto' cannot appear in a device list")
+        if not p.startswith("cuda"):
+            raise ValueError("unknown device spec %r" % p)
+        cupy = _import_cupy()
+        if cupy is None:
+            raise RuntimeError("%r requested but cupy/CUDA is not available" % p)
+        idx = int(p.split(":")[1]) if ":" in p else 0
+        if idx >= cupy.cuda.runtime.getDeviceCount():
+            raise RuntimeError("CUDA device %d does not exist" % idx)
+    return parts
+
+
 class ArrayBackend:
     def __init__(self, device="auto", fft_threads=1):
         self.fft_threads = max(1, int(fft_threads))
@@ -50,18 +94,8 @@ class ArrayBackend:
         self.fft_provider = None
 
         if device == "auto":
-            cupy = _import_cupy()
-            if cupy is not None:
-                # Pick the device with the most memory — on the main
-                # workstation that is the idle RTX 3090, not the smaller
-                # 2080 Ti that drives the displays.
-                n = cupy.cuda.runtime.getDeviceCount()
-                best = max(range(n), key=lambda i: cupy.cuda.runtime
-                           .getDeviceProperties(i)["totalGlobalMem"])
-                self._use_gpu(cupy, best)
-            else:
-                self._use_cpu()
-        elif device == "cpu":
+            device = resolve_devices("auto")[0]   # fastest device in the pool
+        if device == "cpu":
             self._use_cpu()
         elif device.startswith("cuda"):
             cupy = _import_cupy()

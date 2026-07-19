@@ -86,6 +86,42 @@ def test_four_concurrent_gpu_workers(gb):
         assert float(np.max(np.abs(r - results[0]))) == 0.0
 
 
+def test_multi_gpu_parity():
+    """The same evolution on two different physical cards must agree to
+    roundoff (cuFFT across architectures)."""
+    if cupy.cuda.runtime.getDeviceCount() < 2:
+        pytest.skip("needs >= 2 CUDA devices")
+    Wa = _evolve(ArrayBackend(device="cuda:0"), 100)
+    Wb = _evolve(ArrayBackend(device="cuda:1"), 100)
+    assert float(np.max(np.abs(Wa - Wb))) < 1e-10
+
+
+def test_concurrent_workers_across_two_gpus():
+    """The multi-GPU session model: four worker threads, two per device,
+    stepping concurrently — identical, finite results."""
+    if cupy.cuda.runtime.getDeviceCount() < 2:
+        pytest.skip("needs >= 2 CUDA devices")
+    results = [None]*4
+    errors = []
+
+    def work(i):
+        try:
+            b = ArrayBackend(device="cuda:%d" % (i % 2))
+            results[i] = _evolve(b, 60, N=128)
+        except Exception as e:                      # pragma: no cover
+            errors.append(e)
+
+    threads = [threading.Thread(target=work, args=(i,)) for i in range(4)]
+    for th in threads:
+        th.start()
+    for th in threads:
+        th.join(timeout=120)
+    assert not errors, errors
+    for r in results:
+        assert r is not None and np.isfinite(r).all()
+        assert float(np.max(np.abs(r - results[0]))) < 1e-10
+
+
 def test_gpu_memory_stable(gb):
     """Repeated evolution must not grow the memory pool unboundedly."""
     with gb.device():

@@ -3,7 +3,7 @@ Propagator throughput benchmark: steps/second per backend and grid size.
 
     .venv/bin/python scripts/bench.py [cpu] [cuda:1] ...
 
-No arguments: benchmarks cpu and, when available, cuda:1.
+No arguments: benchmarks cpu and every detected CUDA device.
 """
 
 import sys
@@ -15,7 +15,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from core.grid import Grid
 from core.initial import GaussianComponent, mixture_wigner
 from core.propagator import Propagator
-from core.xp import ArrayBackend
+from core.xp import ArrayBackend, resolve_devices
 
 HARMONIC = dict(U=lambda x: x**2/2., dUdx=lambda x: x)
 
@@ -40,7 +40,8 @@ def bench(device, N, nsteps=200):
 
 
 def main():
-    devices = sys.argv[1:] or ["cpu", "cuda:1"]
+    devices = sys.argv[1:] or ["cpu"] + [d for d in resolve_devices("auto")
+                                         if d != "cpu"]
     for dev in devices:
         for N in (256, 512, 1024):
             try:

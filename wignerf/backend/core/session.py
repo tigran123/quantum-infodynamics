@@ -1,6 +1,9 @@
 """
 SimSession: 1-4 SolverWorkers + SessionClock (the shared record-time grid
 and pacing policy) + FrameHistory + the handoff to the asyncio streamer.
+The device spec (WIGNERF_DEVICE) is resolved to a fastest-first pool and
+variant workers are spread over it (assign_devices) — each worker owns its
+own ArrayBackend, so multi-GPU needs no propagator changes.
 
 Pacing (see plan):
 - interactive: workers compute only while their frontier leads the display
@@ -22,7 +25,9 @@ import uuid
 from collections import deque
 
 from .history import FrameHistory
+from .protocol import VARIANTS
 from .worker import SolverWorker
+from .xp import resolve_devices
 
 log = logging.getLogger(__name__)
 
@@ -31,6 +36,26 @@ WS_IDLE_TTL = 120.0
 
 SESSIONS = {}
 _LOCK = threading.Lock()
+
+
+def assign_devices(variant_keys, devices):
+    """Map each variant to a device from the pool (both in given order;
+    devices are fastest first). Lockstep gates on the slowest worker, so
+    the costliest variants — relativistic need the most substeps per
+    record, quantum breaks the tie — go to the fastest device, which also
+    takes the larger share when the split is uneven. Returns {key: device}."""
+    cost = {k: (VARIANTS[k]["relativistic"], VARIANTS[k]["quantum"])
+            for k in variant_keys}
+    ranked = sorted(variant_keys, key=lambda k: cost[k], reverse=True)
+    ndev = min(len(devices), len(ranked))
+    base, extra = divmod(len(ranked), ndev)
+    out, i = {}, 0
+    for j in range(ndev):
+        n = base + (1 if j < extra else 0)
+        for k in ranked[i:i + n]:
+            out[k] = devices[j]
+        i += n
+    return out
 
 
 class SessionClock:
@@ -128,7 +153,7 @@ class SimSession:
         self.cfg = cfg
         self.compiled_potential = compiled_potential
         self.loop = loop
-        self.device = device
+        self.devices = resolve_devices(device)
         self.fft_threads = fft_threads
         self.history = FrameHistory(len(cfg.variants), history_bytes)
         self.clock = SessionClock(cfg.t1, cfg.record_dt, cfg.mode, cfg.rate, cfg.t2)
@@ -141,7 +166,8 @@ class SimSession:
         # on the user's explicit play/solve command. Run-ahead differs from
         # interactive solely in pacing once running (flat-out to t2 vs
         # cursor-gated).
-        self.workers = [SolverWorker(self, key, i)
+        assignment = assign_devices(cfg.variants, self.devices)
+        self.workers = [SolverWorker(self, key, i, assignment[key])
                         for i, key in enumerate(cfg.variants)]
 
     def start(self):
@@ -194,7 +220,9 @@ class SimSession:
             "t_extent": [t0, t1_],
             "cursor": self.clock.cursor,
             "history_bytes": self.history.nbytes(),
+            "devices": self.devices,
             "per_variant": [{"variant": w.key, "dt": w.dt,
+                             "device": w.device,
                              "steps_per_sec": round(w.steps_per_sec, 2),
                              "steps_total": w.steps_total}
                             for w in self.workers],

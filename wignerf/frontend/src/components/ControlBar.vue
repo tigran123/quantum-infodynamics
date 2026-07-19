@@ -94,10 +94,14 @@ const purity = computed(() => {
   const v = props.lastFrame?.variants[0]
   return v ? v.purity.toFixed(6) : '—'
 })
-const stepInfo = computed(() =>
-  (props.status?.per_variant ?? [])
-    .map((v) => `${v.variant}: dt=${v.dt.toExponential(2)} @${v.steps_per_sec}/s`)
-    .join('   '))
+const stepInfo = computed(() => {
+  // Tag each variant with its device only when the pool actually has
+  // more than one device — single-device setups keep the compact form.
+  const multi = (props.status?.devices?.length ?? 1) > 1
+  return (props.status?.per_variant ?? [])
+    .map((v) => `${v.variant}${multi ? `[${v.device}]` : ''}: dt=${v.dt.toExponential(2)} @${v.steps_per_sec}/s`)
+    .join('   ')
+})
 </script>
 
 <template>

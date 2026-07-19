@@ -28,11 +28,12 @@ _EXP_CACHE_MAX = 8
 
 
 class SolverWorker(threading.Thread):
-    def __init__(self, session, key, slot):
+    def __init__(self, session, key, slot, device):
         super().__init__(daemon=True, name="wignerf-%s-%s" % (session.id, key))
         self.session = session
         self.key = key
         self.slot = slot
+        self.device = device
         self.flavor = VARIANTS[key]
         self.cmd_q = queue.Queue()
         self.stop_evt = threading.Event()
@@ -80,7 +81,7 @@ class SolverWorker(threading.Thread):
 
     def _run(self):
         cfg = self.session.cfg
-        backend = ArrayBackend(device=self.session.device,
+        backend = ArrayBackend(device=self.device,
                                fft_threads=self.session.fft_threads)
         self._backend = backend
         with backend.device():
