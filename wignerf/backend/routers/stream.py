@@ -34,7 +34,8 @@ STATUS_PERIOD = 1.0
 
 async def _handle(msg, s, ws):
     if msg.type == "play":
-        s.clock.set_running(True)
+        # the frontier at play time decides playback-only vs solving
+        s.clock.set_running(True, s.history.latest_complete())
     elif msg.type == "pause":
         s.clock.set_running(False)
     elif msg.type == "rate":
@@ -87,6 +88,7 @@ async def _sender(ws, s, recv_task):
     last_sent = -1
     last_wall = monotonic()
     last_status = 0.0
+    last_running = s.clock.running
     await ws.send_text(json.dumps(s.status()))
     while not recv_task.done():
         now = monotonic()
@@ -146,7 +148,10 @@ async def _sender(ws, s, recv_task):
             first, last = s.history.extent()
             await ws.send_text(json.dumps({"type": "eviction",
                                            "new_extent": [first, last]}))
-        if now - last_status > STATUS_PERIOD:
+        # push status immediately on a running-state flip (auto-pause at the
+        # frontier, play/pause echo) — the 1 s cadence covers the rest
+        if s.clock.running != last_running or now - last_status > STATUS_PERIOD:
+            last_running = s.clock.running
             last_status = now
             await ws.send_text(json.dumps(s.status()))
 

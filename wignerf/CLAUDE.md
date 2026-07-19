@@ -48,7 +48,10 @@ then `uv pip compile requirements[-x].in -o requirements[-x].txt` and
 - **Sessions always start paused** (both modes): computation begins only on
   the explicit Solve/Play command. The transport button label predicts its
   effect: Solve = will compute, Play = pure history playback, Pause while
-  running. Setup persists in browser localStorage.
+  running. Playback-only runs (play pressed behind the frontier, or after a
+  finished run-ahead) auto-pause AT the frontier — they never roll into
+  computation; only an explicit Solve does (`SessionClock.stop_at_frontier`).
+  Setup persists in browser localStorage.
 - **Potentials** (`core/potential.py`): tokenize-screen (security boundary)
   → sympy parse → per-family validity. The Bopp arguments are REAL
   (x ∓ ħθ/2, complex dtype only): quantum needs U real+finite on the

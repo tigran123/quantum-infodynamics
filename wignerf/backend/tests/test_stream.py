@@ -72,6 +72,61 @@ def test_stream_play_pause_seek():
         assert client.delete("/api/sessions/%s" % info["session_id"]).json()["ok"]
 
 
+def test_interactive_playback_stops_at_frontier():
+    """Play pressed behind the frontier is playback-only: it must replay
+    history, auto-pause AT the frontier without computing a single new
+    record, and leave resumption of computation to an explicit play at the
+    frontier (the transport button's "Solve")."""
+    import time as _time
+    with TestClient(app) as client:
+        info = _mk(client)
+        sid = info["session_id"]
+        with client.websocket_connect(info["ws_url"]) as ws:
+            ws.send_text(json.dumps({"type": "play"}))
+            _recv_frames(ws, 6)
+            ws.send_text(json.dumps({"type": "pause"}))
+            _time.sleep(0.3)                    # let in-flight records land
+            frontier = client.get("/api/sessions/%s" % sid).json()["record_extent"][1]
+            assert frontier >= 5
+
+            ws.send_text(json.dumps({"type": "seek", "record": 0}))
+            ws.send_text(json.dumps({"type": "play"}))
+            paused = None
+            for _ in range(100):                # replay runs at 80 records/s
+                _time.sleep(0.05)
+                r = client.get("/api/sessions/%s" % sid).json()
+                if not r["running"]:
+                    paused = r
+                    break
+            assert paused is not None, "playback never auto-paused"
+            assert paused["record_extent"][1] == frontier, \
+                "playback rolled into computation"
+            assert paused["cursor"] == pytest.approx(frontier)
+
+            # the replay arrived in exact sequence and ends on the frontier
+            seen = []
+            for _ in range(200):
+                m = ws.receive()
+                if m.get("bytes"):
+                    k = protocol.unpack_frame(m["bytes"])[0]
+                    seen.append(k)
+                    if k == frontier and 0 in seen:
+                        break
+            tail = seen[seen.index(0):]
+            assert tail == sorted(tail) and tail[-1] == frontier
+
+            # play AT the frontier (= Solve) resumes computation
+            ws.send_text(json.dumps({"type": "play"}))
+            for _ in range(100):
+                _time.sleep(0.05)
+                r = client.get("/api/sessions/%s" % sid).json()
+                if r["record_extent"][1] > frontier:
+                    break
+            else:
+                raise AssertionError("Solve at the frontier did not compute")
+        client.delete("/api/sessions/%s" % sid)
+
+
 def test_two_variant_lockstep():
     with TestClient(app) as client:
         info = _mk(client, variants=("qn", "cn"))

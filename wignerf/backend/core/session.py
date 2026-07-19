@@ -69,6 +69,7 @@ class SessionClock:
         self.sign = 1
         self.running = False
         self.cursor = 0.0            # display position in record units
+        self.stop_at_frontier = False  # playback-only run: pause at frontier
         self.browsed = False         # runahead: user touched the timeline
         self._t = [self.t1]          # t of record k (append-only)
         self._anchor = (0, self.t1)  # (k, t) of the last sign change
@@ -86,20 +87,25 @@ class SessionClock:
         with self._cond:
             return self._t_of(k)
 
+    def _runahead_done(self, frontier):
+        if self.t2 is None:
+            return False
+        t_prev = self._t_of(frontier)
+        return (self.sign > 0 and t_prev >= self.t2 - 1e-12) or \
+               (self.sign < 0 and t_prev <= self.t2 + 1e-12)
+
     def next_target(self, frontier):
         """Next (k, t_k) for a worker whose newest record is `frontier`,
-        or None when it should idle (paused / lead-capped / done)."""
+        or None when it should idle (paused / lead-capped / playback / done)."""
         with self._cond:
             if not self.running:
                 return None
             k = frontier + 1
-            if self.mode == "interactive" and k - self.cursor > LEAD:
+            if self.mode == "interactive" and \
+               (self.stop_at_frontier or k - self.cursor > LEAD):
                 return None
-            if self.mode == "runahead" and self.t2 is not None:
-                t_prev = self._t_of(frontier)
-                if (self.sign > 0 and t_prev >= self.t2 - 1e-12) or \
-                   (self.sign < 0 and t_prev <= self.t2 + 1e-12):
-                    return None
+            if self.mode == "runahead" and self._runahead_done(frontier):
+                return None
             return k, self._t_of(k)
 
     def wait_work(self, timeout=0.1):
@@ -110,9 +116,21 @@ class SessionClock:
         with self._cond:
             self._cond.notify_all()
 
-    def set_running(self, v):
+    def set_running(self, v, latest_complete=None):
+        """`latest_complete` (the frontier at play time) decides whether this
+        run is playback-only: pressing play behind the frontier (interactive)
+        or after a finished run-ahead must replay history and PAUSE at the
+        end — computing new records is always an explicit request made AT
+        the frontier (the transport button shows "Solve" exactly then)."""
         with self._cond:
             self.running = bool(v)
+            if not self.running:
+                self.stop_at_frontier = False
+            elif latest_complete is not None:
+                if self.mode == "interactive":
+                    self.stop_at_frontier = self.cursor < latest_complete
+                else:
+                    self.stop_at_frontier = self._runahead_done(latest_complete)
             self._cond.notify_all()
 
     def set_rate(self, v):
@@ -129,13 +147,20 @@ class SessionClock:
         """Called by the streamer; returns the updated cursor. The cursor
         may lead the frontier by up to LEAD so workers keep computing.
         In runahead mode the cursor stays pinned to the frontier (newest-
-        frame preview while the timeline fills) until the user seeks."""
+        frame preview while the timeline fills) until the user seeks.
+        A playback-only run (stop_at_frontier) auto-pauses at the frontier
+        instead of rolling into computation."""
         with self._cond:
             if self.running:
                 self.cursor = min(self.cursor + self.rate*elapsed/self.record_dt,
                                   latest_complete + LEAD)
                 if self.mode == "runahead" and not self.browsed:
                     self.cursor = float(max(self.cursor, latest_complete))
+                if self.stop_at_frontier and \
+                   self.cursor >= latest_complete >= 0:
+                    self.cursor = float(latest_complete)
+                    self.running = False
+                    self.stop_at_frontier = False
                 self._cond.notify_all()
             return self.cursor
 

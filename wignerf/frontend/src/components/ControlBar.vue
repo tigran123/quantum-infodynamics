@@ -20,9 +20,10 @@ const rate = computed(() => props.status?.rate ?? 1.0)
  * Solve / Play / Pause — the label tells you IN ADVANCE what the button
  * will do: "Solve" = pressing it computes new records (GPU/CPU work);
  * "Play" = pure playback of already-computed history; "Pause" while
- * running. Interactive: playback while the cursor is behind the frontier
- * (it rolls into solving when it catches up). Run-ahead: solving until t2
- * is reached, pure playback afterwards.
+ * running. Playback-only runs auto-pause at the frontier (the backend
+ * flips running off and the button becomes "Solve") — computation only
+ * ever starts from an explicit Solve. Run-ahead: solving until t2 is
+ * reached, pure playback afterwards.
  */
 const playLabel = computed(() => {
   if (running.value) return 'Pause'
