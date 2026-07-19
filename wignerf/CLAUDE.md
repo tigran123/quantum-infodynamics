@@ -70,9 +70,11 @@ then `uv pip compile requirements[-x].in -o requirements[-x].txt` and
 `CUDA_DEVICE_ORDER=PCI_BUS_ID` so indices match nvidia-smi, and `auto`
 picks the largest-memory device (the idle RTX 3090 = cuda:1 on the main
 workstation; the 2080 Ti on cuda:0 drives the displays). GPU deps:
-`cupy-cuda13x[ctk]` — the `[ctk]` extra is REQUIRED (cupy 14 JIT-compiles
-kernels and needs the PyPI CUDA headers; only the driver is installed
-system-wide). RTX 3090: ~2400 steps/s at 512², ~550 at 1024², ~134 at
+`cupy-cuda13x[ctk]` — the `[ctk]` extra is REQUIRED (cupy JIT-compiles
+kernels at runtime via NVRTC — never nvcc — and needs the PyPI CUDA
+headers/libs; NO system CUDA Toolkit anywhere, only the driver). Note:
+CUDA 13 dropped Maxwell/Pascal/Volta — the dev workstation's GTX 1060
+(Pascal) needs `cupy-cuda12x[ctk]` instead. RTX 3090: ~2400 steps/s at 512², ~550 at 1024², ~134 at
 2048²; CPU (pyfftw): ~75 at 512². Previews always run on CPU by design.
 Workers release CuPy pool blocks back to the driver on session close
 (nvidia-smi "used" while running is pool recycling, not a leak).
@@ -125,7 +127,13 @@ the "flat purity line camouflaged on a gridline" bug was found.
    fork-at-the-end special case.
 2. **Save/load the whole simulation** to disk (config + history +
    checkpoints; own format, no legacy compatibility).
-3. mp4 export. Later: Lindblad dissipation (the propagator's exponent
+3. Multi-GPU: distribute variant workers across all CUDA devices
+   (`WIGNERF_DEVICE` as comma list / `auto` = all, fastest first;
+   relativistic variants to the faster card — lockstep gates on the
+   slowest worker; ~+40% expected for 2- and 4-variant runs on the
+   3090 + 2080 Ti pair). Workers are already fully independent per
+   device — no propagator changes needed.
+4. mp4 export. Later: Lindblad dissipation (the propagator's exponent
    construction is deliberately modular for it), multi-D.
 
 ## Conventions / gotchas
