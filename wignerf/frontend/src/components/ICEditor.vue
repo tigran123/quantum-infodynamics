@@ -10,7 +10,7 @@ import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { api } from '../api'
 import GridOverlay from './GridOverlay.vue'
 import { decodeFrame } from '../lib/protocol'
-import type { GridCfg, ICCfg, ICComponentCfg } from '../lib/config'
+import { defaultConfig, type GridCfg, type ICCfg, type ICComponentCfg } from '../lib/config'
 import { WignerRenderer } from '../render/WignerRenderer'
 
 const props = defineProps<{
@@ -141,6 +141,15 @@ function removeComponent(i: number) {
   scheduleRefresh()
 }
 
+function resetIC() {
+  if (!confirm('Reset the initial condition to the default single Gaussian?')) return
+  const d = defaultConfig().ic
+  props.ic.type = d.type
+  props.ic.components.splice(0, props.ic.components.length, ...d.components)
+  selected.value = 0
+  scheduleRefresh()
+}
+
 function setType(t: 'mixture' | 'cat') {
   props.ic.type = t
   for (const c of props.ic.components) {
@@ -215,6 +224,9 @@ onBeforeUnmount(() => {
       <button class="px-2 py-0.5 rounded bg-neutral-800 hover:bg-neutral-700 disabled:opacity-40"
               :disabled="ic.components.length <= 1"
               @click="removeComponent(selected)">−</button>
+      <button class="ml-auto px-2 py-0.5 rounded bg-neutral-800 hover:bg-neutral-700"
+              title="reset the IC to the default single Gaussian (takes effect on restart)"
+              @click="resetIC">↺ defaults</button>
     </div>
 
     <!-- step="any": with a discrete step= the browser rejects perfectly
