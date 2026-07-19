@@ -74,6 +74,27 @@ export function saveConfig(c: SimConfig) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(c))
 }
 
+/** Restore the whole setup to defaults IN PLACE — the view holds the
+ *  config in a long-lived reactive object, so nested objects/arrays must
+ *  be mutated, not replaced, for existing bindings to keep working (the
+ *  deep watcher then persists the defaults to localStorage). */
+export function resetToDefaults(c: SimConfig) {
+  const d = defaultConfig()
+  Object.assign(c.grid, d.grid)
+  c.ic.type = d.ic.type
+  c.ic.components.splice(0, c.ic.components.length, ...d.ic.components)
+  c.variants.splice(0, c.variants.length, ...d.variants)
+  c.potential = d.potential
+  c.mass = d.mass
+  c.c = d.c
+  c.hbar_eff = d.hbar_eff
+  c.tol = d.tol
+  c.record_dt = d.record_dt
+  c.rate = d.rate
+  c.mode = d.mode
+  c.t2 = d.t2
+}
+
 export function defaultConfig(): SimConfig {
   return {
     grid: { x1: -6.0, x2: 6.0, Nx: 256, p1: -7.0, p2: 7.0, Np: 256 },

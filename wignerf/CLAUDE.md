@@ -51,7 +51,9 @@ then `uv pip compile requirements[-x].in -o requirements[-x].txt` and
   running. Playback-only runs (play pressed behind the frontier, or after a
   finished run-ahead) auto-pause AT the frontier — they never roll into
   computation; only an explicit Solve does (`SessionClock.stop_at_frontier`).
-  Setup persists in browser localStorage.
+  Setup persists in browser localStorage; "↺ defaults" (IC editor) and
+  "Reset setup to defaults" (Setup panel) restore defaults in the form and
+  mark the session restart-dirty.
 - **Potentials** (`core/potential.py`): tokenize-screen (security boundary)
   → sympy parse → per-family validity. The Bopp arguments are REAL
   (x ∓ ħθ/2, complex dtype only): quantum needs U real+finite on the
