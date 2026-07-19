@@ -225,7 +225,7 @@ onBeforeUnmount(() => {
               :disabled="ic.components.length <= 1"
               @click="removeComponent(selected)">−</button>
       <button class="ml-auto px-2 py-0.5 rounded bg-neutral-800 hover:bg-neutral-700"
-              title="reset the IC to the default single Gaussian (takes effect on restart)"
+              title="reset the IC to the default single Gaussian"
               @click="resetIC">↺ defaults</button>
     </div>
 

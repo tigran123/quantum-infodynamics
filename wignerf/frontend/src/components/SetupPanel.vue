@@ -19,7 +19,7 @@ const emit = defineEmits<{
 
 /** Restore the persisted setup (grid, potential, physics, run mode, IC,
  *  variants) to defaults; display prefs (layout, grid lines) are separate
- *  localStorage keys and stay untouched. Takes effect on restart. */
+ *  localStorage keys and stay untouched. */
 function resetSetup() {
   if (!confirm('Reset the ENTIRE setup (grid, potential, physics, run mode, IC, variants) to defaults?')) return
   resetToDefaults(props.cfg)
@@ -139,7 +139,7 @@ function resetSetup() {
       <button class="w-full py-1.5 rounded bg-sky-800 hover:bg-sky-700 font-medium"
               @click="emit('restart')">Restart session</button>
       <button class="w-full py-1 rounded bg-neutral-800 hover:bg-neutral-700 text-xs text-neutral-300"
-              title="restore grid, potential, physics, run mode, IC and variants to their defaults — applied on the next restart"
+              title="restore grid, potential, physics, run mode, IC and variants to their defaults"
               @click="resetSetup">Reset setup to defaults</button>
     </section>
   </div>
