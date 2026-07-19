@@ -22,6 +22,7 @@
 
 import type { VariantFrame } from '../lib/protocol'
 import { bwrLUT } from '../lib/colormaps'
+import { perfInfo, perfStage } from '../lib/perf'
 
 const VS = `#version 300 es
 in vec2 aPos;
@@ -102,6 +103,15 @@ export class WignerRenderer {
     const gl = canvas.getContext('webgl2', { antialias: false })
     if (!gl) throw new Error('WebGL2 is not available')
     this.gl = gl
+    // expose the real renderer once — a "SwiftShader" here means software
+    // rendering, which caps large-grid playback at a few fps
+    if (!perfInfo.gl_renderer) {
+      const dbg = gl.getExtension('WEBGL_debug_renderer_info')
+      const name = String(gl.getParameter(
+        dbg ? dbg.UNMASKED_RENDERER_WEBGL : gl.RENDERER))
+      perfInfo.gl_renderer = name
+      console.info('wignerf WebGL renderer:', name)
+    }
     const prog = gl.createProgram()!
     gl.attachShader(prog, compile(gl, gl.VERTEX_SHADER, VS))
     gl.attachShader(prog, compile(gl, gl.FRAGMENT_SHADER, FS))
@@ -162,17 +172,20 @@ export class WignerRenderer {
   upload(v: VariantFrame, Nx: number, Np: number) {
     const gl = this.gl
     if (!gl) return
+    const t0 = performance.now()
     this.ensureTexture(Nx, Np)
     gl.activeTexture(gl.TEXTURE0)
     gl.bindTexture(gl.TEXTURE_2D, this.texW)
     gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, Np, Nx,
       gl.RED_INTEGER, gl.UNSIGNED_SHORT, v.wq)
     this.q = [v.wmin, v.wmax]
+    perfStage('upload', performance.now() - t0)
   }
 
   render() {
     const gl = this.gl
     if (!gl || !this.texW) return
+    const t0 = performance.now()
     const canvas = gl.canvas as HTMLCanvasElement
     const dpr = window.devicePixelRatio || 1
     const w = Math.max(1, Math.round(canvas.clientWidth * dpr))
@@ -188,6 +201,7 @@ export class WignerRenderer {
     gl.uniform2f(this.uC, c[0], c[1])
     gl.uniform2f(this.uSize, this.np, this.nx)
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4)
+    perfStage('draw', performance.now() - t0)
   }
 
   dispose() {

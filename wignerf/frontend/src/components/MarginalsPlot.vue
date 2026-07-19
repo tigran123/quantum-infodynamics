@@ -7,6 +7,7 @@
 import uPlot from 'uplot'
 import 'uplot/dist/uPlot.min.css'
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { perfStage } from '../lib/perf'
 import type { Frame } from '../lib/protocol'
 import { VARIANT_META, type VariantKey } from '../lib/variants'
 
@@ -24,7 +25,6 @@ const props = defineProps<{
 const el = ref<HTMLDivElement | null>(null)
 let chart: uPlot | null = null
 let unsub: (() => void) | null = null
-let pending = false
 let lastData: uPlot.AlignedData | null = null
 
 const axis = Array.from({ length: props.n },
@@ -69,20 +69,17 @@ onMounted(() => {
     if (chart && el.value) chart.setSize({ width: el.value.clientWidth, height: 130 })
   })
   ro.observe(el.value!)
+  // the session fan-out is already rAF-timed; the Float32Array views go
+  // into uPlot as-is (it only indexes them) — no Array.from boxing copies
   unsub = props.frameSource((f: Frame) => {
     if (!chart) return
     lastData = [
       axis,
-      ...f.variants.map((v) =>
-        Array.from(props.which === 'rho' ? v.rho : v.phi)),
-    ]
-    if (!pending) {
-      pending = true
-      requestAnimationFrame(() => {
-        pending = false
-        if (lastData) chart?.setData(lastData)
-      })
-    }
+      ...f.variants.map((v) => props.which === 'rho' ? v.rho : v.phi),
+    ] as unknown as uPlot.AlignedData
+    const t0 = performance.now()
+    chart.setData(lastData)
+    perfStage('plots', performance.now() - t0)
   })
   // grid-lines toggle: rebuild the chart in place, keeping the data — a
   // remount would blank the plot until the next frame arrives

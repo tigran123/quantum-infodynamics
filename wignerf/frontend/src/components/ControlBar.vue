@@ -2,6 +2,7 @@
 import { computed, nextTick, ref, watch } from 'vue'
 import type { Frame } from '../lib/protocol'
 import type { SessionStatus } from '../composables/useSession'
+import { displayInterval } from '../lib/perf'
 import { transportAction } from '../lib/transport'
 import { fmtEnergy, fmtTime } from '../lib/units'
 
@@ -19,23 +20,26 @@ const running = computed(() => props.status?.running ?? false)
 
 /**
  * Delay dial: how much time is injected between played-back frames.
- * Leftmost = 0 (the default) = as fast as this machine renders — the
- * server's replay slips on WS backpressure instead of skipping frames, so
- * 0 is always safe. To the right, DIAL_STEPS log-spaced values from 10 ms
- * up to 1.5 s per frame. Computation is NEVER paced by it (workers always
- * run flat out), and it is only settable while PAUSED: pause, change,
- * resume. The thumb position is local state (`dial`) so the 1 Hz status
- * echo cannot yank it around mid-drag; the echo re-syncs it when idle.
+ * Leftmost = "0" (the default) = one record per display refresh — the
+ * fastest speed at which EVERY frame is still painted. The client sends
+ * the measured refresh interval for it (the server keeps honest seconds),
+ * and every position is clamped to at least that interval, so delivery
+ * never outpaces painting and nothing is visually skipped. To the right,
+ * DIAL_STEPS log-spaced values from 20 ms up to 1.5 s per frame.
+ * Computation is NEVER paced by it (workers always run flat out), and it
+ * is only settable while PAUSED: pause, change, resume. The thumb
+ * position is local state (`dial`) so the 1 Hz status echo cannot yank it
+ * around mid-drag; the echo re-syncs it when idle.
  */
-const DELAY_MIN = 0.01
+const DELAY_MIN = 0.02
 const DELAY_MAX = 1.5
-const DIAL_STEPS = 45         // dial positions 0 (no delay) .. DIAL_STEPS
+const DIAL_STEPS = 45         // dial positions 0 (refresh-paced) .. DIAL_STEPS
 function dialToDelay(i: number): number {
   return i <= 0 ? 0
     : DELAY_MIN*Math.pow(DELAY_MAX/DELAY_MIN, (i - 1)/(DIAL_STEPS - 1))
 }
 function delayToDial(d: number): number {
-  if (d <= 0) return 0
+  if (d <= displayInterval()*1.05) return 0
   const i = 1 + (DIAL_STEPS - 1)
     * Math.log(d/DELAY_MIN) / Math.log(DELAY_MAX/DELAY_MIN)
   return Math.min(Math.max(Math.round(i), 1), DIAL_STEPS)
@@ -53,8 +57,9 @@ const delayLabel = computed(() => {
 const delayTitle = computed(() => running.value
   ? 'pause first to change the frame delay — it paces playback only '
     + '(computation always runs at full speed)'
-  : 'time injected between played-back frames — 0 (default) plays as fast '
-    + 'as this machine renders; frames are never skipped, playback slips instead')
+  : 'time injected between played-back frames — 0 (default) means one '
+    + 'frame per display refresh, the fastest speed at which every frame '
+    + 'is still painted')
 
 /**
  * Solve / Play / Pause — the label tells you IN ADVANCE what the button
@@ -85,7 +90,8 @@ function setDelay(ev: Event) {
   dialTouched = performance.now()
   const v = Number((ev.target as HTMLInputElement).value)
   dial.value = v
-  emit('command', { type: 'delay', seconds: dialToDelay(v) })
+  emit('command', { type: 'delay',
+                    seconds: Math.max(dialToDelay(v), displayInterval()) })
 }
 
 const t = computed(() => props.lastFrame ? fmtTime(props.lastFrame.t) : '—')

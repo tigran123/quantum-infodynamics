@@ -19,6 +19,7 @@ import SetupPanel from '../components/SetupPanel.vue'
 import Timeline from '../components/Timeline.vue'
 import { useSession } from '../composables/useSession'
 import { loadConfig, saveConfig } from '../lib/config'
+import { displayInterval } from '../lib/perf'
 import { transportAction } from '../lib/transport'
 import { ALL_VARIANTS, VARIANT_META, type VariantKey } from '../lib/variants'
 
@@ -63,6 +64,9 @@ let unsub: (() => void) | null = null
 function payload() {
   const p: Record<string, unknown> = JSON.parse(JSON.stringify(cfg))
   if (cfg.mode === 'interactive') delete p.t2
+  // delay 0 is the dial's "one frame per display refresh" position: the
+  // server needs honest seconds, and a fresh session must not flood
+  p.delay = Math.max(cfg.delay, displayInterval())
   return p
 }
 

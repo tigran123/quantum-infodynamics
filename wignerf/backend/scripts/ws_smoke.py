@@ -46,7 +46,10 @@ async def main():
         print("session", sid, "variants", info["variants"])
 
         ws_url = BASE.replace("http", "ws") + info["ws_url"]
-        async with websockets.connect(ws_url, max_size=64*1024*1024) as ws:
+        # compression=None: never negotiate permessage-deflate (12x slower
+        # for the multi-MiB frame bundles; the server disables it too)
+        async with websockets.connect(ws_url, max_size=64*1024*1024,
+                                      compression=None) as ws:
             await ws.send(json.dumps({"type": "play"}))
             frames, by_rec = [], {}
             while len(frames) < 20:

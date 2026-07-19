@@ -9,6 +9,7 @@
 
 import { ref, shallowRef } from 'vue'
 import { api } from '../api'
+import { perfDrop, perfFrame, perfMsg, perfStage } from '../lib/perf'
 import { decodeFrame, type Frame } from '../lib/protocol'
 
 export interface VariantStatus {
@@ -58,6 +59,37 @@ export function useSession() {
   const handlers = new Set<FrameHandler>()
   const closeHandlers = new Set<() => void>()
 
+  /**
+   * Frame fan-out is rAF-timed, one frame per animation frame: onmessage
+   * only decodes (zero-copy views — this keeps the socket drained) and
+   * enqueues; the drain paints. The delay dial's "0" position paces the
+   * server at the display refresh interval, so in normal operation every
+   * delivered record gets exactly one painted vsync — nothing is skipped.
+   * The depth cap is a safety valve for bursts after a stall (hidden tab,
+   * GC pause): drop to newest rather than grow without bound.
+   */
+  let queue: Frame[] = []
+  let rafPending = false
+
+  function drainOne() {
+    rafPending = false
+    const f = queue.shift()
+    if (!f) return
+    if (queue.length) scheduleDrain()
+    const t0 = performance.now()
+    lastFrame.value = f
+    handlers.forEach((h) => h(f))
+    perfFrame()
+    perfStage('fanout', performance.now() - t0)
+  }
+
+  function scheduleDrain() {
+    if (!rafPending) {
+      rafPending = true
+      requestAnimationFrame(drainOne)
+    }
+  }
+
   async function create(cfg: unknown): Promise<SessionInfo> {
     await destroy()
     const { data } = await api.post<SessionInfo>('/sessions', cfg)
@@ -68,6 +100,7 @@ export function useSession() {
 
   function open(wsUrl: string) {
     closedByUs = false
+    queue = []
     const proto = location.protocol === 'https:' ? 'wss:' : 'ws:'
     ws = new WebSocket(`${proto}//${location.host}${wsUrl}`)
     ws.binaryType = 'arraybuffer'
@@ -80,9 +113,16 @@ export function useSession() {
     }
     ws.onmessage = (ev) => {
       if (ev.data instanceof ArrayBuffer) {
+        const t0 = performance.now()
         const f = decodeFrame(ev.data)
-        lastFrame.value = f
-        handlers.forEach((h) => h(f))
+        perfStage('decode', performance.now() - t0)
+        perfMsg(ev.data.byteLength)
+        queue.push(f)
+        if (queue.length > 8) {
+          perfDrop(queue.length - 1)
+          queue = [queue[queue.length - 1]]
+        }
+        scheduleDrain()
       } else {
         const d = JSON.parse(ev.data as string)
         if (d.type === 'status') status.value = d as SessionStatus
@@ -131,6 +171,7 @@ export function useSession() {
     ws?.close()
     ws = null
     connected.value = false
+    queue = []
     lastFrame.value = null   // never replay a dead session's frame
     if (info.value) {
       const sid = info.value.session_id

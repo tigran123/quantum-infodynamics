@@ -21,7 +21,6 @@ const title = ref(props.label ?? '')
 const glError = ref('')
 const renderer = new WignerRenderer()
 let unsub: (() => void) | null = null
-let pending = false
 
 onMounted(() => {
   try {
@@ -30,18 +29,14 @@ onMounted(() => {
     glError.value = String(e)
     return
   }
+  // the session fan-out is already rAF-timed (one frame per animation
+  // frame), so upload + draw run directly, once per painted frame
   unsub = props.frameSource((f: Frame) => {
     const v = f.variants[props.variantIndex]
     if (!v) return
     if (!props.label) title.value = variantName(v.vid)
     renderer.upload(v, f.Nx, f.Np)
-    if (!pending) {
-      pending = true
-      requestAnimationFrame(() => {
-        pending = false
-        renderer.render()
-      })
-    }
+    renderer.render()
   })
 })
 

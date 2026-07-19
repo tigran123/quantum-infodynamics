@@ -35,10 +35,17 @@ then `uv pip compile requirements[-x].in -o requirements[-x].txt` and
   exact sequential records (replay/scrub). Computation ALWAYS runs at full
   speed in both modes — neither the dial nor a slow client ever throttles
   the workers; `delay` (seconds injected between played-back frames)
-  paces only the display. Its default 0 means "as fast as this machine
-  renders": replay never skips a record, it slips on WS backpressure when
-  the client can't keep up, so 0 is always safe; the UI dial is 0 plus a
-  log range 10 ms–1.5 s. A playback-only run must never coalesce to the
+  paces only the display. The dial's "0" position (default) means one
+  record per display refresh — the fastest speed at which every frame is
+  still painted: the client measures its refresh interval (lib/perf.ts)
+  and sends that as the delay, and every dial position is clamped to at
+  least it, so delivery never outpaces painting. Replay never skips a
+  record; it slips on WS backpressure when the client can't keep up. The
+  UI dial is "0" plus a log range 20 ms–1.5 s. Client frame fan-out is
+  rAF-timed (useSession: decode per message, paint one frame per
+  animation frame; small FIFO with drop-to-newest as a burst safety
+  valve), so texture uploads, uPlot updates and Vue reactivity run per
+  PAINTED frame by construction. A playback-only run must never coalesce to the
   frontier while sequential records are unsent (that would teleport
   playback to the end), and its auto-pause is delivery-aware — it fires
   only after the frontier record was SENT. The transport must stay
@@ -129,7 +136,7 @@ running is pool recycling, not a leak).
 cd backend && .venv/bin/pytest
 
 # live-server streaming smoke test (no browser)
-.venv/bin/uvicorn main:app --port 8010 &
+.venv/bin/uvicorn main:app --port 8010 --ws-per-message-deflate false &
 .venv/bin/python scripts/ws_smoke.py
 
 # throughput benchmark
@@ -151,6 +158,11 @@ headless Chrome via `puppeteer-core` (frontend devDep; system Chrome at
 plots expose `window.__wfSeries.<which>()` (poller state) and element
 screenshots of `.wf-plot` reveal what uPlot actually painted — this is how
 the "flat purity line camouflaged on a gridline" bug was found.
+`window.__wfPerf.snapshot()/reset()` (lib/perf.ts) exposes frame-pipeline
+counters: received/painted rates, MiB/s, queue drops, per-stage avg ms
+(decode/upload/draw/plots/fanout), the GL renderer string (SwiftShader
+here = software rendering, the classic cause of few-fps playback at large
+grids) and the measured refresh interval.
 
 ## Roadmap (v2, agreed 2026-07-19)
 
@@ -177,6 +189,13 @@ the "flat purity line camouflaged on a gridline" bug was found.
   anchor — harmonic quantum ≡ classical (Moyal terms vanish for quadratic
   H) is the strongest single check; run them after touching propagator,
   grid or fftshift bookkeeping.
+- **Always run uvicorn with `--ws-per-message-deflate false`** (start.sh
+  does). uvicorn's default permessage-deflate zlib-compresses every
+  multi-MiB frame bundle on the asyncio event loop and caps the stream at
+  ~10-25 records/s — measured 12x slower than uncompressed on localhost
+  (browsers silently negotiate the extension, so the slowdown looks like
+  a rendering problem; `__wfPerf` showing tiny stage times with a low
+  received_per_s is the tell).
 - pyFFTW plans are per-`ArrayBackend`-instance and must not be shared
   across threads; each worker owns its backend.
 - Relativistic variants: mc² cancels inside the propagator; observables

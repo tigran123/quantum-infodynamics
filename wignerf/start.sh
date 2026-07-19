@@ -31,4 +31,9 @@ if [ ! -d ../frontend/dist ]; then
     (cd ../frontend && npm ci && npm run build)
 fi
 
-exec .venv/bin/uvicorn main:app --host 127.0.0.1 --port "$PORT" --no-access-log
+# --ws-per-message-deflate false: uvicorn's default WS compression zlib-
+# squeezes every multi-MiB frame bundle on the event loop and caps the
+# stream at ~10-25 records/s (measured 12x slower than uncompressed on
+# localhost). The binary frames are already quantized; never compress.
+exec .venv/bin/uvicorn main:app --host 127.0.0.1 --port "$PORT" --no-access-log \
+     --ws-per-message-deflate false
