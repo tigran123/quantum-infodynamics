@@ -20,7 +20,10 @@ const props = defineProps<{
   showGrid?: boolean
 }>()
 
-const emit = defineEmits<{ (e: 'changed'): void }>()
+const emit = defineEmits<{
+  (e: 'changed'): void
+  (e: 'validity', valid: boolean): void
+}>()
 
 const canvas = ref<HTMLCanvasElement | null>(null)
 const overlay = ref<HTMLDivElement | null>(null)
@@ -32,6 +35,11 @@ let timer: ReturnType<typeof setTimeout> | null = null
 let dragging = -1
 
 const state = reactive({ previewOk: false, error: '' })
+
+// gate for the transport Solve: an IC (or grid) the preview endpoint
+// rejects must not coexist with a running computation; starts pessimistic
+// until the first preview lands
+watch(() => state.previewOk, (v) => emit('validity', v), { immediate: true })
 
 function derivedSigmaP(sx: number): number {
   return props.hbarEff / (2 * sx)

@@ -15,6 +15,7 @@ const emit = defineEmits<{
   (e: 'restart'): void
   (e: 'dirty'): void
   (e: 'apply-live', params: Record<string, unknown>): void
+  (e: 'potential-validity', valid: boolean): void
 }>()
 
 /** Restore the persisted setup (grid, potential, physics, run mode, IC,
@@ -32,9 +33,10 @@ function resetSetup() {
     <PotentialEditor
       v-model="props.cfg.potential"
       :grid="props.cfg.grid" :hbar-eff="props.cfg.hbar_eff"
-      :live="live"
+      :live="live" :variants="props.cfg.variants"
       @update:model-value="emit('dirty')"
       @apply-live="(expr) => emit('apply-live', { U: expr })"
+      @validity="(v) => emit('potential-validity', v)"
     />
 
     <section class="space-y-1.5">

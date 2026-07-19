@@ -19,6 +19,7 @@ import SetupPanel from '../components/SetupPanel.vue'
 import Timeline from '../components/Timeline.vue'
 import { useSession } from '../composables/useSession'
 import { loadConfig, saveConfig } from '../lib/config'
+import { transportAction } from '../lib/transport'
 import { ALL_VARIANTS, VARIANT_META, type VariantKey } from '../lib/variants'
 
 const session = useSession()
@@ -28,6 +29,16 @@ const restartCount = ref(0)
 const showSetup = ref(true)
 const restartNeeded = ref(false)
 const reconnecting = ref(false)
+
+// Solve gate: the transport must not start a computation while the setup
+// form holds invalid data (family-invalid potential draft, IC the preview
+// endpoint rejects). The editors emit their verdicts after every compile/
+// preview round-trip; hiding the setup discards the (unapplied) drafts, so
+// the gate reopens.
+const potentialValid = ref(false)
+const icValid = ref(false)
+const setupValid = computed(() =>
+  !showSetup.value || (potentialValid.value && icValid.value))
 
 const layout = ref<'landscape' | 'portrait'>(
   (localStorage.getItem('wignerf.layout') as 'landscape' | 'portrait') ?? 'landscape')
@@ -132,7 +143,12 @@ function onKey(ev: KeyboardEvent) {
   if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return
   if (ev.code === 'Space') {
     ev.preventDefault()
-    session.send({ type: session.status.value?.running ? 'pause' : 'play' })
+    // same gate as the transport button: never start a computation
+    // (action 'solve') while the setup form is invalid
+    const act = transportAction(session.status.value,
+                                session.lastFrame.value?.record ?? null)
+    if (act === 'solve' && !setupValid.value) return
+    session.send({ type: act === 'pause' ? 'pause' : 'play' })
   } else if (ev.code === 'KeyR') {
     const sign = session.status.value?.sign ?? 1
     session.send({ type: 'set_params', params: { dt_sign: sign > 0 ? -1 : 1 } })
@@ -192,9 +208,11 @@ onBeforeUnmount(() => {
       <aside v-if="showSetup" class="w-80 shrink-0 overflow-y-auto space-y-4 pr-1 text-sm">
         <SetupPanel :cfg="cfg" :live="session.connected.value" :sign="session.status.value?.sign ?? 1" v-model:show-grid="showGrid"
                     @dirty="restartNeeded = true" @restart="restart"
-                    @apply-live="applyLive" />
+                    @apply-live="applyLive"
+                    @potential-validity="(v: boolean) => potentialValid = v" />
         <ICEditor :ic="cfg.ic" :grid="cfg.grid" :hbar-eff="cfg.hbar_eff"
-                  :show-grid="showGrid" @changed="restartNeeded = true" />
+                  :show-grid="showGrid" @changed="restartNeeded = true"
+                  @validity="(v: boolean) => icValid = v" />
       </aside>
 
       <div class="flex-1 min-w-0 min-h-0">
@@ -217,11 +235,13 @@ onBeforeUnmount(() => {
         <div class="overflow-y-auto min-h-0 pr-1">
           <SetupPanel :cfg="cfg" :live="session.connected.value" :sign="session.status.value?.sign ?? 1" v-model:show-grid="showGrid"
                       @dirty="restartNeeded = true" @restart="restart"
-                      @apply-live="applyLive" />
+                      @apply-live="applyLive"
+                      @potential-validity="(v: boolean) => potentialValid = v" />
         </div>
         <div class="overflow-y-auto min-h-0 pr-1">
           <ICEditor :ic="cfg.ic" :grid="cfg.grid" :hbar-eff="cfg.hbar_eff"
-                    :show-grid="showGrid" @changed="restartNeeded = true" />
+                    :show-grid="showGrid" @changed="restartNeeded = true"
+                    @validity="(v: boolean) => icValid = v" />
         </div>
         <div class="overflow-y-auto min-h-0 pr-1">
           <PlotsColumn :frame-source="session.onFrame" :session-id="sessionId"
@@ -249,6 +269,7 @@ onBeforeUnmount(() => {
     <ControlBar
       :status="session.status.value"
       :last-frame="session.lastFrame.value"
+      :setup-valid="setupValid"
       @command="session.send"
     />
   </div>

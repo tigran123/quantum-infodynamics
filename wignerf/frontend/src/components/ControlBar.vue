@@ -2,11 +2,13 @@
 import { computed, nextTick, ref } from 'vue'
 import type { Frame } from '../lib/protocol'
 import type { SessionStatus } from '../composables/useSession'
+import { transportAction } from '../lib/transport'
 import { fmtEnergy, fmtTime } from '../lib/units'
 
 const props = defineProps<{
   status: SessionStatus | null
   lastFrame: Frame | null
+  setupValid: boolean
 }>()
 
 const emit = defineEmits<{
@@ -23,26 +25,19 @@ const rate = computed(() => props.status?.rate ?? 1.0)
  * running. Playback-only runs auto-pause at the frontier (the backend
  * flips running off and the button becomes "Solve") — computation only
  * ever starts from an explicit Solve. Run-ahead: solving until t2 is
- * reached, pure playback afterwards.
+ * reached, pure playback afterwards. Solve is DISABLED while the setup
+ * form holds invalid data (potential draft / IC preview) — computing
+ * while the visible setup is broken misleads; playback stays allowed.
  */
-const playLabel = computed(() => {
-  if (running.value) return 'Pause'
-  const st = props.status
-  if (!st) return 'Solve'
-  const last = st.record_extent?.[1] ?? -1
-  if (last < 0) return 'Solve'
-  if (st.mode === 'runahead') {
-    const tEnd = st.t_extent?.[1]
-    const done = st.t2 != null && tEnd != null &&
-      (st.sign > 0 ? tEnd >= st.t2 - 1e-9 : tEnd <= st.t2 + 1e-9)
-    return done ? 'Play' : 'Solve'
-  }
-  const cur = props.lastFrame?.record ?? st.cursor
-  return cur < last ? 'Play' : 'Solve'
-})
+const action = computed(() =>
+  transportAction(props.status, props.lastFrame?.record ?? null))
+const playLabel = computed(() =>
+  action.value === 'pause' ? 'Pause' : action.value === 'play' ? 'Play' : 'Solve')
+const solveBlocked = computed(() => action.value === 'solve' && !props.setupValid)
 
 function togglePlay() {
-  emit('command', { type: running.value ? 'pause' : 'play' })
+  if (solveBlocked.value) return
+  emit('command', { type: action.value === 'pause' ? 'pause' : 'play' })
 }
 
 function setRate(ev: Event) {
@@ -110,12 +105,15 @@ const stepInfo = computed(() => {
        never change the layout (page scrollbars used to flicker). -->
   <div class="flex items-center gap-4 px-3 py-2 bg-neutral-900 border-t border-neutral-800 text-sm text-neutral-200 whitespace-nowrap overflow-hidden">
     <button
-      class="w-20 py-1 shrink-0 rounded font-medium"
+      class="w-20 py-1 shrink-0 rounded font-medium disabled:opacity-40 disabled:cursor-not-allowed"
       :class="playLabel === 'Solve' ? 'bg-pink-800 hover:bg-pink-700'
                                     : 'bg-sky-700 hover:bg-sky-600'"
-      :title="playLabel === 'Solve'
-        ? 'will compute new records (GPU/CPU work)'
-        : playLabel === 'Play' ? 'pure playback of computed history' : ''"
+      :disabled="solveBlocked"
+      :title="solveBlocked
+        ? 'setup is invalid — fix the potential / initial condition first'
+        : playLabel === 'Solve'
+          ? 'will compute new records (GPU/CPU work)'
+          : playLabel === 'Play' ? 'pure playback of computed history' : ''"
       @click="togglePlay"
     >{{ playLabel }}</button>
 

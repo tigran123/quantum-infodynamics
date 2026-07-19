@@ -45,6 +45,10 @@ then `uv pip compile requirements[-x].in -o requirements[-x].txt` and
   manual bilinear with periodic wrap, diverging LUT centered at W=0).
 - **Parameter policy**: U(x), c, mass, hbar_eff, tol, dt_sign apply live at
   the frontier; grid/IC/variant-set changes require a session restart.
+  The setup form gates the transport: while the potential draft is invalid
+  for the active variant families or the IC preview errors, Solve (button
+  AND Space) is disabled and "Use at restart"/"Apply live" are greyed —
+  a computation must never run behind a visibly broken form.
 - **Sessions always start paused** (both modes): computation begins only on
   the explicit Solve/Play command. The transport button label predicts its
   effect: Solve = will compute, Play = pure history playback, Pause while

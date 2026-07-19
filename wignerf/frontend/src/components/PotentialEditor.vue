@@ -6,23 +6,29 @@
  * extended Bopp range; classical needs a delta-free dU/dx).
  *
  * "Apply live" pushes the new U into the RUNNING session (set_params);
- * "Use at restart" only updates the config for the next restart.
+ * "Use at restart" only updates the config for the next restart. Both are
+ * disabled while the draft is invalid for the ACTIVE variant families,
+ * and that validity is emitted upward — the transport Solve is gated on
+ * it (an invalid form must never coexist with a running computation).
  */
 import uPlot from 'uplot'
 import 'uplot/dist/uPlot.min.css'
-import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { api } from '../api'
+import type { VariantKey } from '../lib/variants'
 
 const props = defineProps<{
   modelValue: string
   grid: { x1: number; x2: number; Nx: number; p1: number; p2: number; Np: number }
   hbarEff: number
   live: boolean          // a session is running -> allow live apply
+  variants: VariantKey[] // active selection: decides which families must be valid
 }>()
 
 const emit = defineEmits<{
   (e: 'update:modelValue', v: string): void
   (e: 'applyLive', expr: string): void
+  (e: 'validity', valid: boolean): void
 }>()
 
 interface PreviewResult {
@@ -58,10 +64,24 @@ async function compile() {
   }
 }
 
-watch(draft, () => {
+// grid/ℏ changes move the extended Bopp range, so they can flip validity
+// (a pole may enter it) — recompile on those too, not just on typing
+watch([draft, () => props.grid, () => props.hbarEff], () => {
   if (timer) clearTimeout(timer)
   timer = setTimeout(compile, 300)
+}, { deep: true })
+
+/** Valid for the CURRENT variant selection: each active family must
+ *  accept the draft (an inactive family's ✗ doesn't block). */
+const draftValid = computed(() => {
+  const r = result.value
+  if (!r?.ok) return false
+  const needQ = props.variants.some((v) => v.startsWith('q'))
+  const needC = props.variants.some((v) => v.startsWith('c'))
+  return (!needQ || !!r.validity?.quantum) && (!needC || !!r.validity?.classical)
 })
+// immediate: the gate starts pessimistic until the first compile lands
+watch(draftValid, (v) => emit('validity', v), { immediate: true })
 
 onMounted(() => {
   chart = new uPlot(
@@ -95,7 +115,9 @@ onBeforeUnmount(() => chart?.destroy())
 
 <template>
   <section class="space-y-1.5">
-    <h3 class="text-xs font-semibold text-neutral-400 uppercase tracking-wider">Potential U(x)</h3>
+    <!-- the header's `uppercase` styling must not mangle math notation:
+         U(x) keeps its case -->
+    <h3 class="text-xs font-semibold text-neutral-400 uppercase tracking-wider">Potential <span class="normal-case">U(x)</span></h3>
     <input
       v-model="draft"
       spellcheck="false"
@@ -127,12 +149,13 @@ onBeforeUnmount(() => chart?.destroy())
     <div class="flex gap-2">
       <button
         class="flex-1 py-1 rounded bg-neutral-800 hover:bg-neutral-700 text-xs disabled:opacity-40"
-        :disabled="!result?.ok"
+        :disabled="!draftValid"
+        :title="draftValid ? '' : 'invalid for the active variants — see the reasons above'"
         @click="emit('update:modelValue', draft)"
       >Use at restart</button>
       <button
         class="flex-1 py-1 rounded bg-pink-800 hover:bg-pink-700 text-xs disabled:opacity-40"
-        :disabled="!result?.ok || !live"
+        :disabled="!draftValid || !live"
         title="push into the running session at the frontier"
         @click="emit('applyLive', draft)"
       >Apply live</button>
