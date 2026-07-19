@@ -25,7 +25,7 @@ export interface SessionStatus {
   running: boolean
   mode: 'interactive' | 'runahead'
   t2: number | null
-  rate: number
+  delay: number
   sign: number
   record_dt: number
   record_extent: [number, number]
@@ -94,7 +94,15 @@ export function useSession() {
   }
 
   function send(cmd: Record<string, unknown>) {
-    if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(cmd))
+    if (!ws || ws.readyState !== WebSocket.OPEN) return
+    ws.send(JSON.stringify(cmd))
+    // Optimistic transport echo: on a busy stream the authoritative status
+    // can queue behind binary frames for a while; the button must flip NOW
+    // or the user's next click computes the WRONG command (a "pause" click
+    // on a stale not-running status sends play). The server's echo (sent
+    // ahead of frame bursts) confirms or corrects shortly after.
+    if (status.value && (cmd.type === 'play' || cmd.type === 'pause'))
+      status.value = { ...status.value, running: cmd.type === 'play' }
   }
 
   /** Register a raw-frame handler; returns the unsubscribe function.

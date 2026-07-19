@@ -36,7 +36,7 @@ export interface SimConfig {
   hbar_eff: number
   tol: number
   record_dt: number
-  rate: number
+  delay: number
   mode: 'interactive' | 'runahead'
   t2: number
 }
@@ -57,7 +57,7 @@ export function loadConfig(): SimConfig {
         d.ic.components = s.ic.components
       }
       for (const k of ['potential', 'mass', 'c', 'hbar_eff', 'tol',
-                       'record_dt', 'rate', 'mode', 't2'] as const) {
+                       'record_dt', 'delay', 'mode', 't2'] as const) {
         if (k in s) (d as unknown as Record<string, unknown>)[k] = s[k]
       }
       if (Array.isArray(s.variants)) {
@@ -90,7 +90,7 @@ export function resetToDefaults(c: SimConfig) {
   c.hbar_eff = d.hbar_eff
   c.tol = d.tol
   c.record_dt = d.record_dt
-  c.rate = d.rate
+  c.delay = d.delay
   c.mode = d.mode
   c.t2 = d.t2
 }
@@ -114,7 +114,7 @@ export function defaultConfig(): SimConfig {
     hbar_eff: 1.0,
     tol: 0.01,
     record_dt: 0.05,
-    rate: 1.0,
+    delay: 0.0,   // seconds injected between played-back frames (0 = max speed)
     mode: 'interactive',
     t2: 20.0,
   }

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, ref } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import type { Frame } from '../lib/protocol'
 import type { SessionStatus } from '../composables/useSession'
 import { transportAction } from '../lib/transport'
@@ -16,7 +16,45 @@ const emit = defineEmits<{
 }>()
 
 const running = computed(() => props.status?.running ?? false)
-const rate = computed(() => props.status?.rate ?? 1.0)
+
+/**
+ * Delay dial: how much time is injected between played-back frames.
+ * Leftmost = 0 (the default) = as fast as this machine renders — the
+ * server's replay slips on WS backpressure instead of skipping frames, so
+ * 0 is always safe. To the right, DIAL_STEPS log-spaced values from 10 ms
+ * up to 1.5 s per frame. Computation is NEVER paced by it (workers always
+ * run flat out), and it is only settable while PAUSED: pause, change,
+ * resume. The thumb position is local state (`dial`) so the 1 Hz status
+ * echo cannot yank it around mid-drag; the echo re-syncs it when idle.
+ */
+const DELAY_MIN = 0.01
+const DELAY_MAX = 1.5
+const DIAL_STEPS = 45         // dial positions 0 (no delay) .. DIAL_STEPS
+function dialToDelay(i: number): number {
+  return i <= 0 ? 0
+    : DELAY_MIN*Math.pow(DELAY_MAX/DELAY_MIN, (i - 1)/(DIAL_STEPS - 1))
+}
+function delayToDial(d: number): number {
+  if (d <= 0) return 0
+  const i = 1 + (DIAL_STEPS - 1)
+    * Math.log(d/DELAY_MIN) / Math.log(DELAY_MAX/DELAY_MIN)
+  return Math.min(Math.max(Math.round(i), 1), DIAL_STEPS)
+}
+const dial = ref(delayToDial(props.status?.delay ?? 0))
+let dialTouched = 0
+watch(() => props.status?.delay, (d) => {
+  if (d != null && performance.now() - dialTouched > 750)
+    dial.value = delayToDial(d)
+})
+const delayLabel = computed(() => {
+  const d = dialToDelay(dial.value)
+  return d === 0 ? '0' : d < 1 ? `${Math.round(d*1000)} ms` : `${d.toFixed(1)} s`
+})
+const delayTitle = computed(() => running.value
+  ? 'pause first to change the frame delay — it paces playback only '
+    + '(computation always runs at full speed)'
+  : 'time injected between played-back frames — 0 (default) plays as fast '
+    + 'as this machine renders; frames are never skipped, playback slips instead')
 
 /**
  * Solve / Play / Pause — the label tells you IN ADVANCE what the button
@@ -35,14 +73,19 @@ const playLabel = computed(() =>
   action.value === 'pause' ? 'Pause' : action.value === 'play' ? 'Play' : 'Solve')
 const solveBlocked = computed(() => action.value === 'solve' && !props.setupValid)
 
-function togglePlay() {
+function togglePlay(ev?: Event) {
+  // drop focus so a later Space is the global shortcut, never a second
+  // native click on this button (double-fire made Space look erratic)
+  ;(ev?.currentTarget as HTMLElement | null)?.blur()
   if (solveBlocked.value) return
   emit('command', { type: action.value === 'pause' ? 'pause' : 'play' })
 }
 
-function setRate(ev: Event) {
+function setDelay(ev: Event) {
+  dialTouched = performance.now()
   const v = Number((ev.target as HTMLInputElement).value)
-  emit('command', { type: 'rate', au_per_second: Math.pow(10, v) })
+  dial.value = v
+  emit('command', { type: 'delay', seconds: dialToDelay(v) })
 }
 
 const t = computed(() => props.lastFrame ? fmtTime(props.lastFrame.t) : '—')
@@ -112,16 +155,21 @@ const stepInfo = computed(() => {
       :title="solveBlocked
         ? 'setup is invalid — fix the potential / initial condition first'
         : playLabel === 'Solve'
-          ? 'will compute new records (GPU/CPU work)'
-          : playLabel === 'Play' ? 'pure playback of computed history' : ''"
-      @click="togglePlay"
+          ? 'will compute new records (GPU/CPU work) — shortcut: Space'
+          : playLabel === 'Play'
+            ? 'pure playback of computed history — shortcut: Space'
+            : 'shortcut: Space'"
+      @click="togglePlay($event)"
     >{{ playLabel }}</button>
 
-    <label class="flex items-center gap-2 shrink-0">
-      <span class="text-neutral-400">speed</span>
-      <input type="range" min="-1" max="1.3" step="0.05"
-             :value="Math.log10(rate)" @input="setRate" class="w-36" />
-      <span class="tabular-nums w-24 truncate">{{ rate.toFixed(2) }} a.u./s</span>
+    <label class="flex items-center gap-2 shrink-0"
+           :class="running ? 'opacity-40' : ''" :title="delayTitle">
+      <span class="text-neutral-400">delay</span>
+      <input type="range" :min="0" :max="DIAL_STEPS" step="1"
+             :disabled="running" :value="dial" @input="setDelay"
+             @change="(ev: Event) => (ev.target as HTMLInputElement).blur()"
+             class="w-36" />
+      <span class="tabular-nums w-24 truncate">{{ delayLabel }}</span>
     </label>
 
     <div class="tabular-nums w-60 truncate shrink-0">

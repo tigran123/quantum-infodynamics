@@ -32,7 +32,23 @@ then `uv pip compile requirements[-x].in -o requirements[-x].txt` and
 - **Streaming**: solver workers append records to an in-RAM byte-capped
   `FrameHistory`; the WS streamer (`routers/stream.py`) sends the newest
   lockstep-complete record (live, coalescing — slow clients skip frames) or
-  exact sequential records (replay/scrub). Binary layout in
+  exact sequential records (replay/scrub). Computation ALWAYS runs at full
+  speed in both modes — neither the dial nor a slow client ever throttles
+  the workers; `delay` (seconds injected between played-back frames)
+  paces only the display. Its default 0 means "as fast as this machine
+  renders": replay never skips a record, it slips on WS backpressure when
+  the client can't keep up, so 0 is always safe; the UI dial is 0 plus a
+  log range 10 ms–1.5 s. A playback-only run must never coalesce to the
+  frontier while sequential records are unsent (that would teleport
+  playback to the end), and its auto-pause is delivery-aware — it fires
+  only after the frontier record was SENT. The transport must stay
+  responsive under full frame backpressure: control JSON (status echoes)
+  is flushed BEFORE frame sends each tick, play/pause are echoed
+  immediately, replay batches are wall-clock-budgeted (~0.2 s) and
+  preempted by pause/seek, and the client flips the transport button
+  optimistically on play/pause. The delay dial is settable only while
+  PAUSED (pause → change → resume) and its thumb is local UI state,
+  re-synced from status when idle. Binary layout in
   `core/protocol.py`, mirrored by `frontend/src/lib/protocol.ts` and
   cross-checked via `scripts/gen_fixture.py` + the frontend vitest.
 - **Record grid**: τ_k = t1 + k·record_dt. Each variant (1–4 worker

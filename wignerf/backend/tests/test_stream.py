@@ -17,7 +17,7 @@ IC = {"type": "mixture",
 
 def _mk(client, variants=("qn",), **over):
     cfg = {"grid": GRID, "potential": "x^2/2", "ic": IC,
-           "variants": list(variants), "record_dt": 0.05, "rate": 4.0}
+           "variants": list(variants), "record_dt": 0.05, "delay": 0.0}
     cfg.update(over)
     r = client.post("/api/sessions", json=cfg)
     assert r.status_code == 200, r.text
@@ -86,13 +86,21 @@ def test_interactive_playback_stops_at_frontier():
             _recv_frames(ws, 6)
             ws.send_text(json.dumps({"type": "pause"}))
             _time.sleep(0.3)                    # let in-flight records land
-            frontier = client.get("/api/sessions/%s" % sid).json()["record_extent"][1]
+            r = client.get("/api/sessions/%s" % sid).json()
+            frontier = r["record_extent"][1]
             assert frontier >= 5
+            # a paused solve settles ATTACHED at the final frontier — the
+            # transport must come to rest on "Solve", not a phantom "Play"
+            # over the in-flight records that landed after the pause
+            assert r["cursor"] == pytest.approx(frontier)
 
+            # workers run flat out now, so the frontier can be large —
+            # replay at zero delay (max speed) to keep the test fast
+            ws.send_text(json.dumps({"type": "delay", "seconds": 0}))
             ws.send_text(json.dumps({"type": "seek", "record": 0}))
             ws.send_text(json.dumps({"type": "play"}))
             paused = None
-            for _ in range(100):                # replay runs at 80 records/s
+            for _ in range(300):
                 _time.sleep(0.05)
                 r = client.get("/api/sessions/%s" % sid).json()
                 if not r["running"]:
@@ -105,7 +113,7 @@ def test_interactive_playback_stops_at_frontier():
 
             # the replay arrived in exact sequence and ends on the frontier
             seen = []
-            for _ in range(200):
+            for _ in range(20*frontier + 200):
                 m = ws.receive()
                 if m.get("bytes"):
                     k = protocol.unpack_frame(m["bytes"])[0]
@@ -124,6 +132,105 @@ def test_interactive_playback_stops_at_frontier():
                     break
             else:
                 raise AssertionError("Solve at the frontier did not compute")
+        client.delete("/api/sessions/%s" % sid)
+
+
+def test_solve_speed_independent_of_delay():
+    """The delay dial paces the DISPLAY only: solving at the frontier must
+    run flat out even at the dial's slowest setting (1 s per frame)."""
+    import time as _time
+    with TestClient(app) as client:
+        info = _mk(client, delay=1.0)
+        sid = info["session_id"]
+        with client.websocket_connect(info["ws_url"]) as ws:
+            ws.send_text(json.dumps({"type": "play"}))
+            _time.sleep(1.0)
+            r = client.get("/api/sessions/%s" % sid).json()
+            assert r["record_extent"][1] > 10, \
+                "computation was throttled by the display delay"
+        client.delete("/api/sessions/%s" % sid)
+
+
+def test_pause_of_a_solve_keeps_the_display_attached():
+    """Pausing a solve leaves in-flight records landing AFTER the pause;
+    the attached cursor must follow the settling frontier so the transport
+    comes to rest AT the frontier (button: "Solve") — never a phantom
+    "Play" over a few records the user did not rewind to."""
+    from core.session import SessionClock
+    clock = SessionClock(0.0, 0.05, "interactive", 0.0, None)
+    clock.set_running(True, 0)             # Solve at the frontier
+    clock.advance_cursor(0.05, 10, 10)     # solving: pinned to the frontier
+    assert clock.cursor == 10
+    clock.set_running(False)               # pause; 2 in-flight records land
+    assert clock.advance_cursor(0.05, 12, 10) == 12, \
+        "paused attached cursor must follow the settling frontier"
+    clock.set_cursor(5, 12)                # rewind while paused: detached
+    assert clock.advance_cursor(0.05, 12, 5) == 5, \
+        "a rewound (detached) cursor must stay put while paused"
+
+
+def test_clock_pause_is_delivery_aware():
+    """A playback-only run pauses only once the frontier record was
+    actually DELIVERED: at delay 0 the cursor reaches the frontier
+    instantly, and time spent blocked in a send to a slow client must not
+    end the run over records the client never saw."""
+    from core.session import SessionClock
+    clock = SessionClock(0.0, 0.05, "interactive", 0.0, None)
+    clock.set_cursor(92, 613)
+    clock.set_running(True, 613)
+    assert clock.stop_at_frontier
+    clock.advance_cursor(30.0, 613, 150)     # cursor jumps to the frontier
+    assert clock.running, "paused while records 151..613 were still unsent"
+    clock.advance_cursor(0.1, 613, 613)      # frontier record delivered
+    assert not clock.running and clock.cursor == 613
+
+
+def test_playback_zero_delay_never_skips():
+    """Delay 0 (the default) sends the cursor to the frontier immediately.
+    Replay must still deliver every record in exact order and then
+    auto-pause — never coalesce over the unsent gap (that used to teleport
+    playback straight to the end)."""
+    import time as _time
+    with TestClient(app) as client:
+        info = _mk(client)
+        sid = info["session_id"]
+        with client.websocket_connect(info["ws_url"]) as ws:
+            ws.send_text(json.dumps({"type": "play"}))
+            _recv_frames(ws, 6)
+            ws.send_text(json.dumps({"type": "pause"}))
+            _time.sleep(0.3)                    # let in-flight records land
+            frontier = client.get("/api/sessions/%s" % sid).json()["record_extent"][1]
+            assert frontier >= 5
+
+            ws.send_text(json.dumps({"type": "delay", "seconds": 0}))
+            ws.send_text(json.dumps({"type": "seek", "record": 0}))
+            for _ in range(200):                # wait out the seek echo
+                m = ws.receive()
+                if m.get("bytes") and protocol.unpack_frame(m["bytes"])[0] == 0:
+                    break
+            else:
+                raise AssertionError("seek(0) frame never arrived")
+            ws.send_text(json.dumps({"type": "play"}))
+            seen = []
+            for _ in range(20*frontier + 400):
+                m = ws.receive()
+                if m.get("bytes"):
+                    seen.append(protocol.unpack_frame(m["bytes"])[0])
+                    if seen[-1] == frontier:
+                        break
+            assert seen == list(range(1, frontier + 1)), \
+                "replay skipped records: %r" % seen
+
+            # ... and auto-paused at the frontier without computing
+            r = None
+            for _ in range(100):
+                _time.sleep(0.05)
+                r = client.get("/api/sessions/%s" % sid).json()
+                if not r["running"]:
+                    break
+            assert r is not None and not r["running"]
+            assert r["record_extent"][1] == frontier, \
+                "zero-delay playback rolled into computation"
         client.delete("/api/sessions/%s" % sid)
 
 
@@ -235,6 +342,62 @@ def test_runahead_starts_paused_and_stops_at_t2():
             else:
                 raise AssertionError("scrub into computed run-ahead failed")
         client.delete("/api/sessions/%s" % info["session_id"])
+
+
+def test_runahead_rewind_plays_back_without_computing():
+    """Pausing a run-ahead mid-run and rewinding must offer pure playback:
+    play behind the frontier replays history gaplessly and auto-pauses AT
+    the frontier — it must never jump to the end nor resume computing
+    toward t2. Only play AT the frontier resumes the run-ahead."""
+    import time as _time
+    with TestClient(app) as client:
+        info = _mk(client, mode="runahead", t2=100.0)   # far away: never done
+        sid = info["session_id"]
+        with client.websocket_connect(info["ws_url"]) as ws:
+            ws.send_text(json.dumps({"type": "play"}))
+            _recv_frames(ws, 4)
+            ws.send_text(json.dumps({"type": "pause"}))
+            _time.sleep(0.3)                    # let in-flight records land
+            frontier = client.get("/api/sessions/%s" % sid).json()["record_extent"][1]
+            assert 3 <= frontier < 1999, "expected a mid-run pause"
+
+            ws.send_text(json.dumps({"type": "seek", "record": 0}))
+            for _ in range(200):                # wait out the seek echo
+                m = ws.receive()
+                if m.get("bytes") and protocol.unpack_frame(m["bytes"])[0] == 0:
+                    break
+            else:
+                raise AssertionError("seek(0) frame never arrived")
+            ws.send_text(json.dumps({"type": "play"}))
+            seen = []
+            for _ in range(20*frontier + 400):
+                m = ws.receive()
+                if m.get("bytes"):
+                    seen.append(protocol.unpack_frame(m["bytes"])[0])
+                    if seen[-1] == frontier:
+                        break
+            assert seen == list(range(1, frontier + 1)), \
+                "runahead playback skipped records: %r" % seen[:20]
+            r = None
+            for _ in range(100):
+                _time.sleep(0.05)
+                r = client.get("/api/sessions/%s" % sid).json()
+                if not r["running"]:
+                    break
+            assert r is not None and not r["running"]
+            assert r["record_extent"][1] == frontier, \
+                "rewound runahead playback resumed computing toward t2"
+
+            # play AT the frontier resumes the run-ahead
+            ws.send_text(json.dumps({"type": "play"}))
+            for _ in range(100):
+                _time.sleep(0.05)
+                r = client.get("/api/sessions/%s" % sid).json()
+                if r["record_extent"][1] > frontier:
+                    break
+            else:
+                raise AssertionError("Solve at the frontier did not resume")
+        client.delete("/api/sessions/%s" % sid)
 
 
 def test_time_reversal_over_the_wire():

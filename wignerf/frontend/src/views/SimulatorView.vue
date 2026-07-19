@@ -137,10 +137,14 @@ async function recover() {
   }
 }
 
-// Keyboard shortcuts: Space = play/pause, R = reverse time direction.
+// Keyboard shortcuts: Space = play/pause (documented in the transport
+// button's tooltip), R = reverse time direction. BUTTON is excluded so a
+// focused button keeps its native Space=click and never double-fires with
+// this handler (transport controls also blur themselves after use).
 function onKey(ev: KeyboardEvent) {
   const tag = (ev.target as HTMLElement).tagName
-  if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return
+  if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA'
+      || tag === 'BUTTON') return
   if (ev.code === 'Space') {
     ev.preventDefault()
     // same gate as the transport button: never start a computation

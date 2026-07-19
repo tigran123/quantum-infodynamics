@@ -116,7 +116,8 @@ class SessionCreate(BaseModel):
     record_dt: float = Field(default=0.05, gt=0)
     mode: Literal["interactive", "runahead"] = "interactive"
     t2: Optional[float] = None
-    rate: float = Field(default=1.0, gt=0)   # a.u. of time per wall second
+    delay: float = Field(default=0.0, ge=0)  # seconds injected between played-back
+                                             # frames; 0 = as fast as the client renders
 
     @model_validator(mode="after")
     def _check(self):
@@ -144,9 +145,9 @@ class PauseCmd(BaseModel):
     type: Literal["pause"]
 
 
-class RateCmd(BaseModel):
-    type: Literal["rate"]
-    au_per_second: float = Field(gt=0)
+class DelayCmd(BaseModel):
+    type: Literal["delay"]
+    seconds: float = Field(ge=0)
 
 
 class SeekCmd(BaseModel):
@@ -164,7 +165,7 @@ class PingCmd(BaseModel):
 
 
 ClientMsg = Annotated[
-    Union[PlayCmd, PauseCmd, RateCmd, SeekCmd, SetParamsCmd, PingCmd],
+    Union[PlayCmd, PauseCmd, DelayCmd, SeekCmd, SetParamsCmd, PingCmd],
     Field(discriminator="type"),
 ]
 

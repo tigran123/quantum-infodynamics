@@ -5,8 +5,12 @@ Backpressure by design: the sender never queues binary frames. In the live
 region (cursor at the lockstep frontier) it always sends the NEWEST complete
 record — a slow client skips frames, never buffers them. In the replay
 region (cursor behind the frontier) records are sent in exact sequence and
-playback slips in wall time instead. Seek sends the exact requested record,
-paused or not.
+playback slips in wall time instead: `delay` (seconds injected between
+played-back frames) paces the display, and its default 0 simply means "as
+fast as this client renders". A playback-only run never skips a record —
+it must not coalesce to the frontier while sequential records remain
+unsent, and it auto-pauses only once the frontier record was actually
+delivered. Seek sends the exact requested record, paused or not.
 """
 
 import asyncio
@@ -36,13 +40,22 @@ async def _handle(msg, s, ws):
     if msg.type == "play":
         # the frontier at play time decides playback-only vs solving
         s.clock.set_running(True, s.history.latest_complete())
+        s.post_msg(s.status())      # echo the flip ahead of any frame burst
     elif msg.type == "pause":
         s.clock.set_running(False)
-    elif msg.type == "rate":
-        s.clock.set_rate(msg.au_per_second)
+        s.post_msg(s.status())
+    elif msg.type == "delay":
+        s.clock.set_delay(msg.seconds)
     elif msg.type == "seek":
-        s.pending_seek = msg.record
-        s.frame_evt.set()
+        # move the cursor NOW, not on the next sender tick: a play arriving
+        # right behind the seek must classify playback-vs-solve against the
+        # seeked position, never the stale cursor
+        first, last = s.history.extent()
+        if last >= 0:
+            k = min(max(msg.record, first), last)
+            s.clock.set_cursor(k, s.history.latest_complete())
+            s.pending_seek = k
+            s.frame_evt.set()
     elif msg.type == "ping":
         s.post_msg({"type": "pong"})
     elif msg.type == "set_params":
@@ -93,55 +106,12 @@ async def _sender(ws, s, recv_task):
     while not recv_task.done():
         now = monotonic()
         lc = s.history.latest_complete()
-        cursor = s.clock.advance_cursor(now - last_wall, lc)
+        cursor = s.clock.advance_cursor(now - last_wall, lc, last_sent)
         last_wall = now
 
-        k = None
-        live = True
-        seek = getattr(s, "pending_seek", None)
-        if seek is not None:
-            s.pending_seek = None
-            first, last = s.history.extent()
-            if last >= 0:
-                k = min(max(seek, first), last)
-                s.clock.set_cursor(k)
-                live = k >= lc
-                last_sent = -1          # force resend even of the same index
-        elif lc >= 0:
-            target = int(cursor)
-            if target >= lc:
-                k = lc                   # live: coalesce to newest
-                # (runahead keeps the cursor pinned here until the user
-                # seeks, so the newest frame previews while computing;
-                # after a seek both modes replay from history identically)
-            else:
-                # Replay: exact sequential records from history, paced by
-                # the cursor. Batch the sends — the sender loop runs at
-                # ~20 Hz, so one-record-per-iteration would cap replay at
-                # 20 records/s and any faster rate would overtake the
-                # frontier and needlessly resume computation. If the
-                # client can't keep up, pull the cursor back so playback
-                # slips in wall time rather than skipping records.
-                first, _ = s.history.extent()
-                nxt = max(last_sent + 1, first)
-                sent = 0
-                while nxt <= min(target, lc) and sent < 64:
-                    payload = _pack_record(s, nxt, live=False)
-                    if payload is None:
-                        break
-                    await ws.send_bytes(payload)
-                    last_sent = nxt
-                    nxt += 1
-                    sent += 1
-                if last_sent < target:
-                    s.clock.set_cursor(last_sent)
-
-        if k is not None and k != last_sent:
-            payload = _pack_record(s, k, live)
-            if payload is not None:
-                await ws.send_bytes(payload)
-                last_sent = k
-
+        # Control channel FIRST: play/pause echoes and periodic status must
+        # never queue behind a burst of binary frame sends — the transport
+        # button's state depends on them arriving promptly.
         while s.msgs:
             await ws.send_text(json.dumps(s.msgs.popleft()))
         if s.history.take_evicted_flag():
@@ -154,6 +124,59 @@ async def _sender(ws, s, recv_task):
             last_running = s.clock.running
             last_status = now
             await ws.send_text(json.dumps(s.status()))
+
+        k = None
+        live = True
+        seek = getattr(s, "pending_seek", None)
+        if seek is not None:
+            s.pending_seek = None
+            k = seek                    # already clamped by the handler
+            live = k >= lc
+            last_sent = -1              # force resend even of the same index
+        elif lc >= 0:
+            target = int(cursor)
+            # A playback-only run must deliver EVERY record: while
+            # sequential records remain unsent, stay in the replay branch
+            # even when a send blocked long enough for the wall clock to
+            # lump the cursor past the frontier — coalescing over that gap
+            # is what used to teleport playback straight to the end.
+            gap = s.clock.stop_at_frontier and last_sent < lc
+            if target >= lc and not gap:
+                k = lc                   # live: coalesce to newest
+                # (runahead keeps the cursor pinned here until the user
+                # seeks, so the newest frame previews while computing;
+                # after a seek both modes replay from history identically)
+            else:
+                # Replay: exact sequential records from history, paced by
+                # the cursor. Batch the sends (the loop ticks at ~20 Hz;
+                # one record per tick would cap replay at 20 records/s) —
+                # but under a WALL-CLOCK budget with preemption: to a slow
+                # client each send can block for seconds on backpressure,
+                # and an unbounded batch would starve the control channel
+                # and keep streaming frames long after a pause arrived.
+                # If the client can't keep up, pull the cursor back so
+                # playback slips in wall time rather than skipping records.
+                first, _ = s.history.extent()
+                nxt = max(last_sent + 1, first)
+                t0 = monotonic()
+                while nxt <= min(target, lc):
+                    payload = _pack_record(s, nxt, live=False)
+                    if payload is None:
+                        break
+                    await ws.send_bytes(payload)
+                    last_sent = nxt
+                    nxt += 1
+                    if not s.clock.running or s.pending_seek is not None \
+                       or monotonic() - t0 > 0.2:
+                        break
+                if s.pending_seek is None and last_sent < target:
+                    s.clock.set_cursor(last_sent, lc)
+
+        if k is not None and k != last_sent:
+            payload = _pack_record(s, k, live)
+            if payload is not None:
+                await ws.send_bytes(payload)
+                last_sent = k
 
         s.frame_evt.clear()
         try:

@@ -6,11 +6,15 @@ variant workers are spread over it (assign_devices) — each worker owns its
 own ArrayBackend, so multi-GPU needs no propagator changes.
 
 Pacing (see plan):
-- interactive: workers compute only while their frontier leads the display
-  cursor by at most LEAD records; the streamer advances the cursor at
-  `rate` a.u. per wall second.
-- runahead: workers compute flat out until t passes t2; the streamer shows
-  the newest lockstep-complete record as a live preview.
+- Computation ALWAYS runs at full speed — `delay` (seconds injected
+  between played-back frames; 0 = default = as fast as the client
+  renders) paces only the display, never the workers. Delay 0 is safe:
+  replay slips on WS backpressure instead of skipping frames.
+- While solving with the display attached to the frontier, the cursor just
+  follows the newest lockstep-complete record (coalescing). Detached from
+  the frontier (user seeked back, or a playback-only run), the display
+  replays history one frame per `delay` seconds.
+- interactive computes until paused; runahead stops when t passes t2.
 
 Sessions are registered in SESSIONS; a WS detach pauses the session and
 starts the idle TTL. ttl_sweeper() (spawned from main's lifespan) closes
@@ -31,7 +35,6 @@ from .xp import resolve_devices
 
 log = logging.getLogger(__name__)
 
-LEAD = 3
 WS_IDLE_TTL = 120.0
 
 SESSIONS = {}
@@ -59,18 +62,18 @@ def assign_devices(variant_keys, devices):
 
 
 class SessionClock:
-    def __init__(self, t1, record_dt, mode, rate, t2):
+    def __init__(self, t1, record_dt, mode, delay, t2):
         self._cond = threading.Condition()
         self.t1 = float(t1)
         self.record_dt = float(record_dt)
         self.mode = mode
-        self.rate = float(rate)
+        self.delay = float(delay)    # seconds between played-back frames; 0 = max
         self.t2 = t2
         self.sign = 1
         self.running = False
         self.cursor = 0.0            # display position in record units
         self.stop_at_frontier = False  # playback-only run: pause at frontier
-        self.browsed = False         # runahead: user touched the timeline
+        self.browsed = False         # display detached from the live frontier
         self._t = [self.t1]          # t of record k (append-only)
         self._anchor = (0, self.t1)  # (k, t) of the last sign change
 
@@ -96,16 +99,15 @@ class SessionClock:
 
     def next_target(self, frontier):
         """Next (k, t_k) for a worker whose newest record is `frontier`,
-        or None when it should idle (paused / lead-capped / playback / done)."""
+        or None when it should idle (paused / playback-only / done).
+        Computation always proceeds at full speed — the display cursor
+        never gates the workers (`delay` paces only what the client sees)."""
         with self._cond:
-            if not self.running:
-                return None
-            k = frontier + 1
-            if self.mode == "interactive" and \
-               (self.stop_at_frontier or k - self.cursor > LEAD):
+            if not self.running or self.stop_at_frontier:
                 return None
             if self.mode == "runahead" and self._runahead_done(frontier):
                 return None
+            k = frontier + 1
             return k, self._t_of(k)
 
     def wait_work(self, timeout=0.1):
@@ -118,24 +120,28 @@ class SessionClock:
 
     def set_running(self, v, latest_complete=None):
         """`latest_complete` (the frontier at play time) decides whether this
-        run is playback-only: pressing play behind the frontier (interactive)
+        run is playback-only: pressing play behind the frontier (BOTH modes)
         or after a finished run-ahead must replay history and PAUSE at the
         end — computing new records is always an explicit request made AT
-        the frontier (the transport button shows "Solve" exactly then)."""
+        the frontier (the transport button shows "Solve" exactly then;
+        interactive then computes until paused, runahead until t2)."""
         with self._cond:
             self.running = bool(v)
             if not self.running:
                 self.stop_at_frontier = False
             elif latest_complete is not None:
-                if self.mode == "interactive":
-                    self.stop_at_frontier = self.cursor < latest_complete
-                else:
-                    self.stop_at_frontier = self._runahead_done(latest_complete)
+                behind = self.cursor < latest_complete
+                self.stop_at_frontier = behind or \
+                    (self.mode == "runahead" and
+                     self._runahead_done(latest_complete))
+                # Solve pressed AT the frontier re-attaches the display to
+                # it (live coalescing); play behind starts detached (replay)
+                self.browsed = behind
             self._cond.notify_all()
 
-    def set_rate(self, v):
+    def set_delay(self, v):
         with self._cond:
-            self.rate = float(v)
+            self.delay = float(v)
 
     def set_sign(self, s):
         with self._cond:
@@ -143,31 +149,47 @@ class SessionClock:
             self._anchor = (len(self._t) - 1, self._t[-1])
             self._cond.notify_all()
 
-    def advance_cursor(self, elapsed, latest_complete):
-        """Called by the streamer; returns the updated cursor. The cursor
-        may lead the frontier by up to LEAD so workers keep computing.
-        In runahead mode the cursor stays pinned to the frontier (newest-
-        frame preview while the timeline fills) until the user seeks.
-        A playback-only run (stop_at_frontier) auto-pauses at the frontier
-        instead of rolling into computation."""
+    def advance_cursor(self, elapsed, latest_complete, delivered):
+        """Called by the streamer; returns the updated cursor. `delay`
+        (seconds between played-back frames; 0 = as fast as the client
+        renders) paces the DISPLAY only. Attached to the frontier while
+        solving, the cursor just follows the newest complete record
+        (coalescing preview — both modes). Detached (`browsed`: the user
+        seeked back, or a playback-only run), it replays history one frame
+        per `delay` seconds. A playback-only run (stop_at_frontier)
+        auto-pauses at the frontier instead of rolling into computation —
+        but only once the streamer has actually DELIVERED the frontier
+        record (`delivered` = newest record index sent): `elapsed` includes
+        time spent blocked in a send to a slow client, so the wall clock
+        alone can lump the cursor past records nobody has seen yet."""
         with self._cond:
-            if self.running:
-                self.cursor = min(self.cursor + self.rate*elapsed/self.record_dt,
-                                  latest_complete + LEAD)
-                if self.mode == "runahead" and not self.browsed:
+            if latest_complete >= 0:
+                if self.running and (self.stop_at_frontier or self.browsed):
+                    step = elapsed/self.delay if self.delay > 0 \
+                        else float("inf")
+                    self.cursor = min(self.cursor + step,
+                                      float(latest_complete))
+                    if self.stop_at_frontier and delivered >= latest_complete \
+                       and self.cursor >= latest_complete:
+                        self.running = False
+                        self.stop_at_frontier = False
+                        self.browsed = False   # arrived at the frontier
+                elif not self.browsed:
+                    # Attached to the frontier: follow it while solving AND
+                    # while PAUSED — a pause leaves in-flight records landing
+                    # after it, and the display must settle on the final
+                    # frontier or the transport would offer "Play" over a
+                    # few phantom records the user never rewound to.
                     self.cursor = float(max(self.cursor, latest_complete))
-                if self.stop_at_frontier and \
-                   self.cursor >= latest_complete >= 0:
-                    self.cursor = float(latest_complete)
-                    self.running = False
-                    self.stop_at_frontier = False
                 self._cond.notify_all()
             return self.cursor
 
-    def set_cursor(self, k):
+    def set_cursor(self, k, latest_complete):
+        """Seek/slip the display. Seeking to the frontier re-attaches the
+        cursor to it (live coalescing); anywhere behind detaches it."""
         with self._cond:
             self.cursor = float(k)
-            self.browsed = True
+            self.browsed = k < latest_complete
             self._cond.notify_all()
 
 
@@ -181,7 +203,7 @@ class SimSession:
         self.devices = resolve_devices(device)
         self.fft_threads = fft_threads
         self.history = FrameHistory(len(cfg.variants), history_bytes)
-        self.clock = SessionClock(cfg.t1, cfg.record_dt, cfg.mode, cfg.rate, cfg.t2)
+        self.clock = SessionClock(cfg.t1, cfg.record_dt, cfg.mode, cfg.delay, cfg.t2)
         self.frame_evt = asyncio.Event()
         self.msgs = deque(maxlen=64)     # server->client JSON side channel
         self.ws_attached = False
@@ -238,7 +260,7 @@ class SimSession:
             "running": self.clock.running,
             "mode": self.clock.mode,
             "t2": self.clock.t2,
-            "rate": self.clock.rate,
+            "delay": self.clock.delay,
             "sign": self.clock.sign,
             "record_dt": self.clock.record_dt,
             "record_extent": [first, last],

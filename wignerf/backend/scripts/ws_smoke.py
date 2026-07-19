@@ -33,7 +33,7 @@ CFG = {
     "variants": ["qn", "qr", "cn", "cr"],
     "c": 10.0,          # low c so the relativistic variants visibly differ
     "record_dt": 0.05,
-    "rate": 2.0,
+    "delay": 0.0,      # seconds between played-back frames (0 = max speed)
 }
 
 
