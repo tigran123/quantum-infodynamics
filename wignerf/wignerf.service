@@ -1,0 +1,32 @@
+[Unit]
+Description=Wigner Function Simulator
+After=network-online.target nginx.service
+Requires=nginx.service
+
+[Service]
+Type=simple
+User=tigran
+Group=tigran
+
+WorkingDirectory=/home/tigran/python/quantum-infodynamics/wignerf/
+Environment="PYTHONUNBUFFERED=1"
+EnvironmentFile=/home/tigran/python/quantum-infodynamics/wignerf/wignerf.env
+ExecStart=/home/tigran/python/quantum-infodynamics/wignerf/start.sh
+
+Restart=always
+RestartSec=5
+
+# --- Security Constraints ---
+NoNewPrivileges=yes
+ProtectSystem=strict
+#ReadWritePaths=
+ProtectHome=read-only
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+
+[Install]
+WantedBy=multi-user.target

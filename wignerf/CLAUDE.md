@@ -21,7 +21,9 @@ labels only (`frontend/src/lib/units.ts`).
 - `frontend/` — Vue 3 + TypeScript + Vite 8 + Tailwind 4, composables (no
   Pinia), hash routing. Built SPA is served statically by FastAPI when
   `frontend/dist` exists; in dev, Vite proxies `/api` (incl. WebSocket).
-- `start.sh` — idempotent prod launcher (venv + deps + build + uvicorn).
+- `start.sh` — prod launcher: runs uvicorn only (guards that `backend/.venv`
+  and `frontend/dist` exist, else errors). Install/build is manual and
+  pre-service — see the wignerf section of the top-level `README.md`.
 
 Dependency workflow (same as urantia-library): edit `requirements*.in`,
 then `uv pip compile requirements[-x].in -o requirements[-x].txt` and

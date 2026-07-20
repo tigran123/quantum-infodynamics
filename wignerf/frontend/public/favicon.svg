@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32"
+     role="img" aria-label="Wigner function — phase-space distribution">
+  <!--
+    wignerf favicon: a soft diverging Wigner blob on a light plot tile.
+    Colored with the app's own map (matplotlib "bwr", src/lib/colormaps.ts):
+    red = W>0, white = 0, blue = W<0. Deliberately minimal — at favicon size
+    only the red/white/blue range needs to read, so it is one soft, tilted
+    (squeezed) blob rather than the full ringed structure.
+  -->
+  <defs>
+    <!-- diverging color along the squeeze axis: red (top-right) -> white -> blue.
+         The white band is kept narrow so the saturated red/blue fill most of
+         the blob and still read at 16 px. -->
+    <linearGradient id="div" x1="1" y1="0" x2="0" y2="1">
+      <stop offset="0%"   stop-color="#ff0000"/>
+      <stop offset="34%"  stop-color="#ff5252"/>
+      <stop offset="50%"  stop-color="#ffffff"/>
+      <stop offset="66%"  stop-color="#5265ff"/>
+      <stop offset="100%" stop-color="#1a33ff"/>
+    </linearGradient>
+    <!-- radial alpha so the blob melts softly into the white tile; the opaque
+         core reaches 66% so the saturated bands are not masked away -->
+    <radialGradient id="soft" cx="50%" cy="50%" r="50%">
+      <stop offset="0%"   stop-color="#ffffff" stop-opacity="1"/>
+      <stop offset="66%"  stop-color="#ffffff" stop-opacity="1"/>
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
+    <mask id="blob">
+      <ellipse cx="16" cy="16" rx="13.5" ry="8.5" fill="url(#soft)"
+               transform="rotate(-33 16 16)"/>
+    </mask>
+  </defs>
+
+  <!-- light plot-panel tile (bordered so it reads on a white tab bar too) -->
+  <rect x="0.5" y="0.5" width="31" height="31" rx="6" ry="6"
+        fill="#ffffff" stroke="#000000" stroke-opacity="0.12"/>
+
+  <!-- the soft diverging blob -->
+  <rect x="0" y="0" width="32" height="32" fill="url(#div)" mask="url(#blob)"/>
+</svg>

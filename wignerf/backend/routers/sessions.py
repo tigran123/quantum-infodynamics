@@ -7,7 +7,7 @@ import os
 from functools import partial
 
 from anyio import to_thread
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 
 import config
 from core import session as sessions
@@ -45,7 +45,7 @@ async def compile_for(cfg_grid, expr, hbar_eff, variants):
 
 
 @router.post("/sessions")
-async def create_session(cfg: SessionCreate):
+async def create_session(cfg: SessionCreate, request: Request):
     if cfg.ic.type == "mixture" and any(c.sigma_p is None for c in cfg.ic.components):
         raise HTTPException(422, "sigma_p is required for mixture components")
     cp = await compile_for(cfg.grid, cfg.potential, cfg.hbar_eff, cfg.variants)
@@ -53,7 +53,10 @@ async def create_session(cfg: SessionCreate):
         cfg, cp, device=config.DEVICE,
         fft_threads=_fft_threads(len(cfg.variants)),
         history_bytes=config.HISTORY_MB*1024*1024)
-    return {"session_id": s.id, "ws_url": "/api/ws/%s" % s.id,
+    # Prefix the WS path with the app's root_path so it inherits the nginx
+    # prefix (uvicorn --root-path /wignerf, from APP_ROOT_PATH). Empty in dev.
+    root_path = request.scope.get("root_path", "").rstrip("/")
+    return {"session_id": s.id, "ws_url": "%s/api/ws/%s" % (root_path, s.id),
             "variants": cfg.variants, "record_dt": cfg.record_dt,
             "warnings": cp.warnings}
 
