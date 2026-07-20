@@ -12,6 +12,8 @@ import uPlot from 'uplot'
 import 'uplot/dist/uPlot.min.css'
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { api } from '../api'
+import { loadHidden, saveHidden } from '../lib/plotPrefs'
+import { createUplotZoom } from '../lib/uplotZoom'
 import { VARIANT_META, keyOfVid, type VariantKey } from '../lib/variants'
 
 const props = defineProps<{
@@ -34,6 +36,11 @@ const TITLES = {
 }
 
 const el = ref<HTMLDivElement | null>(null)
+// per-plot display-only visibility (persisted); the session keeps
+// computing and accumulating every variant regardless
+const hidden = ref(loadHidden(props.which))
+// created in setup so the zoom window survives the grid-lines rebuild
+const zoom = createUplotZoom()
 let chart: uPlot | null = null
 let timer: ReturnType<typeof setInterval> | null = null
 let merged = -1
@@ -103,7 +110,19 @@ function reset() {
   inFlight = false
   ts.length = 0
   cols.clear()
+  zoom.reset() // a new session is a new time domain
   chart?.setData([[], ...props.variants.map(() => [])])
+}
+
+function toggle(v: VariantKey) {
+  const h = hidden.value
+  if (h.has(v)) h.delete(v)
+  else h.add(v)
+  saveHidden(props.which, h)
+  // setSeries auto-rescales y over the remaining visible curves...
+  chart?.setSeries(props.variants.indexOf(v) + 1, { show: !h.has(v) })
+  // ...which would silently drop a pinned y-zoom — re-assert it
+  if (chart) zoom.reapply(chart)
 }
 
 function makeChart(width: number): uPlot {
@@ -114,7 +133,7 @@ function makeChart(width: number): uPlot {
       height: 130,
       title: TITLES[props.which],
       legend: { show: false },
-      cursor: { show: false },
+      plugins: [zoom.plugin], // owns the cursor config (drag/wheel/dblclick)
       scales: {
         x: { time: false },
         // Tight adaptive y-range. uPlot's default expands flat data to a
@@ -152,6 +171,9 @@ function makeChart(width: number): uPlot {
           dash: VARIANT_META[v].dash,
           width: 1.5,
           points: { show: false },
+          // in the series config (not just setSeries) so visibility
+          // survives the grid-lines destroy+rebuild
+          show: !hidden.value.has(v),
         })),
       ],
     },
@@ -161,7 +183,8 @@ function makeChart(width: number): uPlot {
 }
 
 function setChartData() {
-  chart?.setData([ts, ...props.variants.map((k) => cols.get(k) ?? [])])
+  // zoom-preserving: the 2 s poll appends must not move a pinned window
+  if (chart) zoom.setData(chart, [ts, ...props.variants.map((k) => cols.get(k) ?? [])])
 }
 
 onMounted(() => {
@@ -186,6 +209,7 @@ onMounted(() => {
     points: ts.length, merged, lastT: ts.at(-1) ?? null, gone, inFlight, generation,
     sessionId: props.sessionId,
     lastVals: props.variants.map((k) => cols.get(k)?.at(-1) ?? null),
+    zoomed: zoom.zoomed, hidden: [...hidden.value],
   })
 })
 
@@ -196,5 +220,17 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div ref="el" class="wf-plot"></div>
+  <div class="flex items-center gap-1">
+    <div v-if="variants.length > 1" class="flex flex-col gap-0.5 shrink-0">
+      <label v-for="v in variants" :key="v"
+             class="flex items-center gap-0.5 cursor-pointer select-none"
+             :title="`show/hide ${VARIANT_META[v].label} in this plot only`">
+        <input type="checkbox" class="scale-75" :checked="!hidden.has(v)"
+               @change="toggle(v)" />
+        <span class="text-[9px] leading-none"
+              :style="{ color: VARIANT_META[v].color }">{{ v.toUpperCase() }}</span>
+      </label>
+    </div>
+    <div ref="el" class="wf-plot flex-1 min-w-0"></div>
+  </div>
 </template>

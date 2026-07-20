@@ -41,6 +41,8 @@ uniform sampler2D uLUT;
 uniform vec2 uQ;          // (wmin, wmax) of THIS frame - dequantization
 uniform vec2 uC;          // color scale (min, max); == uQ when autoscaling
 uniform vec2 uSize;       // (Np, Nx)
+uniform vec2 uView0;      // view window corners in domain fractions:
+uniform vec2 uView1;      // (x, p-up); (0,0)/(1,1) = full domain
 in vec2 vUV;
 out vec4 fragColor;
 
@@ -66,8 +68,10 @@ float sampleW(vec2 st) {  // st: (s over Np, t over Nx) in [0,1], periodic
 
 void main() {
   // screen: x horizontal (texture row t), p vertical up (texture col s);
-  // +0.5 = ifftshift as a half-period offset on the periodic domain
-  vec2 st = fract(vec2(vUV.y, vUV.x) + 0.5);
+  // uView* windows the domain (zoom/pan); +0.5 = ifftshift as a
+  // half-period offset on the periodic domain
+  vec2 dom = mix(uView0, uView1, vUV);
+  vec2 st = fract(vec2(dom.y, dom.x) + 0.5);
   float w = sampleW(st);
   // symmetric diverging scale: W=0 -> LUT center (white), intensity
   // proportional to |W| on both sides
@@ -94,8 +98,15 @@ export class WignerRenderer {
   private uQ: WebGLUniformLocation | null = null
   private uC: WebGLUniformLocation | null = null
   private uSize: WebGLUniformLocation | null = null
+  private uView0: WebGLUniformLocation | null = null
+  private uView1: WebGLUniformLocation | null = null
   private nx = 0
   private np = 0
+  // view window in domain fractions (x, p-up); defaults = full domain
+  private vx0 = 0
+  private vx1 = 1
+  private vy0 = 0
+  private vy1 = 1
   private q: [number, number] = [0, 1]
   /** When set, the color scale is locked to this (min, max); otherwise
    *  every frame autoscales to its own range. */
@@ -137,6 +148,8 @@ export class WignerRenderer {
     this.uQ = gl.getUniformLocation(prog, 'uQ')
     this.uC = gl.getUniformLocation(prog, 'uC')
     this.uSize = gl.getUniformLocation(prog, 'uSize')
+    this.uView0 = gl.getUniformLocation(prog, 'uView0')
+    this.uView1 = gl.getUniformLocation(prog, 'uView1')
 
     // LUT: 256x1 RGBA8, LINEAR (it is a float texture, filtering is fine)
     this.texLUT = gl.createTexture()
@@ -184,6 +197,15 @@ export class WignerRenderer {
     perfStage('upload', performance.now() - t0)
   }
 
+  /** Set the zoom/pan view window in domain fractions (x, p-up).
+   *  Takes effect on the next render(). */
+  setView(x0: number, x1: number, y0: number, y1: number) {
+    this.vx0 = x0
+    this.vx1 = x1
+    this.vy0 = y0
+    this.vy1 = y1
+  }
+
   render() {
     const gl = this.gl
     if (!gl || !this.texW) return
@@ -202,6 +224,8 @@ export class WignerRenderer {
     gl.uniform2f(this.uQ, this.q[0], this.q[1])
     gl.uniform2f(this.uC, c[0], c[1])
     gl.uniform2f(this.uSize, this.np, this.nx)
+    gl.uniform2f(this.uView0, this.vx0, this.vy0)
+    gl.uniform2f(this.uView1, this.vx1, this.vy1)
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4)
     perfStage('draw', performance.now() - t0)
   }

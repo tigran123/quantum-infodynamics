@@ -11,6 +11,7 @@ import { api } from '../api'
 import GridOverlay from './GridOverlay.vue'
 import { decodeFrame } from '../lib/protocol'
 import { defaultConfig, type GridCfg, type ICCfg, type ICComponentCfg } from '../lib/config'
+import { createViewWindow, panBy, resetView, zoomAt } from '../lib/viewWindow'
 import { WignerRenderer } from '../render/WignerRenderer'
 
 const props = defineProps<{
@@ -33,6 +34,24 @@ const warnings = ref<string[]>([])
 const renderer = new WignerRenderer()
 let timer: ReturnType<typeof setTimeout> | null = null
 let dragging = -1
+const panning = ref(false)
+let lastX = 0
+let lastY = 0
+
+// zoom/pan window of the preview, independent of the main panels' one
+const view = createViewWindow()
+
+/** Domain extents of the current view window: the pointer↔phase-space
+ *  mapping and the axis overlay both go through it. */
+const viewExtents = computed(() => {
+  const g = props.grid
+  return {
+    x1: g.x1 + view.x0 * (g.x2 - g.x1),
+    x2: g.x1 + view.x1 * (g.x2 - g.x1),
+    p1: g.p1 + view.y0 * (g.p2 - g.p1),
+    p2: g.p1 + view.y1 * (g.p2 - g.p1),
+  }
+})
 
 const state = reactive({ previewOk: false, error: '' })
 
@@ -82,51 +101,90 @@ function scheduleRefresh(notify = true) {
 watch(() => [props.ic, props.grid, props.hbarEff], () => scheduleRefresh(false),
   { deep: true })
 
-// -- drag-to-place ---------------------------------------------------------
+// -- drag-to-place / pan / zoom ---------------------------------------------
 
-function toData(ev: PointerEvent): { x: number; p: number } {
+function toData(ev: { clientX: number; clientY: number }): { x: number; p: number } {
   const r = overlay.value!.getBoundingClientRect()
   const fx = (ev.clientX - r.left) / r.width
   const fy = (ev.clientY - r.top) / r.height
+  const v = viewExtents.value
   return {
-    x: props.grid.x1 + fx * (props.grid.x2 - props.grid.x1),
-    p: props.grid.p2 - fy * (props.grid.p2 - props.grid.p1),
+    x: v.x1 + fx * (v.x2 - v.x1),
+    p: v.p2 - fy * (v.p2 - v.p1),
   }
 }
 
 function markerStyle(c: ICComponentCfg) {
-  const fx = (c.x0 - props.grid.x1) / (props.grid.x2 - props.grid.x1)
-  const fy = 1 - (c.p0 - props.grid.p1) / (props.grid.p2 - props.grid.p1)
+  const v = viewExtents.value
+  const fx = (c.x0 - v.x1) / (v.x2 - v.x1)
+  const fy = 1 - (c.p0 - v.p1) / (v.p2 - v.p1)
   return { left: `${100 * fx}%`, top: `${100 * fy}%` }
 }
 
-function onDown(ev: PointerEvent) {
+/** Nearest component within grab range of the pointer, or -1. The radius
+ *  is view-relative, so grabbing works the same at any zoom. */
+function nearestComponent(ev: { clientX: number; clientY: number }): number {
   const d = toData(ev)
-  const sx = (props.grid.x2 - props.grid.x1) / 15
-  const sp = (props.grid.p2 - props.grid.p1) / 15
+  const v = viewExtents.value
+  const sx = (v.x2 - v.x1) / 15
+  const sp = (v.p2 - v.p1) / 15
   let best = -1
   let bestDist = 1
   props.ic.components.forEach((c, i) => {
     const dist = Math.hypot((c.x0 - d.x) / sx, (c.p0 - d.p) / sp)
     if (dist < bestDist) { best = i; bestDist = dist }
   })
+  return best
+}
+
+function onDown(ev: PointerEvent) {
+  const best = nearestComponent(ev)
   if (best >= 0) {
+    // markers win; empty space pans
     dragging = best
     selected.value = best
-    ;(ev.target as HTMLElement).setPointerCapture(ev.pointerId)
+  } else {
+    panning.value = true
+    lastX = ev.clientX
+    lastY = ev.clientY
   }
+  ;(ev.target as HTMLElement).setPointerCapture(ev.pointerId)
 }
 
 function onMove(ev: PointerEvent) {
-  if (dragging < 0) return
-  const d = toData(ev)
-  const c = props.ic.components[dragging]!
-  c.x0 = Math.round(d.x * 1000) / 1000
-  c.p0 = Math.round(d.p * 1000) / 1000
-  scheduleRefresh()
+  if (dragging >= 0) {
+    const d = toData(ev)
+    const c = props.ic.components[dragging]!
+    c.x0 = Math.round(d.x * 1000) / 1000
+    c.p0 = Math.round(d.p * 1000) / 1000
+    scheduleRefresh()
+    return
+  }
+  if (!panning.value) return
+  const r = overlay.value!.getBoundingClientRect()
+  panBy(view, (ev.clientX - lastX) / r.width, -(ev.clientY - lastY) / r.height)
+  lastX = ev.clientX
+  lastY = ev.clientY
 }
 
-function onUp() { dragging = -1 }
+function onUp() {
+  dragging = -1
+  panning.value = false
+}
+
+function onWheel(ev: WheelEvent) {
+  const r = overlay.value!.getBoundingClientRect()
+  zoomAt(view,
+    (ev.clientX - r.left) / r.width,
+    1 - (ev.clientY - r.top) / r.height,
+    ev.deltaY < 0 ? 0.85 : 1 / 0.85)
+}
+
+function onDblClick(ev: MouseEvent) {
+  // double-clicking a marker must never surprise-reset the view
+  if (nearestComponent(ev) >= 0) return
+  resetView(view)
+}
 
 // -- component list ----------------------------------------------------------
 
@@ -171,6 +229,11 @@ const sel = computed(() => props.ic.components[selected.value])
 
 onMounted(() => {
   renderer.init(canvas.value!)
+  // zoom/pan repaint: the uploaded texture persists between previews
+  watch(view, (v) => {
+    renderer.setView(v.x0, v.x1, v.y0, v.y1)
+    renderer.render()
+  })
   void refresh()
 })
 
@@ -204,9 +267,12 @@ onBeforeUnmount(() => {
     <div class="relative aspect-square w-full border border-neutral-700 rounded overflow-hidden">
       <canvas ref="canvas" class="w-full h-full block bg-black"></canvas>
       <GridOverlay v-if="showGrid ?? true"
-                   :x1="grid.x1" :x2="grid.x2" :p1="grid.p1" :p2="grid.p2" />
-      <div ref="overlay" class="absolute inset-0 touch-none cursor-crosshair"
-           @pointerdown="onDown" @pointermove="onMove" @pointerup="onUp">
+                   :x1="viewExtents.x1" :x2="viewExtents.x2"
+                   :p1="viewExtents.p1" :p2="viewExtents.p2" />
+      <div ref="overlay" class="absolute inset-0 touch-none"
+           :class="panning ? 'cursor-grabbing' : 'cursor-crosshair'"
+           @pointerdown="onDown" @pointermove="onMove" @pointerup="onUp"
+           @pointercancel="onUp" @wheel.prevent="onWheel" @dblclick="onDblClick">
         <div v-for="(c, i) in ic.components" :key="i"
              class="absolute w-3 h-3 -ml-1.5 -mt-1.5 rounded-full border-2 pointer-events-none"
              :class="i === selected ? 'border-yellow-300' : 'border-neutral-400/70'"

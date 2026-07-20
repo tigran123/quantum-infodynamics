@@ -15,6 +15,7 @@ import uPlot from 'uplot'
 import 'uplot/dist/uPlot.min.css'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { api } from '../api'
+import { createUplotZoom } from '../lib/uplotZoom'
 import type { VariantKey } from '../lib/variants'
 
 const props = defineProps<{
@@ -29,6 +30,7 @@ const emit = defineEmits<{
   (e: 'update:modelValue', v: string): void
   (e: 'applyLive', expr: string): void
   (e: 'validity', valid: boolean): void
+  (e: 'gridDirty'): void
 }>()
 
 interface PreviewResult {
@@ -50,18 +52,31 @@ const plotEl = ref<HTMLDivElement | null>(null)
 let chart: uPlot | null = null
 let timer: ReturnType<typeof setTimeout> | null = null
 
+// zoomed x window of the plot, DELIBERATELY independent of the grid's
+// x1/x2 (null = follow the grid): zooming is how the "interesting domain"
+// of U(x) is discovered, and the button below copies it into the grid.
+// The backend samples U on this window while the validity probe keeps
+// using the SIMULATION range (req.grid) — no restriction to [x1, x2].
+const viewX = ref<{ x1: number; x2: number } | null>(null)
+// clampX: false — zooming out past the data is the point (it re-samples
+// on the wider window via the debounced compile below)
+const zoom = createUplotZoom({
+  clampX: false,
+  onXChange: (w) => { viewX.value = w && { x1: w.min, x2: w.max } },
+})
+
 async function compile() {
   try {
     const { data } = await api.post<PreviewResult>('/preview/potential', {
       expr: draft.value,
-      x1: props.grid.x1,
-      x2: props.grid.x2,
+      x1: viewX.value?.x1 ?? props.grid.x1,
+      x2: viewX.value?.x2 ?? props.grid.x2,
       grid: props.grid,
       hbar_eff: props.hbarEff,
     })
     result.value = data
     if (data.ok && data.samples && chart) {
-      chart.setData([data.samples.x, data.samples.U])
+      zoom.setData(chart, [data.samples.x, data.samples.U])
     }
   } catch (e) {
     result.value = { ok: false, error: String(e) }
@@ -69,11 +84,23 @@ async function compile() {
 }
 
 // grid/ℏ changes move the extended Bopp range, so they can flip validity
-// (a pole may enter it) — recompile on those too, not just on typing
-watch([draft, () => props.grid, () => props.hbarEff], () => {
+// (a pole may enter it) — recompile on those too, not just on typing.
+// viewX: wheel/drag rescale the old samples instantly client-side; the
+// debounced fetch then refines/extends them to exactly the new window.
+watch([draft, () => props.grid, () => props.hbarEff, viewX], () => {
   if (timer) clearTimeout(timer)
   timer = setTimeout(compile, 300)
 }, { deep: true })
+
+/** Copy the zoomed-in "interesting domain" into the grid's x₁/x₂
+ *  (applies at restart, like any grid edit). */
+function setGridFromView() {
+  const v = viewX.value
+  if (!v) return
+  props.grid.x1 = parseFloat(v.x1.toPrecision(6))
+  props.grid.x2 = parseFloat(v.x2.toPrecision(6))
+  emit('gridDirty')
+}
 
 /** Valid for the CURRENT variant selection: each active family must
  *  accept the draft (an inactive family's ✗ doesn't block). */
@@ -94,7 +121,7 @@ onMounted(() => {
       height: 110,
       title: 'U(x)',
       legend: { show: false },
-      cursor: { show: false },
+      plugins: [zoom.plugin], // owns the cursor config (drag/wheel/dblclick)
       scales: { x: { time: false } },
       axes: [
         { stroke: '#a3a3a3', grid: { stroke: '#26262666' } },
@@ -150,6 +177,13 @@ onBeforeUnmount(() => chart?.destroy())
       <div v-for="(r, i) in result.reasons" :key="i">{{ r }}</div>
     </div>
     <div ref="plotEl" class="wf-plot"></div>
+    <div v-if="viewX" class="flex justify-end">
+      <button
+        class="px-2 py-0.5 rounded bg-neutral-800 hover:bg-neutral-700 text-xs"
+        title="copy the current zoom window into x₁,x₂ (applies at restart); double-click the plot to reset the zoom"
+        @click="setGridFromView"
+      >x₁,x₂ ← view</button>
+    </div>
     <div class="flex gap-2">
       <button
         class="flex-1 py-1 rounded bg-neutral-800 hover:bg-neutral-700 text-xs disabled:opacity-40"

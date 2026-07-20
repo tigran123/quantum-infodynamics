@@ -8,7 +8,9 @@ import uPlot from 'uplot'
 import 'uplot/dist/uPlot.min.css'
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { perfStage } from '../lib/perf'
+import { loadHidden, saveHidden } from '../lib/plotPrefs'
 import type { Frame } from '../lib/protocol'
+import { createUplotZoom } from '../lib/uplotZoom'
 import { VARIANT_META, type VariantKey } from '../lib/variants'
 
 const props = defineProps<{
@@ -23,9 +25,23 @@ const props = defineProps<{
 }>()
 
 const el = ref<HTMLDivElement | null>(null)
+// per-plot display-only visibility (persisted)
+const hidden = ref(loadHidden(props.which))
+// created in setup so the zoom window survives the grid-lines rebuild
+const zoom = createUplotZoom()
 let chart: uPlot | null = null
 let unsub: (() => void) | null = null
 let lastData: uPlot.AlignedData | null = null
+
+function toggle(v: VariantKey) {
+  const h = hidden.value
+  if (h.has(v)) h.delete(v)
+  else h.add(v)
+  saveHidden(props.which, h)
+  chart?.setSeries(props.variants.indexOf(v) + 1, { show: !h.has(v) })
+  // setSeries auto-rescales y, dropping a pinned y-zoom — re-assert it
+  if (chart) zoom.reapply(chart)
+}
 
 const axis = Array.from({ length: props.n },
   (_, i) => props.a1 + (i * (props.a2 - props.a1)) / props.n)
@@ -41,6 +57,9 @@ function makeChart(width: number) {
       dash: VARIANT_META[v].dash,
       width: 1.5,
       points: { show: false },
+      // in the config (not just setSeries) so visibility survives the
+      // grid-lines destroy+rebuild
+      show: !hidden.value.has(v),
     })),
   ]
   const grid = { show: props.showGrid ?? true, stroke: '#3f3f46', width: 1 }
@@ -50,7 +69,7 @@ function makeChart(width: number) {
       height: 130,
       title: props.which === 'rho' ? 'ρ(x) = ∫W dp' : 'φ(p) = ∫W dx',
       legend: { show: false },
-      cursor: { show: false },
+      plugins: [zoom.plugin], // owns the cursor config (drag/wheel/dblclick)
       scales: { x: { time: false } },
       axes: [
         { stroke: '#a3a3a3', grid, ticks: { stroke: '#525252' } },
@@ -78,7 +97,9 @@ onMounted(() => {
       ...f.variants.map((v) => props.which === 'rho' ? v.rho : v.phi),
     ] as unknown as uPlot.AlignedData
     const t0 = performance.now()
-    chart.setData(lastData)
+    // zoom-preserving per painted frame: same cost class as a plain
+    // autoscaling setData (no new per-frame allocations)
+    zoom.setData(chart, lastData)
     perfStage('plots', performance.now() - t0)
   })
   // grid-lines toggle: rebuild the chart in place, keeping the data — a
@@ -86,7 +107,7 @@ onMounted(() => {
   watch(() => props.showGrid, () => {
     chart?.destroy()
     chart = makeChart(el.value?.clientWidth || 360)
-    if (lastData) chart.setData(lastData)
+    if (lastData) zoom.setData(chart, lastData)
   })
   onBeforeUnmount(() => ro.disconnect())
 })
@@ -98,7 +119,19 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div ref="el" class="wf-plot"></div>
+  <div class="flex items-center gap-1">
+    <div v-if="variants.length > 1" class="flex flex-col gap-0.5 shrink-0">
+      <label v-for="v in variants" :key="v"
+             class="flex items-center gap-0.5 cursor-pointer select-none"
+             :title="`show/hide ${VARIANT_META[v].label} in this plot only`">
+        <input type="checkbox" class="scale-75" :checked="!hidden.has(v)"
+               @change="toggle(v)" />
+        <span class="text-[9px] leading-none"
+              :style="{ color: VARIANT_META[v].color }">{{ v.toUpperCase() }}</span>
+      </label>
+    </div>
+    <div ref="el" class="wf-plot flex-1 min-w-0"></div>
+  </div>
 </template>
 
 <style>
@@ -108,4 +141,6 @@ onBeforeUnmount(() => {
   font-weight: 500;
 }
 .wf-plot .u-values { color: #d4d4d4; }
+/* drag-select zoom box (uPlot's default is invisible on the dark theme) */
+.wf-plot .u-select { background: rgba(255, 255, 255, 0.12); }
 </style>

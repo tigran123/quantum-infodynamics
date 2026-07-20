@@ -37,6 +37,7 @@ function resetSetup() {
       @update:model-value="emit('dirty')"
       @apply-live="(expr) => emit('apply-live', { U: expr })"
       @validity="(v) => emit('potential-validity', v)"
+      @grid-dirty="emit('dirty')"
     />
 
     <section class="space-y-1.5">
