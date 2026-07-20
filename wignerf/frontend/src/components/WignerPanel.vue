@@ -51,7 +51,7 @@ onBeforeUnmount(() => {
     <canvas ref="canvas" class="w-full h-full block bg-black"></canvas>
     <GridOverlay v-if="domain && showGrid"
                  :x1="domain.x1" :x2="domain.x2" :p1="domain.p1" :p2="domain.p2" />
-    <div class="absolute top-1 left-2 text-xs text-neutral-300 bg-black/40 px-1.5 py-0.5 rounded">
+    <div class="absolute top-1 left-2 text-xs text-white bg-black/75 px-1.5 py-0.5 rounded">
       {{ title }}
     </div>
     <div v-if="glError" class="absolute inset-0 grid place-items-center text-red-400 text-sm p-4">
