@@ -43,6 +43,7 @@ const setupValid = computed(() =>
 
 const layout = ref<'landscape' | 'portrait'>(
   (localStorage.getItem('wignerf.layout') as 'landscape' | 'portrait') ?? 'landscape')
+const showHelp = ref(false)
 watch(layout, (v) => localStorage.setItem('wignerf.layout', v))
 
 const showGrid = ref(localStorage.getItem('wignerf.grid') !== '0')
@@ -142,10 +143,17 @@ async function recover() {
 }
 
 // Keyboard shortcuts: Space = play/pause (documented in the transport
-// button's tooltip), R = reverse time direction. BUTTON is excluded so a
-// focused button keeps its native Space=click and never double-fires with
-// this handler (transport controls also blur themselves after use).
+// button's tooltip), R = reverse time direction, and — paused only —
+// ←/→ = seek ±10% of the computed history, Home/End = first record /
+// frontier. BUTTON is excluded so a focused button keeps its native
+// Space=click and never double-fires with this handler (transport
+// controls also blur themselves after use).
 function onKey(ev: KeyboardEvent) {
+  // before the focus guard: Esc dismisses the help popover from anywhere
+  if (ev.code === 'Escape' && showHelp.value) {
+    showHelp.value = false
+    return
+  }
   const tag = (ev.target as HTMLElement).tagName
   if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA'
       || tag === 'BUTTON') return
@@ -160,6 +168,27 @@ function onKey(ev: KeyboardEvent) {
   } else if (ev.code === 'KeyR') {
     const sign = session.status.value?.sign ?? 1
     session.send({ type: 'set_params', params: { dt_sign: sign > 0 ? -1 : 1 } })
+  } else if (ev.code === 'ArrowLeft' || ev.code === 'ArrowRight'
+             || ev.code === 'Home' || ev.code === 'End') {
+    const st = session.status.value
+    const [k0, k1] = st?.record_extent ?? [0, -1]
+    if (!st || st.running || k1 < 0) return   // paused-only, needs history
+    ev.preventDefault()
+    // The backend clamps every seek into the TRUE extent, and our cached
+    // record_extent can be stale (pausing races the final record's
+    // completion, and no status is pushed while paused) — so send the
+    // unclamped target and let the backend be the authority. End uses a
+    // sentinel index for "the frontier, wherever it really is".
+    // No optimistic cursor state on purpose: a held key recomputes from
+    // the last painted frame, so stepping is paced by frame delivery
+    // instead of flying through the whole timeline between paints.
+    const step = Math.max(1, Math.round((k1 - k0) / 10))
+    const cur = Math.round(session.lastFrame.value?.record ?? st.cursor)
+    const k = ev.code === 'Home' ? 0
+            : ev.code === 'End'  ? Number.MAX_SAFE_INTEGER
+            : ev.code === 'ArrowLeft' ? Math.max(0, cur - step)
+            :                           cur + step
+    if (k !== cur) session.send({ type: 'seek', record: k })
   }
 }
 
@@ -198,6 +227,40 @@ onBeforeUnmount(() => {
               @click="layout = layout === 'landscape' ? 'portrait' : 'landscape'">
         {{ layout === 'landscape' ? '⬒ portrait' : '⬓ landscape' }}
       </button>
+
+      <div class="relative">
+        <button class="px-2 py-0.5 rounded bg-neutral-800 hover:bg-neutral-700 text-xs"
+                title="keyboard shortcuts and mouse controls"
+                @click="showHelp = !showHelp;
+                        (($event as MouseEvent).currentTarget as HTMLElement)?.blur()">? help</button>
+        <div v-if="showHelp" class="fixed inset-0 z-40" @click="showHelp = false"></div>
+        <div v-if="showHelp"
+             class="absolute left-0 top-full mt-2 z-50 w-96 rounded border border-neutral-700 bg-neutral-900 shadow-xl p-3 text-xs space-y-2">
+          <h4 class="font-semibold text-neutral-300">Keyboard</h4>
+          <div class="grid grid-cols-[7rem_1fr] gap-x-3 gap-y-1 text-neutral-300">
+            <span><kbd class="wf-kbd">Space</kbd></span>
+            <span>Solve / Play / Pause (the transport button)</span>
+            <span><kbd class="wf-kbd">R</kbd></span>
+            <span>reverse time direction (applies at the frontier)</span>
+            <span><kbd class="wf-kbd">←</kbd> <kbd class="wf-kbd">→</kbd></span>
+            <span>while paused: step the time position by 10% of the computed history</span>
+            <span><kbd class="wf-kbd">Home</kbd> <kbd class="wf-kbd">End</kbd></span>
+            <span>while paused: jump to the first record / the frontier</span>
+            <span>click <span class="text-neutral-400">t =</span></span>
+            <span>while paused: type an exact time — <kbd class="wf-kbd">Enter</kbd> seeks to the
+              nearest record, <kbd class="wf-kbd">Esc</kbd> cancels</span>
+          </div>
+          <h4 class="font-semibold text-neutral-300 pt-1">Mouse (plots &amp; W panels)</h4>
+          <div class="grid grid-cols-[7rem_1fr] gap-x-3 gap-y-1 text-neutral-300">
+            <span>drag</span>
+            <span>charts: zoom to selection (x, y or box) · W panels &amp; IC preview: pan</span>
+            <span>wheel</span>
+            <span>zoom at the cursor (charts: x-axis, <kbd class="wf-kbd">Shift</kbd> = y-axis)</span>
+            <span>double-click</span>
+            <span>reset the view</span>
+          </div>
+        </div>
+      </div>
 
       <span v-if="restartNeeded" class="text-amber-400 text-xs">
         setup changed —

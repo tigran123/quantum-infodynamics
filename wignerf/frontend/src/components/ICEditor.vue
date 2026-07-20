@@ -280,7 +280,7 @@ onBeforeUnmount(() => {
       </div>
     </div>
     <div v-if="state.error" class="text-[11px] text-red-400">{{ state.error }}</div>
-    <div v-if="deficit" class="text-[11px] text-neutral-500">
+    <div v-if="deficit" class="text-xs text-neutral-400">
       norm deficit on grid: {{ deficit }}
     </div>
     <div v-for="(w, i) in warnings" :key="i" class="text-[11px] text-amber-400">⚠ {{ w }}</div>

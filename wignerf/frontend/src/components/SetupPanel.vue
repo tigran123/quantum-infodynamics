@@ -65,16 +65,17 @@ function resetSetup() {
           <input v-model.number="props.cfg.tol" type="number" step="any" min="1e-6" max="0.5"
                  class="wf-num" @change="emit('apply-live', { tol: props.cfg.tol })" />
         </label>
-        <label class="flex items-center gap-1 col-span-2">
+        <label class="flex items-center gap-1">
           <span class="w-10 text-neutral-500"
-                title="time direction of NEWLY computed records: flips the sign of dt in the propagator at the frontier. Already-computed history is unaffected — use the timeline to move within it.">t dir</span>
-          <button class="wf-num text-left hover:bg-neutral-800"
-                  @click="emit('apply-live', { dt_sign: (props.sign ?? 1) > 0 ? -1 : 1 })">
-            {{ (props.sign ?? 1) > 0 ? 'forward (t →)' : 'backward (← t)' }}
-          </button>
+                title="time direction of NEWLY computed records: flips the sign of dt in the propagator at the frontier. Already-computed history is unaffected — use the timeline to move within it. Shortcut: R">t dir</span>
+          <select class="wf-num" :value="(props.sign ?? 1) > 0 ? 1 : -1"
+                  @change="emit('apply-live', { dt_sign: Number(($event.target as HTMLSelectElement).value) })">
+            <option :value="1">forward</option>
+            <option :value="-1">backward</option>
+          </select>
         </label>
       </div>
-      <p class="text-[10px] text-neutral-600">
+      <p class="text-xs text-neutral-400">
         m, c, ℏ, tol apply live at the frontier; grid &amp; IC need a restart.
       </p>
     </section>
@@ -119,7 +120,8 @@ function resetSetup() {
     <section class="space-y-1.5">
       <h3 class="text-xs font-semibold text-neutral-400 uppercase tracking-wider">Run</h3>
       <div class="grid grid-cols-2 gap-x-2 gap-y-1 text-xs">
-        <label class="flex items-center gap-1">
+        <label class="flex items-center gap-1"
+               title="interactive: no end time — Solve keeps computing new records until you pause. run-ahead: Solve computes at full speed until t = t₂, then pauses; the button becomes Play — pure playback of the finished history.">
           <span class="w-14 text-neutral-500">mode</span>
           <select v-model="props.cfg.mode" class="wf-num" @change="emit('dirty')">
             <option value="interactive">interactive</option>

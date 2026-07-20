@@ -97,15 +97,17 @@ function setDelay(ev: Event) {
 const t = computed(() => props.lastFrame ? fmtTime(props.lastFrame.t) : '—')
 
 /**
- * Direct t entry: when paused in pure-playback state (button says "Play"),
- * the t readout becomes an editbox on click — clicking a timeline pixel
- * cannot reach a specific record among hundreds, but science can type.
- * The entered t seeks to the nearest record.
+ * Direct t entry: whenever the session is paused and history exists, the t
+ * readout becomes an editbox on click — clicking a timeline pixel cannot
+ * reach a specific record among hundreds, but science can type. The entered
+ * t seeks to the nearest record. During computation and playback (running)
+ * the readout is display-only.
  */
 const editingT = ref(false)
 const tDraft = ref('')
 const tInput = ref<HTMLInputElement | null>(null)
-const canEditT = computed(() => !running.value && playLabel.value === 'Play')
+const canEditT = computed(() =>
+  !running.value && (props.status?.record_extent?.[1] ?? -1) >= 0)
 
 function startEditT() {
   if (!canEditT.value || !props.lastFrame) return
@@ -190,7 +192,7 @@ const stepInfo = computed(() => {
              @blur="commitT" />
       <span v-else
             :class="canEditT ? 'cursor-pointer underline decoration-dotted decoration-neutral-600' : ''"
-            :title="canEditT ? 'click to type t directly (seeks to the nearest record)' : ''"
+            :title="canEditT ? 'click to type t directly (seeks to the nearest record); ←/→ step ±10%, Home/End jump to start/end' : ''"
             @click="startEditT">{{ t }}</span>
     </div>
     <div class="tabular-nums w-64 truncate shrink-0"><span class="text-neutral-400">E =</span> {{ E }}</div>

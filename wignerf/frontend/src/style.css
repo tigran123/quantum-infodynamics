@@ -9,3 +9,14 @@ html, body, #app {
      flicker on every frame). Inner regions manage their own overflow. */
   overflow: hidden;
 }
+
+/* keycap in the help popover */
+.wf-kbd {
+  padding: 0 4px;
+  border: 1px solid #525252;
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  background: #262626;
+  font-family: ui-monospace, monospace;
+  white-space: nowrap;
+}
