@@ -10,6 +10,15 @@ Group=tigran
 
 WorkingDirectory=/home/tigran/python/quantum-infodynamics/wignerf/
 Environment="PYTHONUNBUFFERED=1"
+# cupy JIT-compiles CUDA kernels at runtime (NVRTC) and caches the cubins.
+# ProtectHome=read-only makes the default ~/.cupy unwritable, AND PrivateTmp
+# wipes /tmp every restart — so the cache MUST be a PERSISTENT writable dir,
+# else every start recompiles (~7 s/variant, measured; x4 variants serialized
+# by the GIL = a minute+), blocking the first frame each time. CacheDirectory
+# gives /var/cache/wignerf (systemd-owned, RW in the sandbox, survives
+# restarts): compile once, sub-second thereafter. No-op on the CPU-only VPS.
+CacheDirectory=wignerf
+Environment=CUPY_CACHE_DIR=/var/cache/wignerf/cupy
 EnvironmentFile=/home/tigran/python/quantum-infodynamics/wignerf/wignerf.env
 ExecStart=/home/tigran/python/quantum-infodynamics/wignerf/start.sh
 
@@ -22,7 +31,11 @@ ProtectSystem=strict
 #ReadWritePaths=
 ProtectHome=read-only
 PrivateTmp=yes
-PrivateDevices=yes
+# PrivateDevices MUST stay off: =yes replaces /dev with a minimal private
+# tmpfs that has NO /dev/nvidia* nodes, so cupy sees zero CUDA devices and the
+# solver silently falls back to CPU. DeviceAllow cannot re-add nodes under
+# PrivateDevices=yes, so leave it off to expose the GPUs. (No-op on the VPS.)
+PrivateDevices=no
 ProtectKernelTunables=yes
 ProtectKernelModules=yes
 ProtectControlGroups=yes
