@@ -55,5 +55,13 @@ function fmt(v: number): string {
     <text v-for="v in pt" :key="'pl' + v"
           x="0" :y="fp(v) + '%'" dx="2" dy="-2"
           fill="#737373" font-size="9">{{ fmt(v) }}</text>
+    <!-- axis names beside the "0" tick labels: x right of the bottom-edge
+         0, p just above the left-edge 0 -->
+    <text v-if="x1 < 0 && x2 > 0" :x="fx(0) + '%'" y="99%" dx="14"
+          fill="#404040" font-size="14" font-style="italic"
+          font-weight="bold">x</text>
+    <text v-if="p1 < 0 && p2 > 0" x="0" :y="fp(0) + '%'" dx="2" dy="-14"
+          fill="#404040" font-size="14" font-style="italic"
+          font-weight="bold">p</text>
   </svg>
 </template>
