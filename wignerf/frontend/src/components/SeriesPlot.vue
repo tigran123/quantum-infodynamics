@@ -3,7 +3,10 @@
  * Per-record scalar time series (E or ΔX·ΔP) for all active variants.
  * Self-sufficient: polls GET /sessions/{id}/series incrementally every 2 s,
  * so the plot stays gapless even when live streaming coalesced frames.
- * X axis is the record index (monotone even under time reversal).
+ * X axis is physical time t (the per-record t the backend returns), so "E(t)"
+ * et al. read in a.u.; record index n is kept only as the ordering / dedup /
+ * eviction-gap key. A mid-run dt_sign flip makes t non-monotone, so the curve
+ * retraces itself — physically faithful, and the default run is forward-only.
  */
 import uPlot from 'uplot'
 import 'uplot/dist/uPlot.min.css'
@@ -37,7 +40,7 @@ let merged = -1
 let gone = false      // session 404'd: stop polling until it changes
 let inFlight = false  // never overlap polls (slow responses under load)
 let generation = 0    // bumped by reset(): stale responses are discarded
-const ns: number[] = []
+const ts: number[] = []   // x-values: physical time t of each record (a.u.)
 const cols: Map<VariantKey, (number | null)[]> = new Map()
 
 function value(v: { E: number; x_std: number; p_std: number; purity: number }): number {
@@ -68,11 +71,13 @@ async function poll() {
       if (r.n <= merged) continue          // duplicate/out-of-order guard
       if (merged >= 0 && r.n > merged + 1) {
         // records between polls were evicted: insert a null separator so
-        // uPlot breaks the line instead of bridging the gap with a chord
-        ns.push(merged + 1)
+        // uPlot breaks the line instead of bridging the gap with a chord.
+        // Its x is a t strictly between the last real point and this one
+        // (ts.at(-1) is always the previous REAL time here) so x stays sorted.
+        ts.push((ts[ts.length - 1] + r.t) / 2)
         pushNulls()
       }
-      ns.push(r.n)
+      ts.push(r.t)
       const byKey = new Map(r.variants.map((v) => [keyOfVid(v.vid), value(v)]))
       for (const k of props.variants) {
         if (!cols.has(k)) cols.set(k, [])
@@ -96,7 +101,7 @@ function reset() {
   merged = -1
   gone = false
   inFlight = false
-  ns.length = 0
+  ts.length = 0
   cols.clear()
   chart?.setData([[], ...props.variants.map(() => [])])
 }
@@ -156,7 +161,7 @@ function makeChart(width: number): uPlot {
 }
 
 function setChartData() {
-  chart?.setData([ns, ...props.variants.map((k) => cols.get(k) ?? [])])
+  chart?.setData([ts, ...props.variants.map((k) => cols.get(k) ?? [])])
 }
 
 onMounted(() => {
@@ -178,7 +183,7 @@ onMounted(() => {
   const dbg = ((window as unknown as Record<string, unknown>).__wfSeries ??= {}) as
     Record<string, () => unknown>
   dbg[props.which] = () => ({
-    points: ns.length, merged, gone, inFlight, generation,
+    points: ts.length, merged, lastT: ts.at(-1) ?? null, gone, inFlight, generation,
     sessionId: props.sessionId,
     lastVals: props.variants.map((k) => cols.get(k)?.at(-1) ?? null),
   })
