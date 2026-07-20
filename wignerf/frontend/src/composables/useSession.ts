@@ -34,6 +34,11 @@ export interface SessionStatus {
   cursor: number
   history_bytes: number
   devices: string[]
+  // current physics (reflects live set_params changes)
+  mass: number
+  c: number
+  hbar_eff: number
+  tol: number
   per_variant: VariantStatus[]
 }
 
@@ -55,7 +60,6 @@ export function useSession() {
   const lastFrame = shallowRef<Frame | null>(null)
 
   let ws: WebSocket | null = null
-  let closedByUs = false
   const handlers = new Set<FrameHandler>()
   const closeHandlers = new Set<() => void>()
 
@@ -78,7 +82,11 @@ export function useSession() {
     if (queue.length) scheduleDrain()
     const t0 = performance.now()
     lastFrame.value = f
-    handlers.forEach((h) => h(f))
+    // isolate handlers: one throwing panel (e.g. a GL error) must not
+    // starve the rest of this frame or escape the rAF callback
+    handlers.forEach((h) => {
+      try { h(f) } catch (e) { console.error('wignerf: frame handler failed', e) }
+    })
     perfFrame()
     perfStage('fanout', performance.now() - t0)
   }
@@ -99,19 +107,26 @@ export function useSession() {
   }
 
   function open(wsUrl: string) {
-    closedByUs = false
     queue = []
     const proto = location.protocol === 'https:' ? 'wss:' : 'ws:'
-    ws = new WebSocket(`${proto}//${location.host}${wsUrl}`)
-    ws.binaryType = 'arraybuffer'
-    ws.onopen = () => { connected.value = true }
-    ws.onclose = () => {
+    const sock = new WebSocket(`${proto}//${location.host}${wsUrl}`)
+    ws = sock
+    sock.binaryType = 'arraybuffer'
+    // Every handler checks it still belongs to the CURRENT socket: a
+    // superseded socket's late close event (restart/destroy while its
+    // close handshake was in flight) must not masquerade as an unexpected
+    // close — that used to trigger recover() → duplicate connect → server
+    // 4409 → another close → a reconnect storm with `ws` left dead.
+    sock.onopen = () => { if (ws === sock) connected.value = true }
+    sock.onclose = () => {
+      if (ws !== sock) return
       connected.value = false
       // an UNEXPECTED close (backend restart, network drop) is the
       // caller's cue to reattach or recreate the session
-      if (!closedByUs) closeHandlers.forEach((h) => h())
+      closeHandlers.forEach((h) => h())
     }
-    ws.onmessage = (ev) => {
+    sock.onmessage = (ev) => {
+      if (ws !== sock) return
       if (ev.data instanceof ArrayBuffer) {
         const t0 = performance.now()
         const f = decodeFrame(ev.data)
@@ -167,9 +182,9 @@ export function useSession() {
   }
 
   async function destroy() {
-    closedByUs = true
-    ws?.close()
-    ws = null
+    const sock = ws
+    ws = null            // supersede FIRST: sock's late events are stale
+    sock?.close()
     connected.value = false
     queue = []
     lastFrame.value = null   // never replay a dead session's frame

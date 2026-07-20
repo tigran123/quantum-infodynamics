@@ -53,7 +53,9 @@ float sampleW(vec2 st) {  // st: (s over Np, t over Nx) in [0,1], periodic
   vec2 xy = st * uSize - 0.5;
   vec2 f = fract(xy);
   ivec2 sz = ivec2(uSize);
-  ivec2 a = (ivec2(floor(xy)) % sz + sz) % sz;
+  // floor(xy) >= -1 here (st in [0,1)), so one +sz keeps % operands
+  // non-negative — GLSL ES leaves % undefined for negative operands
+  ivec2 a = (ivec2(floor(xy)) + sz) % sz;
   ivec2 b = ivec2((a.x + 1) % sz.x, (a.y + 1) % sz.y);
   float w00 = fetchW(a);
   float w10 = fetchW(ivec2(b.x, a.y));

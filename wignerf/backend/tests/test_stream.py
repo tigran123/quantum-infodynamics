@@ -430,5 +430,85 @@ def test_session_validation():
         # empty variant list rejected by schema
         cfg = {"grid": GRID, "potential": "x^2", "ic": IC, "variants": []}
         assert client.post("/api/sessions", json=cfg).status_code == 422
+        # mass = 0 with a non-relativistic variant would stream NaN frames
+        # (T = p^2/2m); only exclusively relativistic runs may be massless
+        cfg = {"grid": GRID, "potential": "x^2/2", "ic": IC,
+               "variants": ["qn"], "mass": 0.0}
+        assert client.post("/api/sessions", json=cfg).status_code == 422
+        cfg["variants"] = ["qr"]
+        r = client.post("/api/sessions", json=cfg)
+        assert r.status_code == 200, r.text
+        client.delete("/api/sessions/%s" % r.json()["session_id"])
         # unknown session
         assert client.get("/api/sessions/nope").status_code == 404
+
+
+def test_lockstep_skew_gate():
+    """A worker may run at most SKEW_MARGIN records past the record the
+    lockstep frontier is waiting on; the slowest worker (frontier ==
+    latest_complete) is never gated, so the gate cannot deadlock."""
+    from core.session import SessionClock, SKEW_MARGIN
+    clock = SessionClock(0.0, 0.05, "interactive", 0.0, None)
+    clock.set_running(True, 0)
+    # slowest worker: always gets its next target
+    assert clock.next_target(5, 5) == (6, pytest.approx(0.3))
+    # fast worker at the gate edge: allowed...
+    assert clock.next_target(5 + SKEW_MARGIN, 5) is not None
+    # ...one past it: idles until the frontier advances
+    assert clock.next_target(5 + SKEW_MARGIN + 1, 5) is None
+    assert clock.next_target(5 + SKEW_MARGIN + 1, 6) is not None
+
+
+def test_worker_skew_is_bounded(monkeypatch):
+    """The history byte cap is only enforceable if incomplete records above
+    the lockstep frontier stay bounded: with one variant artificially slow,
+    the fast one must not run away."""
+    import time as _time
+    from core.session import SESSIONS, SKEW_MARGIN
+    from core.worker import SolverWorker
+    orig = SolverWorker._advance
+
+    def slowed(self, prop, W, t, t_tgt):
+        if self.key == "qn":
+            _time.sleep(0.05)
+        return orig(self, prop, W, t, t_tgt)
+
+    monkeypatch.setattr(SolverWorker, "_advance", slowed)
+    with TestClient(app) as client:
+        info = _mk(client, variants=("qn", "cn"))
+        sid = info["session_id"]
+        with client.websocket_connect(info["ws_url"]) as ws:
+            ws.send_text(json.dumps({"type": "play"}))
+            _recv_frames(ws, 3)                  # frontier is moving
+            s = SESSIONS[sid]
+            for _ in range(10):
+                fr = [s.history.variant_frontier(i) for i in range(2)]
+                assert max(fr) - min(fr) <= SKEW_MARGIN + 1, \
+                    "fast variant ran away: frontiers %r" % (fr,)
+                _time.sleep(0.05)
+            assert s.history.latest_complete() >= 3   # and progress was made
+        client.delete("/api/sessions/%s" % sid)
+
+
+def test_live_params_tracked_in_status():
+    """Live parameter changes must be visible in status() and used for
+    later U validations (the extended Bopp range depends on hbar_eff)."""
+    with TestClient(app) as client:
+        info = _mk(client)
+        sid = info["session_id"]
+        with client.websocket_connect(info["ws_url"]) as ws:
+            ws.send_text(json.dumps({"type": "play"}))
+            _recv_frames(ws, 2)
+            ws.send_text(json.dumps({"type": "set_params",
+                                     "params": {"hbar_eff": 0.5, "tol": 0.02}}))
+            for _ in range(200):
+                m = ws.receive()
+                if m.get("text") and \
+                   json.loads(m["text"])["type"] == "params_applied":
+                    break
+            else:
+                raise AssertionError("params_applied never arrived")
+            r = client.get("/api/sessions/%s" % sid).json()
+            assert r["hbar_eff"] == 0.5 and r["tol"] == 0.02
+            assert r["mass"] == 1.0        # untouched params keep their value
+        client.delete("/api/sessions/%s" % sid)

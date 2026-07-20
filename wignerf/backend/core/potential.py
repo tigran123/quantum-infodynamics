@@ -17,6 +17,7 @@ are REAL (x -+ hbar*theta/2, complex dtype only), so:
 """
 
 import io
+import math
 import tokenize
 from dataclasses import dataclass, field
 
@@ -27,6 +28,7 @@ from sympy.parsing.sympy_parser import (parse_expr, standard_transformations,
 
 MAX_EXPR_LEN = 500
 PROBE_POINTS = 4096
+MAX_POW_DIGITS = 300   # numeric powers must stay below ~1e300 (float range)
 
 _X = sp.Symbol("x", real=True)
 
@@ -99,6 +101,26 @@ def _screen_tokens(src):
             raise PotentialError("string literals are not allowed")
 
 
+def _screen_powers(expr):
+    """Reject numeric powers of astronomical magnitude BEFORE evaluation:
+    parse_expr(evaluate=True) of e.g. 9**9**9 would try to materialize a
+    ~4e8-digit integer, pinning a CPU and gigabytes of RAM. Called on the
+    unevaluated parse; the magnitude estimate uses float logs only."""
+    for node in sp.preorder_traversal(expr):
+        if not (isinstance(node, sp.Pow) and node.base.is_number
+                and node.exp.is_number):
+            continue
+        try:
+            b = abs(complex(node.base.evalf(8)))
+            p = abs(complex(node.exp.evalf(8)))
+        except (OverflowError, TypeError, ValueError):
+            raise PotentialError("numeric power is too large") from None
+        if b > 0.0 and b != 1.0 and p*abs(math.log10(b)) > MAX_POW_DIGITS:
+            raise PotentialError(
+                "numeric power is too large (|result| would exceed 1e%d)"
+                % MAX_POW_DIGITS)
+
+
 def _lambdify(expr, modules):
     f = sp.lambdify(_X, expr, modules=modules)
     def wrapped(v, _f=f):
@@ -127,6 +149,15 @@ def compile_potential(expr_str, x_range=None, x_extended=None):
     if not src:
         raise PotentialError("empty expression")
     _screen_tokens(src)
+    # two-phase parse: an unevaluated pass feeds the power screen (nothing
+    # is materialized), then the real evaluated parse
+    try:
+        unev = parse_expr(src, local_dict=_LOCALS, transformations=_TRANSFORMS,
+                          evaluate=False)
+    except Exception as e:
+        raise PotentialError("parse error: %s" % e) from None
+    if isinstance(unev, sp.Basic):
+        _screen_powers(unev)
     try:
         expr = parse_expr(src, local_dict=_LOCALS, transformations=_TRANSFORMS,
                           evaluate=True)

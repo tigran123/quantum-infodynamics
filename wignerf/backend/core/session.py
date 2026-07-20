@@ -37,6 +37,15 @@ log = logging.getLogger(__name__)
 
 WS_IDLE_TTL = 120.0
 
+# How many records a fast variant worker may run ahead of the lockstep
+# frontier (the newest record ALL variants have landed on). Without a bound
+# the fast variants (classical, non-relativistic) outrun the slow ones
+# without limit: the incomplete records above the frontier cannot be
+# evicted, so the history grows past its byte cap — and the fast workers
+# burn device time the slowest worker (the actual rate limiter of the
+# stream) needs. The slowest worker is never gated, so no deadlock.
+SKEW_MARGIN = 2
+
 SESSIONS = {}
 _LOCK = threading.Lock()
 
@@ -97,9 +106,10 @@ class SessionClock:
         return (self.sign > 0 and t_prev >= self.t2 - 1e-12) or \
                (self.sign < 0 and t_prev <= self.t2 + 1e-12)
 
-    def next_target(self, frontier):
+    def next_target(self, frontier, latest_complete):
         """Next (k, t_k) for a worker whose newest record is `frontier`,
-        or None when it should idle (paused / playback-only / done).
+        or None when it should idle (paused / playback-only / done / too far
+        ahead of the lockstep frontier `latest_complete` — see SKEW_MARGIN).
         Computation always proceeds at full speed — the display cursor
         never gates the workers (`delay` paces only what the client sees)."""
         with self._cond:
@@ -108,6 +118,8 @@ class SessionClock:
             if self.mode == "runahead" and self._runahead_done(frontier):
                 return None
             k = frontier + 1
+            if k > latest_complete + 1 + SKEW_MARGIN:
+                return None
             return k, self._t_of(k)
 
     def wait_work(self, timeout=0.1):
@@ -246,6 +258,18 @@ class SimSession:
                                  (change.mass, change.c, change.hbar_eff, change.tol)):
             for w in self.workers:
                 w.cmd_q.put(cmd)
+            # Track the applied values on the session: later U compiles
+            # validate on the extended Bopp range, which depends on the
+            # CURRENT hbar_eff, and status() must report current physics.
+            # Optimistic — a worker that rejects the change rolls itself
+            # back and posts an error.
+            for f in ("mass", "c", "hbar_eff", "tol"):
+                v = getattr(change, f)
+                if v is not None:
+                    setattr(self.cfg, f, v)
+            if cp is not None:
+                self.cfg.potential = change.U
+                self.compiled_potential = cp
         self.clock.kick()
         applied = {k: v for k, v in change.model_dump().items() if v is not None}
         self.post_msg({"type": "params_applied", "applied": applied,
@@ -268,6 +292,10 @@ class SimSession:
             "cursor": self.clock.cursor,
             "history_bytes": self.history.nbytes(),
             "devices": self.devices,
+            "mass": self.cfg.mass,
+            "c": self.cfg.c,
+            "hbar_eff": self.cfg.hbar_eff,
+            "tol": self.cfg.tol,
             "per_variant": [{"variant": w.key, "dt": w.dt,
                              "device": w.device,
                              "steps_per_sec": round(w.steps_per_sec, 2),
@@ -314,4 +342,6 @@ async def ttl_sweeper():
         for s in list(SESSIONS.values()):
             if not s.ws_attached and now - s.last_seen > WS_IDLE_TTL:
                 log.info("session %s idle > %.0fs, closing", s.id, WS_IDLE_TTL)
-                s.close()
+                # close() joins worker threads (up to seconds for a wedged
+                # one) — never block the event loop the streamers run on
+                await asyncio.to_thread(s.close)

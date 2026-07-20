@@ -41,6 +41,10 @@ interface PreviewResult {
 }
 
 const draft = ref(props.modelValue)
+// external config changes ("Reset setup to defaults") must reach the
+// editor — a stale draft would keep showing (and validating, and offering
+// to apply) the pre-reset expression
+watch(() => props.modelValue, (v) => { draft.value = v })
 const result = ref<PreviewResult | null>(null)
 const plotEl = ref<HTMLDivElement | null>(null)
 let chart: uPlot | null = null

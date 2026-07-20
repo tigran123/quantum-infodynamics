@@ -123,6 +123,10 @@ function commitT() {
   const [k0, k1] = st.record_extent
   const t0 = st.t_extent?.[0]
   if (t0 == null || k1 < 0) return
+  // KNOWN LIMITATION: assumes one time direction across the retained
+  // history. After a mid-run dt_sign flip the record times are piecewise
+  // linear in k, so this lands near (not on) the requested t; the clamp
+  // below keeps it inside the timeline either way.
   const step = st.record_dt * (st.sign || 1)
   const k = Math.min(Math.max(k0 + Math.round((tv - t0) / step), k0), k1)
   emit('command', { type: 'seek', record: k })

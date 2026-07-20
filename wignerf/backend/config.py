@@ -12,8 +12,8 @@ WIGNERF_PORT         backend port; 8010 because urantia-library owns 8000
 WIGNERF_HISTORY_MB   in-RAM frame history cap per session (default 32 GiB:
                      ~4000 four-variant records at 1024², plenty at smaller
                      grids; set lower on RAM-constrained hosts like the VPS)
-WIGNERF_FFT_THREADS  threads per FFT; 0 = auto (ncores // n_variants,
-                     decided at session start)
+WIGNERF_FFT_THREADS  threads per FFT; 0 = auto (ncores // (2*n_variants),
+                     capped at 4; decided at session start)
 """
 
 import os

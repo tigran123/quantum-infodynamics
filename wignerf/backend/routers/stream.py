@@ -17,6 +17,7 @@ import asyncio
 import json
 import logging
 import time
+from contextlib import suppress
 from time import monotonic
 
 from fastapi import APIRouter
@@ -196,18 +197,27 @@ async def ws_endpoint(ws: WebSocket, sid: str):
         await ws.accept()
         await ws.close(code=4409)
         return
-    await ws.accept()
+    # claim the session BEFORE the first await — two near-simultaneous
+    # connects must not both pass the check above
     s.ws_attached = True
     s.pending_seek = None
-    recv_task = asyncio.create_task(_receiver(ws, s))
+    recv_task = None
     try:
+        await ws.accept()
+        recv_task = asyncio.create_task(_receiver(ws, s))
         await _sender(ws, s, recv_task)
     except WebSocketDisconnect:
         pass
     except Exception:
         log.exception("streamer for session %s failed", s.id)
     finally:
-        recv_task.cancel()
+        if recv_task is not None:
+            recv_task.cancel()
+            # retrieve its result: a client disconnect ends the receiver
+            # with WebSocketDisconnect, which would otherwise be logged as
+            # "Task exception was never retrieved" at GC time
+            with suppress(Exception, asyncio.CancelledError):
+                await recv_task
         s.ws_attached = False
         s.clock.set_running(False)     # pause on disconnect; TTL takes over
         s.last_seen = time.monotonic()

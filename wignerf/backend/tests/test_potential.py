@@ -96,6 +96,18 @@ def test_soft_coulomb():
     assert cp.quantum_valid and cp.classical_valid
 
 
+def test_astronomical_powers_rejected():
+    """9**9**9 would make sympy materialize a ~4e8-digit integer during
+    parse — the power screen must reject it (and towers like it) before
+    any evaluation happens."""
+    for bad in ("9**9**9", "x + 2^9999999", "2**(10**6)", "0.5**(-99**99)"):
+        with pytest.raises(PotentialError):
+            compile_potential(bad, x_range=XR)
+    # sane powers are unaffected
+    cp = compile_potential("x**8/8 + 2**10", x_range=XR, x_extended=XEXT)
+    assert cp.quantum_valid and cp.classical_valid
+
+
 def test_sample_potential_gaps():
     cp = compile_potential("sqrt(x)", x_range=XR)
     xs, us = sample_potential(cp, -1.0, 1.0, n=16)

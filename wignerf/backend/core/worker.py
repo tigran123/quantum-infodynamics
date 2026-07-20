@@ -57,6 +57,10 @@ class SolverWorker(threading.Thread):
             log.exception("worker %s failed", self.name)
             self.session.post_error("variant '%s' solver died: %s" % (self.key, e),
                                     detail=traceback.format_exc())
+            # Pause the session: with this variant dead the lockstep
+            # frontier can never advance, and the siblings would fill the
+            # history with records that never complete (and never evict).
+            self.session.clock.set_running(False)
         finally:
             self._release_gpu_pool()
 
@@ -89,6 +93,9 @@ class SolverWorker(threading.Thread):
             U, dUdx = self.session.compiled_potential.for_backend(backend)
             prop = Propagator(g, mass=cfg.mass, c=cfg.c, hbar_eff=cfg.hbar_eff,
                               tol=cfg.tol, U=U, dUdx=dUdx, **self.flavor)
+            if not self._finite(prop, backend):
+                raise ValueError("non-finite propagator exponents "
+                                 "(check U(x), mass, c)")
             W = g.shift2d(Wnat)
             t = cfg.t1
             self.dt = cfg.record_dt/8.
@@ -96,7 +103,8 @@ class SolverWorker(threading.Thread):
             frontier = 0
             while not self.stop_evt.is_set():
                 self._drain_commands(prop, backend)
-                tgt = self.session.clock.next_target(frontier)
+                tgt = self.session.clock.next_target(
+                    frontier, self.session.history.latest_complete())
                 if tgt is None:
                     self.session.clock.wait_work(0.1)
                     continue
@@ -106,6 +114,11 @@ class SolverWorker(threading.Thread):
                 frontier = k
 
     # -- stepping -----------------------------------------------------------
+
+    @staticmethod
+    def _finite(prop, backend):
+        xp = backend.xp
+        return bool(xp.isfinite(prop.dU).all()) and bool(xp.isfinite(prop.dT).all())
 
     def _exponents(self, prop, dts):
         pair = self._exp_cache.get(dts)
@@ -127,7 +140,15 @@ class SolverWorker(threading.Thread):
             rem = t_tgt - t
             adjust_due = self.force_adjust or self.steps_total % 20 == 0
             if adjust_due and abs(self.dt) <= abs(rem):
-                W, self.dt, eU, eT = prop.adjust_step(self.dt, W)
+                # adjust_step only ever shrinks (as in solve.py): give dt a
+                # chance to climb back after a transient (a stiff U applied
+                # live, then reverted) by trying a 1/0.7 larger step — the
+                # controller shrinks it right back if the accuracy is not
+                # there. |rem| <= record_dt caps growth at one record.
+                dt_try = self.dt/0.7
+                if self.force_adjust or abs(dt_try) > abs(rem):
+                    dt_try = self.dt
+                W, self.dt, eU, eT = prop.adjust_step(dt_try, W)
                 self._exp_cache = {self.dt: (eU, eT)}
                 self.force_adjust = False
                 t += self.dt
@@ -149,6 +170,8 @@ class SolverWorker(threading.Thread):
                           dt=self.dt, rho=obs.rho, phi=obs.phi)
         self.session.history.put(k, t, self.slot, vf)
         self.session.notify_frame()
+        # a landing record may open the skew gate for waiting siblings
+        self.session.clock.kick()
         n, mark = self._rate_mark
         now = monotonic()
         if now - mark > 1.0:
@@ -176,9 +199,7 @@ class SolverWorker(threading.Thread):
                     if cmd.get(f) is not None:
                         kwargs[f] = cmd[f]
                 prop.set_physics(**kwargs)
-                xp = backend.xp
-                if not (bool(xp.isfinite(prop.dU).all())
-                        and bool(xp.isfinite(prop.dT).all())):
+                if not self._finite(prop, backend):
                     raise ValueError("non-finite propagator exponents")
             except Exception as e:
                 prop.set_physics(**prev)   # roll back, keep evolving

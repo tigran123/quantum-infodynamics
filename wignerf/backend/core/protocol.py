@@ -125,6 +125,13 @@ class SessionCreate(BaseModel):
             raise ValueError("duplicate variants")
         if self.mode == "runahead" and self.t2 is None:
             raise ValueError("runahead mode requires t2")
+        # mass >= 0 exists for massless RELATIVISTIC runs (T = c|p|); the
+        # non-relativistic T = p^2/2m diverges and would stream NaN frames
+        if self.mass == 0.0 and any(not VARIANTS[v]["relativistic"]
+                                    for v in self.variants):
+            raise ValueError("mass = 0 requires exclusively relativistic "
+                             "variants (non-relativistic T = p²/2m "
+                             "diverges)")
         return self
 
 
