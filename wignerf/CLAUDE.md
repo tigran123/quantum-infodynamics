@@ -254,3 +254,14 @@ grids) and the measured refresh interval.
   [-12,12]² gives 4e-6 with purity conserved to 5e-12 — the discrete map
   is exactly unitary for contained states (healthy E behavior is a BOUNDED
   O(dt²) oscillation from Strang splitting, never a drift).
+- **Growing ΔX·ΔP in the RELATIVISTIC variants only = anharmonic shear, not
+  a bug.** T = c√(p²+m²c²) carries a −p⁴/(8m³c²) term, so ω depends on E
+  (δω = −3E/(8c²)) and the ensemble shears at k = t·r²·3/(8c²). The shear is
+  symplectic: purity and det C are conserved and the LOWER envelope of ΔX·ΔP
+  stays exactly at ħ/2, while the upper one grows ∝ t² (modulated at 2ω).
+  Tells that it is physics: halving dt leaves it identical while the E(t)
+  splitting oscillation drops 4×, it scales as 1/c⁴, purity stays flat.
+  Non-relativistic harmonic H is exactly quadratic ⇒ no shear ⇒ flat.
+  Measured: coherent state at (2,0) in x²/2 with c = 137.036 → 2e-5 at
+  t = 100 (analytic σ²k²/2 = 1.6e-5). Pinned by
+  `test_relativistic_uncertainty_shear`.

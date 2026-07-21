@@ -13,7 +13,7 @@ from math import pi, sqrt
 import numpy as np
 import pytest
 
-from core.xp import ArrayBackend
+from core.xp import ArrayBackend, C_AU
 from core.grid import Grid
 from core.propagator import Propagator
 from core.initial import GaussianComponent, mixture_wigner
@@ -202,3 +202,56 @@ def test_adjust_step_negative_dt(grid):
     W0 = grid.shift2d(coherent_w0(grid))
     _, dt, _, _ = prop.adjust_step(-1.0, W0)
     assert -1.0 < dt < 0
+
+
+def _shear_diag(grid, dt, T, **kw):
+    """Evolve the coherent state at fixed dt to time T, sampling observables
+    every 5 steps. Returns (max(dx*dp) - hbar/2, peak-to-peak E, max |purity
+    drift|) — the three numbers that separate anharmonic shear from numerics."""
+    prop = Propagator(grid, **harmonic(), **kw)
+    expU, expT = prop.exponents(dt)
+    W = grid.shift2d(coherent_w0(grid))
+    excess, E, gamma = [], [], []
+    for i in range(int(T/dt)):
+        W = prop.solve_spectral(W, expU, expT)
+        if i % 5 == 0:
+            obs = observables.compute(W, prop)
+            excess.append(obs.x_std*obs.p_std - 0.5)
+            E.append(obs.E)
+            gamma.append(obs.purity)
+    return max(excess), max(E) - min(E), max(abs(g - gamma[0]) for g in gamma)
+
+
+def test_relativistic_uncertainty_shear(grid):
+    """Relativistic variants grow dx*dp away from hbar/2; non-relativistic ones
+    do not. T = c*sqrt(p^2+m^2c^2) carries a -p^4/(8m^3c^2) term, so the orbital
+    frequency depends on energy (domega = -3E/(8c^2)) and the ensemble shears in
+    phase space at rate k = t*r^2*3/(8c^2). The shear is symplectic: det C and
+    the purity are conserved and the LOWER envelope of dx*dp stays exactly at
+    hbar/2, while dx*dp = sqrt(C_xx C_pp) picks up sigma^2 k^2/2 — a t^2 envelope
+    modulated at 2*omega. It is physics, not discretization: halving dt shrinks
+    the O(dt^2) splitting oscillation of E fourfold and leaves the growth alone.
+    Do not "fix" this; see the gotcha in wignerf/CLAUDE.md."""
+    rel = dict(quantum=False, relativistic=True, c=C_AU)
+
+    flat, _, _ = _shear_diag(grid, 0.05, 60., quantum=False, relativistic=False)
+    assert flat < 1e-6                       # quadrature floor, ~1.3e-7
+
+    shear, E_span, dgamma = _shear_diag(grid, 0.05, 60., **rel)
+    assert shear > 20.*flat                  # ~7e-6 vs ~1.3e-7
+    assert dgamma < 1e-10                    # symplectic: purity untouched
+
+    # dt-independence, the anti-numerics assertion: the splitting error visibly
+    # shrinks (4x, second order) while the shear does not budge.
+    half, E_span_half, _ = _shear_diag(grid, 0.025, 60., **rel)
+    assert abs(half - shear) < 0.1*shear
+    assert E_span_half < E_span/3.
+
+    # t^2 envelope
+    early, _, _ = _shear_diag(grid, 0.05, 30., **rel)
+    assert 3. < shear/early < 5.
+
+    # 1/c^4 scaling (k ~ 1/c^2, excess ~ k^2)
+    slow, _, _ = _shear_diag(grid, 0.05, 60., quantum=False, relativistic=True,
+                             c=2.*C_AU)
+    assert shear/slow > 8.
