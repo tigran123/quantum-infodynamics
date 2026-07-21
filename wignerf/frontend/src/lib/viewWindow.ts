@@ -51,3 +51,27 @@ export function resetView(v: ViewWindow): void {
 export function isZoomed(v: ViewWindow): boolean {
   return v.x0 > 0 || v.x1 < 1 || v.y0 > 0 || v.y1 < 1
 }
+
+interface Domain { x1: number; x2: number; p1: number; p2: number }
+
+/** Remap a fraction window so it keeps showing the same PHYSICAL region
+ *  after the domain changed (auto-expand regrid). Un-zoomed windows stay
+ *  full-view; the result is clamped into [0,1] and degenerate windows
+ *  (view entirely outside the new domain) reset. */
+export function remapView(v: ViewWindow, od: Domain, nd: Domain): void {
+  if (!isZoomed(v)) return
+  const fx = (f: number) => (od.x1 + f * (od.x2 - od.x1) - nd.x1) / (nd.x2 - nd.x1)
+  const fy = (f: number) => (od.p1 + f * (od.p2 - od.p1) - nd.p1) / (nd.p2 - nd.p1)
+  const x0 = Math.max(0, fx(v.x0))
+  const x1 = Math.min(1, fx(v.x1))
+  const y0 = Math.max(0, fy(v.y0))
+  const y1 = Math.min(1, fy(v.y1))
+  if (x1 - x0 < MIN_SPAN / 4 || y1 - y0 < MIN_SPAN / 4) {
+    resetView(v)
+    return
+  }
+  v.x0 = x0
+  v.x1 = x1
+  v.y0 = y0
+  v.y1 = y1
+}

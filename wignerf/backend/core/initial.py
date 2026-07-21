@@ -21,6 +21,8 @@ from math import sqrt as msqrt
 
 from numpy import pi
 
+from .boundary import EDGE_THRESHOLD, edge_band, edge_report
+
 
 @dataclass
 class GaussianComponent:
@@ -121,12 +123,15 @@ def minimal_sigma_p(sigma_x, hbar_eff=1.0):
     return hbar_eff/(2.*sigma_x)
 
 
-def from_spec(grid_spec, ic, hbar_eff, backend):
+def from_spec(grid_spec, ic, hbar_eff, backend, grid=None):
     """Build (Grid, W_natural, warnings) from protocol.GridSpec/ICSpec
     (duck-typed: anything with the same attributes works). Shared by the
-    IC preview endpoint and by each SolverWorker at session start."""
+    IC preview endpoint and by each SolverWorker at session start; the
+    worker passes its GridState-built `grid` so the lattice materialization
+    matches the session's window bitwise."""
     from .grid import Grid
-    g = Grid(grid_spec.x1, grid_spec.x2, grid_spec.Nx,
+    g = grid if grid is not None else \
+        Grid(grid_spec.x1, grid_spec.x2, grid_spec.Nx,
              grid_spec.p1, grid_spec.p2, grid_spec.Np, backend)
     comps = []
     for c in ic.components:
@@ -173,6 +178,17 @@ def preview_warnings(grid, components, kind, hbar_eff=1.0, W=None):
             warns.append("W is not a valid quantum state: Tr ρ² = "
                          "2πℏ∬W²dxdp = %.8g > 1 (fine for the classical "
                          "variants)" % purity)
+        # measure-based edge check on the sampled TOTAL W: catches what the
+        # per-component 4σ boxes cannot (interference cross-terms of a cat
+        # state carry their own mass). W is in natural order here.
+        es = edge_report(W.sum(axis=1)*grid.dp, W.sum(axis=0)*grid.dx,
+                         grid.dx, grid.dp)
+        for ax, mass, n in (("x", es.x_mass, grid.Nx),
+                            ("p", es.p_mass, grid.Np)):
+            if mass > EDGE_THRESHOLD:
+                warns.append("total W carries mass %.2g in the outer %d-cell "
+                             "%s-edge band (will wrap around under the "
+                             "periodic propagator)" % (mass, edge_band(n), ax))
     if kind == "cat":
         n = len(components)
         for j in range(n):

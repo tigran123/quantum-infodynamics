@@ -81,7 +81,17 @@ async function restart() {
     currentRecord.value = 0
     restartNeeded.value = false
     restartCount.value++
-    unsub = session.onFrame((f) => { currentRecord.value = f.record })
+    unsub = session.onFrame((f) => {
+      currentRecord.value = f.record
+      // geometry is a per-record fact (auto-expand regrids): follow the
+      // PAINTED frame so panels, axis overlays and marginal axes stay in
+      // sync while scrubbing across a regrid boundary in either direction
+      const g = activeGrid.value
+      if (f.Nx !== g.Nx || f.Np !== g.Np || f.x1 !== g.x1 || f.x2 !== g.x2
+          || f.p1 !== g.p1 || f.p2 !== g.p2)
+        activeGrid.value = { x1: f.x1, x2: f.x2, Nx: f.Nx,
+                             p1: f.p1, p2: f.p2, Np: f.Np }
+    })
   } catch (e: unknown) {
     const err = e as { response?: { data?: { detail?: string } } }
     createError.value = err.response?.data?.detail ?? String(e)
@@ -106,6 +116,38 @@ function toggleVariant(v: VariantKey) {
 function applyLive(params: Record<string, unknown>) {
   session.send({ type: 'set_params', params })
 }
+
+// Boundary watch surfacing: a dismissible amber warning while W sits in
+// the edge band (the server posts an all-clear that removes it), and a
+// transient notice for each auto-expand regrid.
+const boundaryText = computed(() => {
+  const b = session.boundary.value
+  if (!b) return ''
+  const axes = b.axes.join(', ')
+  if (b.action === 'capped')
+    return `W(x,p,t) reached the ${axes} edge but the domain is at the ` +
+           `${b.max_grid ?? ''}-cell cap (WIGNERF_MAX_GRID) — mass is wrapping`
+  if (b.action === 'invalid_potential')
+    return b.message ?? 'cannot expand: U(x) is invalid on the larger domain'
+  return `W(x,p,t) is approaching the ${axes} edge — mass will wrap around` +
+         (cfg.auto_expand ? '' : '; enable auto-expand or restart with a larger domain')
+})
+// the server's status is the authority on the live toggle (delay-dial
+// pattern): a reattach to a surviving session must not show a stale box
+watch(() => session.status.value?.auto_expand, (v) => {
+  if (typeof v === 'boolean' && v !== cfg.auto_expand) cfg.auto_expand = v
+})
+const regridFlash = ref('')
+let regridTimer = 0
+watch(session.regrid, (r) => {
+  if (!r) return
+  const g = r.grid
+  const verb = Object.values(r.kind).includes('double') ? 'expanded' : 'moved'
+  regridFlash.value = `domain ${verb} to [${+g.x1.toFixed(4)}, ${+g.x2.toFixed(4)}] × ` +
+    `[${+g.p1.toFixed(4)}, ${+g.p2.toFixed(4)}], ${g.Nx}×${g.Np}, at record ${r.at_record}`
+  clearTimeout(regridTimer)
+  regridTimer = window.setTimeout(() => { regridFlash.value = '' }, 6000)
+})
 
 /**
  * Self-heal after an unexpected WebSocket close (e.g. a backend restart,
@@ -266,6 +308,12 @@ onBeforeUnmount(() => {
         setup changed —
         <button class="underline" @click="restart">restart</button> to apply
       </span>
+      <span v-if="boundaryText" class="text-amber-400 text-xs">
+        ⚠ {{ boundaryText }}
+        <button class="underline" title="dismiss (reappears if the boundary state changes)"
+                @click="session.boundary.value = null">×</button>
+      </span>
+      <span v-if="regridFlash" class="text-sky-400 text-xs">⤢ {{ regridFlash }}</span>
       <span v-if="reconnecting" class="ml-auto text-amber-400">
         backend disconnected — reconnecting…
       </span>
@@ -277,7 +325,9 @@ onBeforeUnmount(() => {
     <!-- ================= landscape ================= -->
     <main v-if="layout === 'landscape'" class="flex-1 min-h-0 flex gap-2 p-2">
       <aside v-if="showSetup" class="w-80 shrink-0 overflow-y-auto space-y-4 pr-1 text-sm">
-        <SetupPanel :cfg="cfg" :live="session.connected.value" :sign="session.status.value?.sign ?? 1" v-model:show-grid="showGrid"
+        <SetupPanel :cfg="cfg" :live="session.connected.value" :sign="session.status.value?.sign ?? 1"
+                    :live-grid="session.status.value?.grid ?? null"
+                    :max-grid="session.status.value?.max_grid ?? 4096" v-model:show-grid="showGrid"
                     @dirty="restartNeeded = true" @restart="restart"
                     @apply-live="applyLive"
                     @potential-validity="(v: boolean) => potentialValid = v" />
@@ -304,7 +354,9 @@ onBeforeUnmount(() => {
     <main v-else class="flex-1 min-h-0 flex flex-col gap-2 p-2">
       <div v-if="showSetup" class="grid grid-cols-3 gap-3 max-h-[46%] min-h-0 text-sm">
         <div class="overflow-y-auto min-h-0 pr-1">
-          <SetupPanel :cfg="cfg" :live="session.connected.value" :sign="session.status.value?.sign ?? 1" v-model:show-grid="showGrid"
+          <SetupPanel :cfg="cfg" :live="session.connected.value" :sign="session.status.value?.sign ?? 1"
+                    :live-grid="session.status.value?.grid ?? null"
+                    :max-grid="session.status.value?.max_grid ?? 4096" v-model:show-grid="showGrid"
                       @dirty="restartNeeded = true" @restart="restart"
                       @apply-live="applyLive"
                       @potential-validity="(v: boolean) => potentialValid = v" />
@@ -330,7 +382,11 @@ onBeforeUnmount(() => {
     </main>
 
     <div v-for="(e, i) in session.errors.value" :key="i"
-         class="px-3 py-1 text-xs text-red-400">{{ e }}</div>
+         class="px-3 py-1 text-xs text-red-400">
+      {{ e }}
+      <button class="underline ml-2 text-red-300" title="dismiss this error"
+              @click="session.errors.value.splice(i, 1)">×</button>
+    </div>
 
     <Timeline
       :status="session.status.value"

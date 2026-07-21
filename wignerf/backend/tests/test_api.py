@@ -58,9 +58,11 @@ def test_wigner_preview_mixture_roundtrip():
         "type": "mixture", "grid": GRID,
         "components": [{"x0": 2.0, "p0": 0.0, "sigma_x": 0.707, "sigma_p": 0.707}],
     })
-    record, t, Nx, Np, flags, variants = _decode(r)
-    assert (Nx, Np) == (64, 64) and flags & protocol.FLAG_LIVE_PREVIEW
-    v = variants[0]
+    f = _decode(r)
+    assert (f.geom.Nx, f.geom.Np) == (64, 64)
+    assert (f.geom.x1, f.geom.x2, f.geom.p1, f.geom.p2) == (-6.0, 6.0, -7.0, 7.0)
+    assert f.flags & protocol.FLAG_LIVE_PREVIEW
+    v = f.variants[0]
     W = dequantize(v.wq, v.wmin, v.wmax)
     # dequantized norm: 16-bit quantization of a 64x64 frame keeps the grid
     # integral within ~1e-3
@@ -78,8 +80,7 @@ def test_wigner_preview_cat_has_negativity():
         "components": [{"x0": -2.0, "p0": 0.0, "sigma_x": 0.5},
                        {"x0": 2.0, "p0": 0.0, "sigma_x": 0.5}],
     })
-    _, _, _, _, _, variants = _decode(r)
-    assert variants[0].wmin < 0
+    assert _decode(r).variants[0].wmin < 0
 
 
 def test_wigner_preview_mixture_requires_sigma_p():

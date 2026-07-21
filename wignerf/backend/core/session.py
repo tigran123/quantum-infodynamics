@@ -27,8 +27,12 @@ import threading
 import time
 import uuid
 from collections import deque
+from dataclasses import dataclass, replace
 
+from . import boundary
+from .grid import GridState
 from .history import FrameHistory
+from .potential import PotentialError, compile_potential
 from .protocol import VARIANTS
 from .worker import SolverWorker
 from .xp import resolve_devices
@@ -48,6 +52,18 @@ SKEW_MARGIN = 2
 
 SESSIONS = {}
 _LOCK = threading.Lock()
+
+
+@dataclass(frozen=True)
+class RegridPlan:
+    """A committed grid change: every record >= k_star is computed on
+    `state`. k_star is chosen past ALL in-flight records, so the switch is
+    lockstep-uniform; a committed plan is never cancelled (toggling
+    auto_expand off only gates future scheduling — a worker may already
+    have applied it)."""
+    epoch: int
+    k_star: int
+    state: GridState
 
 
 def assign_devices(variant_keys, devices):
@@ -207,7 +223,7 @@ class SessionClock:
 
 class SimSession:
     def __init__(self, cfg, compiled_potential, loop, device, fft_threads,
-                 history_bytes):
+                 history_bytes, max_grid=4096):
         self.id = uuid.uuid4().hex[:12]
         self.cfg = cfg
         self.compiled_potential = compiled_potential
@@ -216,6 +232,23 @@ class SimSession:
         self.fft_threads = fft_threads
         self.history = FrameHistory(len(cfg.variants), history_bytes)
         self.clock = SessionClock(cfg.t1, cfg.record_dt, cfg.mode, cfg.delay, cfg.t2)
+        # boundary watch: detection is always on (worker.report_edge every
+        # record); auto_expand governs only the response and is live-
+        # toggleable like tol (session-level policy, no worker involvement)
+        self.auto_expand = cfg.auto_expand
+        self.max_grid = int(max_grid)
+        self._edge_lock = threading.Lock()
+        self._edge = {}              # slot -> latest EdgeState
+        self._edge_posted = []       # axes signature of the last boundary msg
+        self.boundary_state = {"axes": [], "x_mass": 0.0, "p_mass": 0.0}
+        # live grid window on the frozen lattice; regrids replace it at
+        # commit time (workers switch their propagators at plan.k_star)
+        self.grid_state = GridState.from_spec(cfg.grid)
+        self._prev_grid_state = None   # pre-regrid window while a plan runs
+        self._regrid_plan = None
+        self._regrid_epoch = 0
+        self._capped_posted = False    # latched warnings (reset on all-clear)
+        self._invalid_posted = False
         self.frame_evt = asyncio.Event()
         self.msgs = deque(maxlen=64)     # server->client JSON side channel
         self.ws_attached = False
@@ -248,6 +281,150 @@ class SimSession:
         log.error("session %s: %s", self.id, message)
         self.post_msg({"type": "error", "message": message, "detail": detail})
 
+    # thread-safe: called from worker threads after every record
+    def report_edge(self, slot, k, edge):
+        """Aggregate per-variant edge-band state; post a 'boundary' event
+        only when the set of tripped axes changes (never per-record spam —
+        an empty axes list announces the all-clear). With auto_expand on, a
+        tripped state also attempts to schedule a regrid (retried every
+        record until a plan commits or the state clears)."""
+        with self._edge_lock:
+            self._edge[slot] = edge
+            axes = sorted({a for e in self._edge.values() for a in e.axes})
+            x_mass = max(e.x_mass for e in self._edge.values())
+            p_mass = max(e.p_mass for e in self._edge.values())
+            self.boundary_state = {"axes": axes, "x_mass": x_mass,
+                                   "p_mass": p_mass}
+            if axes != self._edge_posted:
+                self._edge_posted = axes
+                self.post_msg({"type": "boundary", "record": k, "axes": axes,
+                               "x_mass": x_mass, "p_mass": p_mass,
+                               "action": "warn"})
+            if not axes:
+                self._capped_posted = False
+                self._invalid_posted = False
+            want = (bool(axes) and self.auto_expand
+                    and not self._plan_pending() and not self._invalid_posted)
+        if want:
+            # off the lock: support scan is O(N), U revalidation ~ms sympy
+            self._schedule_regrid(k, axes)
+
+    def _plan_pending(self):
+        """Committed but not yet landed by all variants (edge lock held)."""
+        p = self._regrid_plan
+        return p is not None and self.history.latest_complete() < p.k_star
+
+    # called by workers between records (see worker._run)
+    def current_regrid(self):
+        with self._edge_lock:
+            return self._regrid_plan
+
+    def validation_grid(self):
+        """Duck-typed grid (.x1/.x2/.x_extended) for live-U validity checks:
+        the live window, unioned with the pre-regrid one while a plan is
+        pending (the old window keeps evolving until k_star)."""
+        with self._edge_lock:
+            gs = self.grid_state
+            if self._plan_pending() and self._prev_grid_state is not None:
+                return self._prev_grid_state.union(gs)
+            return gs
+
+    def _potential_invalid(self, expr, win, hbar_eff):
+        """Probe expr's validity for the active variant families on the
+        window `win` (its extended Bopp range under `hbar_eff`). Returns a
+        reason string, or None when valid."""
+        try:
+            cp = compile_potential(expr, x_range=(win.x1, win.x2),
+                                   x_extended=win.x_extended(hbar_eff))
+        except PotentialError as e:
+            return str(e)
+        needs_q = any(VARIANTS[v]["quantum"] for v in self.cfg.variants)
+        needs_c = any(not VARIANTS[v]["quantum"] for v in self.cfg.variants)
+        if (needs_q and not cp.quantum_valid) or \
+           (needs_c and not cp.classical_valid):
+            return "; ".join(cp.reasons)
+        return None
+
+    def _schedule_regrid(self, k, axes):
+        """Plan and commit an exact fixed-lattice regrid (move and/or double
+        of the tripped axes, support centered, capped at max_grid). The
+        WHOLE plan/validate/commit runs under the edge lock: plan commits
+        and physics commits (apply_params) are mutually exclusive, so a
+        plan is always validated against the exact physics the workers will
+        hold when applying it. The ~ms sympy probe under the lock happens
+        at most once per regrid attempt. Callers must NOT hold the lock."""
+        with self._edge_lock:
+            if self._plan_pending():
+                return
+            gs = self.grid_state
+            rec = self.history.get(self.history.latest_complete())
+            if rec is None:
+                return                 # evicted/incomplete: retry next record
+            _t, geom, frames = rec
+            if geom != gs.geom():
+                return                 # regrid landed under us: retry later
+            sx = [boundary.support_cells(vf.rho, gs.dx) for vf in frames]
+            sp = [boundary.support_cells(vf.phi, gs.dp) for vf in frames]
+            lo_x, hi_x = min(a for a, _ in sx), max(b for _, b in sx)
+            lo_p, hi_p = min(a for a, _ in sp), max(b for _, b in sp)
+            x_plan = boundary.plan_axis(gs.ox, gs.Nx, lo_x, hi_x,
+                                        self.max_grid) if "x" in axes else None
+            p_plan = boundary.plan_axis(gs.op, gs.Np, lo_p, hi_p,
+                                        self.max_grid) if "p" in axes else None
+            new, kinds, capped = gs, {}, []
+            for ax, pl in (("x", x_plan), ("p", p_plan)):
+                if pl is None:
+                    continue
+                if pl.kind == "capped":
+                    capped.append(ax)
+                elif ax == "x":
+                    new = replace(new, ox=pl.offset, Nx=pl.n)
+                    kinds["x"] = pl.kind
+                else:
+                    new = replace(new, op=pl.offset, Np=pl.n)
+                    kinds["p"] = pl.kind
+            if capped and not self._capped_posted:
+                self._capped_posted = True
+                self.post_msg({"type": "boundary", "record": k,
+                               "axes": capped, "action": "capped",
+                               "max_grid": self.max_grid,
+                               "x_mass": self.boundary_state["x_mass"],
+                               "p_mass": self.boundary_state["p_mass"]})
+            if new == gs:
+                return
+            if (new.ox, new.Nx) != (gs.ox, gs.Nx):
+                # the extended Bopp range moves with the x-window (dp is
+                # frozen, so its half-width never changes): revalidate U on
+                # the union of old and new windows BEFORE committing
+                reason = self._potential_invalid(self.cfg.potential,
+                                                 gs.union(new),
+                                                 self.cfg.hbar_eff)
+                if reason is not None:
+                    if not self._invalid_posted:
+                        self._invalid_posted = True
+                        self.post_msg({"type": "boundary", "record": k,
+                                       "axes": axes,
+                                       "action": "invalid_potential",
+                                       "message": "cannot expand: %s" % reason,
+                                       "x_mass": self.boundary_state["x_mass"],
+                                       "p_mass": self.boundary_state["p_mass"]})
+                    return
+            k_star = max(self.history.variant_frontier(s)
+                         for s in range(len(self.workers))) + 2
+            self._regrid_epoch += 1
+            self._prev_grid_state = gs
+            self.grid_state = new
+            plan = self._regrid_plan = RegridPlan(self._regrid_epoch,
+                                                  k_star, new)
+            self.post_msg({"type": "regrid", "at_record": plan.k_star,
+                           "epoch": plan.epoch, "kind": kinds,
+                           "grid": {"x1": new.x1, "x2": new.x2, "Nx": new.Nx,
+                                    "p1": new.p1, "p2": new.p2, "Np": new.Np}})
+        log.info("session %s: regrid epoch %d at record %d: %s -> "
+                 "[%g, %g]x[%g, %g] %dx%d", self.id, plan.epoch, plan.k_star,
+                 kinds, new.x1, new.x2, new.p1, new.p2, new.Nx, new.Np)
+        self.clock.kick()
+
     # called from the router/streamer coroutines
     def apply_params(self, change, cp=None):
         if change.dt_sign is not None:
@@ -256,20 +433,57 @@ class SimSession:
                "hbar_eff": change.hbar_eff, "tol": change.tol}
         if cp is not None or any(v is not None for v in
                                  (change.mass, change.c, change.hbar_eff, change.tol)):
-            for w in self.workers:
-                w.cmd_q.put(cmd)
-            # Track the applied values on the session: later U compiles
-            # validate on the extended Bopp range, which depends on the
-            # CURRENT hbar_eff, and status() must report current physics.
-            # Optimistic — a worker that rejects the change rolls itself
-            # back and posts an error.
-            for f in ("mass", "c", "hbar_eff", "tol"):
-                v = getattr(change, f)
-                if v is not None:
-                    setattr(self.cfg, f, v)
-            if cp is not None:
-                self.cfg.potential = change.U
-                self.compiled_potential = cp
+            with self._edge_lock:
+                # U/hbar move the extended Bopp range. A plan in flight was
+                # validated under the OLD physics, and the worker-side
+                # non-finite check at regrid application is fatal by design
+                # (lockstep geometry must stay uniform) — so revalidate the
+                # plan's union window under the incoming values BEFORE any
+                # worker can see them. The streamer's validation_grid()
+                # check covers plans it could see; this closes the race of
+                # a plan committing during that ~ms compile (plan commits
+                # hold this same lock, so no plan can slip in mid-check).
+                if (cp is not None or change.hbar_eff is not None) \
+                   and self._plan_pending() and self._prev_grid_state is not None:
+                    reason = self._potential_invalid(
+                        change.U if cp is not None else self.cfg.potential,
+                        self._prev_grid_state.union(self.grid_state),
+                        change.hbar_eff or self.cfg.hbar_eff)
+                    if reason is not None:
+                        self.post_msg({"type": "error", "code": "bad_potential",
+                                       "message": "rejected while a domain "
+                                       "change is in flight: %s" % reason})
+                        return
+                for w in self.workers:
+                    w.cmd_q.put(cmd)
+                # Track the applied values on the session: later U compiles
+                # validate on the extended Bopp range, which depends on the
+                # CURRENT hbar_eff, and status() must report current physics.
+                # Optimistic — a worker that rejects the change rolls itself
+                # back and posts an error.
+                for f in ("mass", "c", "hbar_eff", "tol"):
+                    v = getattr(change, f)
+                    if v is not None:
+                        setattr(self.cfg, f, v)
+                if cp is not None:
+                    self.cfg.potential = change.U
+                    self.compiled_potential = cp
+                    self._invalid_posted = False   # new U: expansion may work
+        if change.auto_expand is not None:
+            # AFTER the physics commit: an immediate schedule (the key
+            # "warning fired -> user enables the toggle" flow — waiting for
+            # the next report_edge would compute one more old-grid record,
+            # and a PAUSED session would not schedule at all until after
+            # Solve) must validate against the values that just landed,
+            # even when both arrive in one combined message.
+            self.auto_expand = bool(change.auto_expand)
+            if self.auto_expand:
+                with self._edge_lock:
+                    axes = list(self.boundary_state["axes"])
+                    want = (bool(axes) and not self._plan_pending()
+                            and not self._invalid_posted)
+                if want:
+                    self._schedule_regrid(self.history.latest_complete(), axes)
         self.clock.kick()
         applied = {k: v for k, v in change.model_dump().items() if v is not None}
         self.post_msg({"type": "params_applied", "applied": applied,
@@ -278,6 +492,7 @@ class SimSession:
     def status(self):
         first, last = self.history.extent()
         t0, t1_ = self.history.t_extent()
+        gs = self.grid_state
         return {
             "type": "status",
             "session_id": self.id,
@@ -291,11 +506,17 @@ class SimSession:
             "t_extent": [t0, t1_],
             "cursor": self.clock.cursor,
             "history_bytes": self.history.nbytes(),
+            "history_cap_bytes": self.history.byte_cap,
             "devices": self.devices,
             "mass": self.cfg.mass,
             "c": self.cfg.c,
             "hbar_eff": self.cfg.hbar_eff,
             "tol": self.cfg.tol,
+            "grid": {"x1": gs.x1, "x2": gs.x2, "Nx": gs.Nx,
+                     "p1": gs.p1, "p2": gs.p2, "Np": gs.Np},
+            "auto_expand": self.auto_expand,
+            "max_grid": self.max_grid,
+            "boundary": self.boundary_state,
             "per_variant": [{"variant": w.key, "dt": w.dt,
                              "device": w.device,
                              "steps_per_sec": round(w.steps_per_sec, 2),
@@ -315,10 +536,11 @@ class SimSession:
             SESSIONS.pop(self.id, None)
 
 
-def create_session(cfg, compiled_potential, device, fft_threads, history_bytes):
+def create_session(cfg, compiled_potential, device, fft_threads, history_bytes,
+                   max_grid=4096):
     loop = asyncio.get_running_loop()
     s = SimSession(cfg, compiled_potential, loop, device, fft_threads,
-                   history_bytes)
+                   history_bytes, max_grid=max_grid)
     with _LOCK:
         SESSIONS[s.id] = s
     s.start()

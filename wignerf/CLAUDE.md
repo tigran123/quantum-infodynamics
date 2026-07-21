@@ -68,8 +68,47 @@ then `uv pip compile requirements[-x].in -o requirements[-x].txt` and
   backend; frames stream in shifted order and the *shader* unshifts via a
   half-period texture offset (`render/WignerRenderer.ts`, R16UI texture,
   manual bilinear with periodic wrap, diverging LUT centered at W=0).
-- **Parameter policy**: U(x), c, mass, hbar_eff, tol, dt_sign apply live at
-  the frontier; grid/IC/variant-set changes require a session restart.
+- **Boundary watch / auto-expand** (`core/boundary.py`): detection is
+  ALWAYS on — every record, each worker sums the outer edge band of the
+  ρ/φ marginals it already computed (host-side, O(Nx+Np), no extra device
+  sync) and `session.report_edge` posts a `boundary` WS event on state
+  change (band = max(4, N/32) cells/side, trigger 1e-6 — expansion
+  prevents wrap, it cannot repair it, so it must fire while edge mass is
+  negligible). The `auto_expand` toggle (SessionCreate field AND
+  live-appliable via ParamChange) governs only the RESPONSE: an exact
+  fixed-lattice regrid. dx/dp and the lattice anchor are FROZEN at session
+  creation (`GridState`, integer window arithmetic; extents materialize as
+  anchor + integer·dx, and `Grid` takes explicit dx/dp + anchors so overlap
+  lattice points are bitwise-identical across regrids); move = whole-cell
+  window shift, expand = double an axis (powers of 2, support centered,
+  combined move+double; NO shrink, NO interpolation ever — norm/E/purity
+  survive to machine precision minus the ≤threshold dropped tails). The
+  session commits a `RegridPlan(epoch, k_star, state)` with k_star past
+  every in-flight record; each worker applies it before computing its
+  first record ≥ k_star (`embed_window` + `Propagator.set_grid`), so the
+  switch is lockstep-uniform and records <k_star stay old-geometry. U is
+  revalidated on the union extended Bopp range BEFORE commit (refusal ⇒
+  `invalid_potential` warning, keep computing). **Plan commits and physics
+  commits are mutually exclusive** (both hold `_edge_lock` for their whole
+  body, and `apply_params` orders physics BEFORE any immediate schedule):
+  U/hbar_eff move the Bopp range, a plan validated under stale physics
+  would hit the deliberately-fatal non-finite check at k_star (a per-worker
+  rollback there would desync lockstep geometry), so a pending plan's union
+  window is revalidated under incoming physics and the change is REJECTED
+  if it does not hold — this also closes the race of a plan committing
+  during the streamer's ~ms validation compile. Expansion caps at
+  `WIGNERF_MAX_GRID` (`capped` warning, keep computing; pure moves still
+  work at the cap). Geometry is a PER-RECORD fact: protocol v3 headers
+  carry Nx/Np/x1/x2/p1/p2, history stores geom per record, the streamer
+  packs from the record (never the session), and the frontend follows the
+  PAINTED frame (panels/overlays/marginal axes re-derive per frame;
+  zoom windows remap to the same physical region) — so scrubbing across a
+  regrid boundary just works. Each doubling ≈ 4× step cost and 4×
+  bytes/record (the history cap then holds ¼ the records).
+- **Parameter policy**: U(x), c, mass, hbar_eff, tol, dt_sign, auto_expand
+  apply live at the frontier; grid/IC/variant-set changes require a session
+  restart (auto-expand moves the LIVE grid; the Setup panel shows it and
+  offers "adopt" to copy it into the form).
   The setup form gates the transport: while the potential draft is invalid
   for the active variant families or the IC preview errors, Solve (button
   AND Space) is disabled and "Use at restart"/"Apply live" are greyed —
@@ -130,6 +169,7 @@ running is pool recycling, not a leak).
 | `WIGNERF_PORT` | `8010` | Backend port (8000 belongs to urantia-library). Used by start.sh; `uvicorn --port` otherwise. |
 | `WIGNERF_HISTORY_MB` | `32768` | In-RAM frame-history cap per session (scrub/replay window). 32 GiB ≈ 4000 four-variant records at 1024², ≈ 64000 at 256². On the VPS (32 GB RAM shared with urantia-library, Open WebUI, …) set `16384`. |
 | `WIGNERF_FFT_THREADS` | `0` | Threads per CPU FFT; `0` = auto (ncores/(2·n_variants), capped at 4). Irrelevant on GPU. |
+| `WIGNERF_MAX_GRID` | `4096` | Per-axis Nx/Np ceiling — enforced at session creation AND for auto-expand doublings; tunable BOTH ways (schema sanity rail: 16384). The UI's Nx/Np selects follow it (status carries `max_grid`). Lower it on VRAM-constrained hosts: a 4096² working set is ~1.3 GiB per variant worker. At the cap the session warns and keeps computing (moves still allowed). |
 
 ## Commands
 
@@ -207,7 +247,10 @@ grids) and the measured refresh interval.
   reach the x or p edge, mass wraps through the seam and the run faithfully
   evolves the WRONG (torus) problem. Tells: IC norm deficit >> 1e-6, the
   4σ edge warning, secular (not oscillatory-bounded) drifts. Fix: enlarge
-  the domain. Verified: same cat state, [-6,6]x[-7,7] gives E drift 2e-3;
+  the domain — or enable auto-expand, which detects the approach (edge-band
+  mass of the total sampled W, also checked at IC-preview time — the
+  per-component 4σ boxes alone miss interference terms) and regrids
+  exactly before mass wraps. Verified: same cat state, [-6,6]x[-7,7] gives E drift 2e-3;
   [-12,12]² gives 4e-6 with purity conserved to 5e-12 — the discrete map
   is exactly unitary for contained states (healthy E behavior is a BOUNDED
   O(dt²) oscillation from Strang splitting, never a drift).

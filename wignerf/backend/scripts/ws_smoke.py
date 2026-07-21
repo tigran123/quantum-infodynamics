@@ -57,23 +57,26 @@ async def main():
                 if isinstance(m, (bytes, bytearray)):
                     f = protocol.unpack_frame(m)
                     frames.append(f)
-                    by_rec[f[0]] = f
+                    by_rec[f.record] = f
                 else:
                     d = json.loads(m)
                     if d["type"] == "error":
                         raise SystemExit("server error: %s" % d)
 
-            recs = [f[0] for f in frames]
+            recs = [f.record for f in frames]
             assert recs == sorted(set(recs)), "records not strictly increasing"
-            for rec, t, Nx, Np, flags, variants in frames:
-                assert abs(t - rec*CFG["record_dt"]) < 1e-9, "t spacing broken"
-                assert len(variants) == 4, "lockstep bundle incomplete"
-                for v in variants:
+            for f in frames:
+                assert abs(f.t - f.record*CFG["record_dt"]) < 1e-9, "t spacing broken"
+                assert len(f.variants) == 4, "lockstep bundle incomplete"
+                g = f.geom
+                assert (g.x1, g.x2, g.p1, g.p2) == (-6.0, 6.0, -7.0, 7.0), \
+                    "header geometry mismatch"
+                for v in f.variants:
                     W = dequantize(v.wq, v.wmin, v.wmax)
-                    norm = W.sum()*(12./Nx)*(14./Np)
+                    norm = W.sum()*((g.x2 - g.x1)/g.Nx)*((g.p2 - g.p1)/g.Np)
                     assert abs(norm - 1.0) < 1e-2, "norm drifted: %g" % norm
-            E0 = {v.vid: v.E for v in frames[0][5]}
-            for v in frames[-1][5]:
+            E0 = {v.vid: v.E for v in frames[0].variants}
+            for v in frames[-1].variants:
                 assert abs(v.E - E0[v.vid]) < 5e-3*max(1.0, abs(E0[v.vid])), \
                     "energy drift on vid %d" % v.vid
             print("streamed %d lockstep bundles up to record %d, invariants OK"
@@ -87,11 +90,11 @@ async def main():
                 m = await asyncio.wait_for(ws.recv(), timeout=10)
                 if isinstance(m, (bytes, bytearray)):
                     f = protocol.unpack_frame(m)
-                    if f[0] == target:
+                    if f.record == target:
                         ref = by_rec[target]
-                        assert f[1] == ref[1]
+                        assert f.t == ref.t
                         assert all((a.wq == b.wq).all()
-                                   for a, b in zip(f[5], ref[5])), \
+                                   for a, b in zip(f.variants, ref.variants)), \
                             "seek returned different bytes"
                         break
             print("seek(%d) returned the identical record" % target)

@@ -8,7 +8,7 @@
  */
 
 export const MAGIC = 0x57
-export const VERSION = 2 // v2: added per-variant purity
+export const VERSION = 3 // v3: per-record grid geometry (f64 x1,x2,p1,p2 in header)
 export const MSG_FRAME = 1
 
 export const FLAG_LIVE_PREVIEW = 1 << 0
@@ -33,8 +33,14 @@ export interface VariantFrame {
 export interface Frame {
   record: number
   t: number
+  // grid geometry is a per-record fact: auto-expand may move/double the
+  // domain mid-run, and a replayed record keeps the grid it was computed on
   Nx: number
   Np: number
+  x1: number
+  x2: number
+  p1: number
+  p2: number
   flags: number
   variants: VariantFrame[]
 }
@@ -51,8 +57,12 @@ export function decodeFrame(buf: ArrayBuffer): Frame {
   const Nx = dv.getUint32(16, true)
   const Np = dv.getUint32(20, true)
   const flags = dv.getUint32(24, true)
+  const x1 = dv.getFloat64(32, true)
+  const x2 = dv.getFloat64(40, true)
+  const p1 = dv.getFloat64(48, true)
+  const p2 = dv.getFloat64(56, true)
 
-  let off = 32
+  let off = 64
   const variants: VariantFrame[] = []
   for (let i = 0; i < nVariants; i++) {
     const vid = dv.getUint8(off)
@@ -69,7 +79,7 @@ export function decodeFrame(buf: ArrayBuffer): Frame {
     variants.push({ vid, wmin, wmax, E, xMean, xStd, pMean, pStd, purity, dt, wq, rho, phi })
   }
   if (off !== buf.byteLength) throw new Error(`trailing bytes: ${off} != ${buf.byteLength}`)
-  return { record, t, Nx, Np, flags, variants }
+  return { record, t, Nx, Np, x1, x2, p1, p2, flags, variants }
 }
 
 export function variantName(vid: number): string {

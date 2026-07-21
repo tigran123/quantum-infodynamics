@@ -21,6 +21,7 @@ class FrameHistory:
         self._lock = threading.Lock()
         self._recs = {}     # n -> [VariantFrame | None] * n_variants
         self._t = {}        # n -> float
+        self._geom = {}     # n -> RecordGeom (per-record: auto-expand regrids)
         self._bytes = 0
         self._first = 0            # oldest retained index
         self._complete = -1        # highest n with records 0..n... complete contiguously
@@ -31,13 +32,21 @@ class FrameHistory:
     def _frame_bytes(vf):
         return vf.wq.nbytes + vf.rho.nbytes + vf.phi.nbytes + 96
 
-    def put(self, n, t, slot, vframe):
+    def put(self, n, t, slot, vframe, geom):
         with self._lock:
             rec = self._recs.get(n)
             if rec is None:
                 rec = [None]*self.n_variants
                 self._recs[n] = rec
                 self._t[n] = t
+                self._geom[n] = geom
+            elif self._geom[n] != geom:
+                # lockstep invariant: all variants of a record share one grid
+                # (regrids switch at a common k_star) — a mismatch means the
+                # regrid coordination is broken, never store it silently
+                raise ValueError("record %d: variant %d filed geometry %r, "
+                                 "record has %r" % (n, slot, geom,
+                                                    self._geom[n]))
             if rec[slot] is not None:
                 self._bytes -= self._frame_bytes(rec[slot])
             rec[slot] = vframe
@@ -54,20 +63,21 @@ class FrameHistory:
                    and self._first < self._complete - 1):
                 old = self._recs.pop(self._first, None)
                 self._t.pop(self._first, None)
+                self._geom.pop(self._first, None)
                 if old:
                     self._bytes -= sum(self._frame_bytes(v) for v in old if v)
                 self._first += 1
                 self.evicted = True
 
     def get(self, n):
-        """(t, [VariantFrame...]) if record n is retained and complete."""
+        """(t, geom, [VariantFrame...]) if record n is retained and complete."""
         with self._lock:
             if n < self._first or n > self._complete:
                 return None
             rec = self._recs.get(n)
             if rec is None or any(v is None for v in rec):
                 return None
-            return self._t[n], list(rec)
+            return self._t[n], self._geom[n], list(rec)
 
     def latest_complete(self):
         with self._lock:

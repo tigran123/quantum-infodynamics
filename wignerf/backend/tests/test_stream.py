@@ -41,17 +41,19 @@ def test_stream_play_pause_seek():
         with client.websocket_connect(info["ws_url"]) as ws:
             # record 0 (the Cauchy data) arrives even before play
             (rec0,) = _recv_frames(ws, 1)
-            assert rec0[0] == 0 and rec0[1] == 0.0
+            assert rec0.record == 0 and rec0.t == 0.0
+            assert (rec0.geom.x1, rec0.geom.x2) == (-6.0, 6.0)
+            assert (rec0.geom.p1, rec0.geom.p2) == (-7.0, 7.0)
 
             ws.send_text(json.dumps({"type": "play"}))
             frames = _recv_frames(ws, 6)
-            recs = [f[0] for f in frames]
-            ts = {f[0]: f[1] for f in frames}
+            recs = [f.record for f in frames]
+            ts = {f.record: f.t for f in frames}
             assert recs == sorted(recs) and len(set(recs)) == len(recs)
             for n, t in ts.items():
                 assert t == pytest.approx(n*0.05, abs=1e-12)
 
-            v = frames[-1][5][0]
+            v = frames[-1].variants[0]
             W = dequantize(v.wq, v.wmin, v.wmax)
             assert abs(W.sum()*(12./64)*(14./64) - 1.0) < 1e-3
             assert v.E == pytest.approx(2.5, abs=2e-3)
@@ -64,8 +66,8 @@ def test_stream_play_pause_seek():
                 m = ws.receive()
                 if m.get("bytes"):
                     f = protocol.unpack_frame(m["bytes"])
-                    if f[0] == 0:
-                        assert f[1] == 0.0
+                    if f.record == 0:
+                        assert f.t == 0.0
                         break
             else:
                 raise AssertionError("seek(0) frame never arrived")
@@ -116,7 +118,7 @@ def test_interactive_playback_stops_at_frontier():
             for _ in range(20*frontier + 200):
                 m = ws.receive()
                 if m.get("bytes"):
-                    k = protocol.unpack_frame(m["bytes"])[0]
+                    k = protocol.unpack_frame(m["bytes"]).record
                     seen.append(k)
                     if k == frontier and 0 in seen:
                         break
@@ -206,7 +208,7 @@ def test_playback_zero_delay_never_skips():
             ws.send_text(json.dumps({"type": "seek", "record": 0}))
             for _ in range(200):                # wait out the seek echo
                 m = ws.receive()
-                if m.get("bytes") and protocol.unpack_frame(m["bytes"])[0] == 0:
+                if m.get("bytes") and protocol.unpack_frame(m["bytes"]).record == 0:
                     break
             else:
                 raise AssertionError("seek(0) frame never arrived")
@@ -215,7 +217,7 @@ def test_playback_zero_delay_never_skips():
             for _ in range(20*frontier + 400):
                 m = ws.receive()
                 if m.get("bytes"):
-                    seen.append(protocol.unpack_frame(m["bytes"])[0])
+                    seen.append(protocol.unpack_frame(m["bytes"]).record)
                     if seen[-1] == frontier:
                         break
             assert seen == list(range(1, frontier + 1)), \
@@ -240,13 +242,13 @@ def test_two_variant_lockstep():
         with client.websocket_connect(info["ws_url"]) as ws:
             ws.send_text(json.dumps({"type": "play"}))
             frames = _recv_frames(ws, 5)
-            for rec, t, Nx, Np, flags, variants in frames:
-                assert len(variants) == 2      # one bundle, both variants, same t
-                vids = {v.vid for v in variants}
+            for f in frames:
+                assert len(f.variants) == 2    # one bundle, both variants, same t
+                vids = {v.vid for v in f.variants}
                 assert vids == {protocol.variant_id(True, False),
                                 protocol.variant_id(False, False)}
             # harmonic oscillator: quantum == classical -> identical scalars
-            v1, v2 = frames[-1][5]
+            v1, v2 = frames[-1].variants
             assert v1.E == pytest.approx(v2.E, abs=1e-6)
             assert v1.x_mean == pytest.approx(v2.x_mean, abs=1e-6)
         client.delete("/api/sessions/%s" % info["session_id"])
@@ -282,6 +284,45 @@ def test_set_params_live_and_rejected():
                         saw_error = True
                         break
             assert saw_error
+        client.delete("/api/sessions/%s" % info["session_id"])
+
+
+def test_hbar_change_revalidates_potential():
+    """Raising hbar_eff widens the extended Bopp range; the CURRENT U must
+    stay valid there or the change is rejected up front — worker-side
+    rollback cannot save a pending regrid (its non-finite check is fatal,
+    lockstep geometry must stay uniform)."""
+    with TestClient(app) as client:
+        # valid at hbar=1 (extended range ~[-13.2, 13.2], singular at -20)
+        info = _mk(client, potential="log(x+20)")
+        with client.websocket_connect(info["ws_url"]) as ws:
+            ws.send_text(json.dumps({"type": "play"}))
+            _recv_frames(ws, 2)
+            # hbar=4 -> extended range ~[-34.7, 34.7]: crosses the pole
+            ws.send_text(json.dumps({"type": "set_params",
+                                     "params": {"hbar_eff": 4.0}}))
+            saw_error = False
+            for _ in range(200):
+                m = ws.receive()
+                if m.get("text"):
+                    d = json.loads(m["text"])
+                    if d["type"] == "error":
+                        saw_error = True
+                        break
+                    assert d["type"] != "params_applied", d
+            assert saw_error, "invalid hbar_eff change was not rejected"
+            r = client.get("/api/sessions/%s" % info["session_id"]).json()
+            assert r["hbar_eff"] == 1.0            # unchanged
+            # shrinking the range is always fine
+            ws.send_text(json.dumps({"type": "set_params",
+                                     "params": {"hbar_eff": 0.5}}))
+            for _ in range(200):
+                m = ws.receive()
+                if m.get("text") and \
+                   json.loads(m["text"])["type"] == "params_applied":
+                    break
+            else:
+                raise AssertionError("valid hbar_eff change not applied")
         client.delete("/api/sessions/%s" % info["session_id"])
 
 
@@ -321,10 +362,10 @@ def test_runahead_starts_paused_and_stops_at_t2():
                 m = ws.receive()
                 if m.get("bytes"):
                     f = protocol.unpack_frame(m["bytes"])
-                    if f[4] & protocol.FLAG_LIVE_PREVIEW:
+                    if f.flags & protocol.FLAG_LIVE_PREVIEW:
                         saw_preview = True
-                    if f[0] == 10:
-                        assert f[1] == pytest.approx(0.5, abs=1e-9)
+                    if f.record == 10:
+                        assert f.t == pytest.approx(0.5, abs=1e-9)
                         break
             else:
                 raise AssertionError("run-ahead never reached t2")
@@ -337,7 +378,7 @@ def test_runahead_starts_paused_and_stops_at_t2():
             ws.send_text(json.dumps({"type": "seek", "record": 4}))
             for _ in range(200):
                 m = ws.receive()
-                if m.get("bytes") and protocol.unpack_frame(m["bytes"])[0] == 4:
+                if m.get("bytes") and protocol.unpack_frame(m["bytes"]).record == 4:
                     break
             else:
                 raise AssertionError("scrub into computed run-ahead failed")
@@ -364,7 +405,7 @@ def test_runahead_rewind_plays_back_without_computing():
             ws.send_text(json.dumps({"type": "seek", "record": 0}))
             for _ in range(200):                # wait out the seek echo
                 m = ws.receive()
-                if m.get("bytes") and protocol.unpack_frame(m["bytes"])[0] == 0:
+                if m.get("bytes") and protocol.unpack_frame(m["bytes"]).record == 0:
                     break
             else:
                 raise AssertionError("seek(0) frame never arrived")
@@ -373,7 +414,7 @@ def test_runahead_rewind_plays_back_without_computing():
             for _ in range(20*frontier + 400):
                 m = ws.receive()
                 if m.get("bytes"):
-                    seen.append(protocol.unpack_frame(m["bytes"])[0])
+                    seen.append(protocol.unpack_frame(m["bytes"]).record)
                     if seen[-1] == frontier:
                         break
             assert seen == list(range(1, frontier + 1)), \
@@ -415,7 +456,7 @@ def test_time_reversal_over_the_wire():
                 if not m.get("bytes"):
                     continue
                 f = protocol.unpack_frame(m["bytes"])
-                if f[0] > newest[0] + 2 and f[1] < newest[1]:
+                if f.record > newest.record + 2 and f.t < newest.t:
                     break   # t decreased on a later record
             else:
                 raise AssertionError("time never reversed")
@@ -441,6 +482,33 @@ def test_session_validation():
         client.delete("/api/sessions/%s" % r.json()["session_id"])
         # unknown session
         assert client.get("/api/sessions/nope").status_code == 404
+
+
+def test_grid_cap_enforced(monkeypatch):
+    """The per-axis ceiling is WIGNERF_MAX_GRID (env-tunable BOTH ways);
+    the pydantic le=16384 is only a sanity rail behind it."""
+    import config as appconfig
+    monkeypatch.setattr(appconfig, "MAX_GRID", 512)
+    with TestClient(app) as client:
+        cfg = {"grid": dict(GRID, Nx=1024), "potential": "x^2/2", "ic": IC,
+               "variants": ["qn"]}
+        r = client.post("/api/sessions", json=cfg)
+        assert r.status_code == 422 and "WIGNERF_MAX_GRID" in r.text
+        cfg["grid"] = dict(GRID, Nx=512, Np=512)
+        r = client.post("/api/sessions", json=cfg)
+        assert r.status_code == 200, r.text
+        assert client.get("/api/sessions/%s"
+                          % r.json()["session_id"]).json()["max_grid"] == 512
+        client.delete("/api/sessions/%s" % r.json()["session_id"])
+        # raising the env cap unlocks sizes past the old 4096 limit...
+        monkeypatch.setattr(appconfig, "MAX_GRID", 16384)
+        cfg["grid"] = dict(GRID, Nx=8192)
+        r = client.post("/api/sessions", json=cfg)
+        assert r.status_code == 200, r.text
+        client.delete("/api/sessions/%s" % r.json()["session_id"])
+        # ...but the schema rail still holds
+        cfg["grid"] = dict(GRID, Nx=32768)
+        assert client.post("/api/sessions", json=cfg).status_code == 422
 
 
 def test_lockstep_skew_gate():

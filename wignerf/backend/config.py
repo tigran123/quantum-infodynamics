@@ -14,6 +14,10 @@ WIGNERF_HISTORY_MB   in-RAM frame history cap per session (default 32 GiB:
                      grids; set lower on RAM-constrained hosts like the VPS)
 WIGNERF_FFT_THREADS  threads per FFT; 0 = auto (ncores // (2*n_variants),
                      capped at 4; decided at session start)
+WIGNERF_MAX_GRID     per-axis Nx/Np ceiling for auto-expand doublings
+                     (default 4096 — the schema maximum; lower it on
+                     VRAM-constrained hosts: a 4096x4096 complex working
+                     set is ~1.3 GiB per variant worker)
 """
 
 import os
@@ -22,3 +26,4 @@ DEVICE = os.environ.get("WIGNERF_DEVICE", "auto")
 PORT = int(os.environ.get("WIGNERF_PORT", "8010"))
 HISTORY_MB = int(os.environ.get("WIGNERF_HISTORY_MB", "32768"))
 FFT_THREADS = int(os.environ.get("WIGNERF_FFT_THREADS", "0"))
+MAX_GRID = int(os.environ.get("WIGNERF_MAX_GRID", "4096"))

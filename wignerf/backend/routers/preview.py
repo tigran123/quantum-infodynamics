@@ -89,7 +89,7 @@ def preview_wigner(req: WignerPreviewIn):
         vid=0, wq=wq, wmin=wmin, wmax=wmax, E=0.0,
         x_mean=obs.x_mean, x_std=obs.x_std, p_mean=obs.p_mean, p_std=obs.p_std,
         purity=obs.purity, dt=0.0, rho=obs.rho, phi=obs.phi)
-    payload = protocol.pack_frame(0, 0.0, g.Nx, g.Np, [vf],
+    payload = protocol.pack_frame(0, 0.0, g.geom(), [vf],
                                   flags=protocol.FLAG_LIVE_PREVIEW)
     # HTTP headers are latin-1 only: percent-encode so warnings can carry
     # Unicode (sigma, hbar, rho...); the client decodeURIComponent()s it.

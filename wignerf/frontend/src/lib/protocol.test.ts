@@ -18,6 +18,10 @@ describe('decodeFrame', () => {
     expect(f.t).toBeCloseTo(meta.t, 12)
     expect(f.Nx).toBe(meta.Nx)
     expect(f.Np).toBe(meta.Np)
+    expect(f.x1).toBe(meta.x1)
+    expect(f.x2).toBe(meta.x2)
+    expect(f.p1).toBe(meta.p1)
+    expect(f.p2).toBe(meta.p2)
     expect(f.flags).toBe(FLAG_REPLAY)
     expect(f.variants.length).toBe(meta.variants.length)
     for (let i = 0; i < f.variants.length; i++) {

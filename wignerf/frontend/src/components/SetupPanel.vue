@@ -4,10 +4,24 @@
  * grid geometry + grid-lines display toggle, run mode. The IC editor is a
  * separate component so the portrait layout can place it in its own column.
  */
+import { computed } from 'vue'
 import PotentialEditor from './PotentialEditor.vue'
-import { resetToDefaults, type SimConfig } from '../lib/config'
+import { resetToDefaults, type GridCfg, type SimConfig } from '../lib/config'
 
-const props = defineProps<{ cfg: SimConfig; live: boolean; sign?: number }>()
+const props = defineProps<{ cfg: SimConfig; live: boolean; sign?: number
+                            liveGrid?: GridCfg | null; maxGrid?: number }>()
+
+// Nx/Np choices follow the SERVER's per-axis ceiling (WIGNERF_MAX_GRID,
+// reported in status) instead of a hardcoded list; the form's current
+// values stay listed even if a lower-capped backend would reject them,
+// so the select never renders blank.
+const sizeOptions = computed(() => {
+  const out: number[] = []
+  for (let n = 256; n <= Math.max(props.maxGrid ?? 4096, 256); n *= 2) out.push(n)
+  for (const v of [props.cfg.grid.Nx, props.cfg.grid.Np])
+    if (!out.includes(v)) out.push(v)
+  return out.sort((a, b) => a - b)
+})
 
 const showGrid = defineModel<boolean>('showGrid', { required: true })
 
@@ -24,6 +38,23 @@ const emit = defineEmits<{
 function resetSetup() {
   if (!confirm('Reset the ENTIRE setup (grid, potential, physics, run mode, IC, variants) to defaults?')) return
   resetToDefaults(props.cfg)
+  emit('dirty')
+}
+
+// Auto-expand can move the SESSION's domain away from the form's grid;
+// show the live domain when they differ, with a one-click adopt so a
+// restart reproduces the expanded window.
+const liveDiffers = computed(() => {
+  const lg = props.liveGrid
+  if (!lg) return false
+  const g = props.cfg.grid
+  return lg.x1 !== g.x1 || lg.x2 !== g.x2 || lg.Nx !== g.Nx
+      || lg.p1 !== g.p1 || lg.p2 !== g.p2 || lg.Np !== g.Np
+})
+const fmt = (v: number) => String(+v.toFixed(4))
+function adoptLive() {
+  if (!props.liveGrid) return
+  Object.assign(props.cfg.grid, props.liveGrid)
   emit('dirty')
 }
 </script>
@@ -76,7 +107,8 @@ function resetSetup() {
         </label>
       </div>
       <p class="text-xs text-neutral-400">
-        m, c, ℏ, tol apply live at the frontier; grid &amp; IC need a restart.
+        m, c, ℏ, tol and auto-expand apply live at the frontier;
+        grid &amp; IC need a restart.
       </p>
     </section>
 
@@ -100,14 +132,20 @@ function resetSetup() {
         <label class="flex items-center gap-1">
           <span class="w-10 text-neutral-500">Nx</span>
           <select v-model.number="props.cfg.grid.Nx" class="wf-num" @change="emit('dirty')">
-            <option v-for="n in [256, 512, 1024, 2048]" :key="n" :value="n">{{ n }}</option>
+            <option v-for="n in sizeOptions" :key="n" :value="n">{{ n }}</option>
           </select>
         </label>
         <label class="flex items-center gap-1">
           <span class="w-10 text-neutral-500">Np</span>
           <select v-model.number="props.cfg.grid.Np" class="wf-num" @change="emit('dirty')">
-            <option v-for="n in [256, 512, 1024, 2048]" :key="n" :value="n">{{ n }}</option>
+            <option v-for="n in sizeOptions" :key="n" :value="n">{{ n }}</option>
           </select>
+        </label>
+        <label class="flex items-center gap-1 col-span-2 cursor-pointer select-none"
+               title="when W(x,p,t) approaches a domain edge, move or double the domain automatically at the frontier (exact — the lattice spacing is frozen, values are never interpolated). Applies live; detection and its warning run either way.">
+          <input type="checkbox" v-model="props.cfg.auto_expand"
+                 @change="emit('apply-live', { auto_expand: props.cfg.auto_expand })" />
+          <span class="text-neutral-400">auto-expand domain</span>
         </label>
         <label class="flex items-center gap-1 col-span-2 cursor-pointer select-none"
                title="axis grid lines on all plots, the W panels and the IC preview">
@@ -115,6 +153,13 @@ function resetSetup() {
           <span class="text-neutral-400">grid lines on plots</span>
         </label>
       </div>
+      <p v-if="liveDiffers" class="text-xs text-amber-400">
+        live: [{{ fmt(liveGrid!.x1) }}, {{ fmt(liveGrid!.x2) }}] ×
+        [{{ fmt(liveGrid!.p1) }}, {{ fmt(liveGrid!.p2) }}]
+        {{ liveGrid!.Nx }}×{{ liveGrid!.Np }}
+        <button class="underline ml-1" title="copy the live domain into the setup so a restart reproduces it"
+                @click="adoptLive">adopt</button>
+      </p>
     </section>
 
     <section class="space-y-1.5">

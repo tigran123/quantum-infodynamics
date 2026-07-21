@@ -7,9 +7,15 @@ decoder's vitest, so the two implementations are cross-checked.
 All little-endian; sections are 4-byte aligned so the JS decoder can create
 zero-copy TypedArray views.
 
-Header (32 bytes):
+Header (64 bytes):
   u8  magic 0x57 ('W') | u8 version | u8 msg_type | u8 n_variants
   u32 record index | f64 t | u32 Nx | u32 Np | u32 flags | u32 reserved
+  f64 x1 | f64 x2 | f64 p1 | f64 p2
+
+Grid geometry is a PER-RECORD fact (auto-expand may move/double the domain
+mid-run), so every frame carries its own Nx/Np AND extents — a replayed
+record must decode with the geometry it was computed on, never the
+session's current one.
 
 Per variant (contiguous, n_variants times):
   u8 variant id (bit0 quantum, bit1 relativistic), 3 pad bytes,
@@ -34,13 +40,13 @@ from pydantic import BaseModel, Field, model_validator
 from .xp import C_AU
 
 MAGIC = 0x57
-VERSION = 2          # v2: added per-variant purity (2*pi*hbar*int W^2)
+VERSION = 3          # v3: per-record grid geometry (f64 x1,x2,p1,p2 in header)
 MSG_FRAME = 1
 
 FLAG_LIVE_PREVIEW = 1 << 0
 FLAG_REPLAY = 1 << 1
 
-_HDR = struct.Struct("<BBBBIdIIII")
+_HDR = struct.Struct("<BBBBIdIIIIdddd")
 _VHDR = struct.Struct("<B3x9f")
 
 
@@ -63,12 +69,15 @@ VARIANTS = {
 # ---------------------------------------------------------------------------
 
 class GridSpec(BaseModel):
+    # le is only a sanity rail (a 16384² uint16 frame is already 512 MiB);
+    # the OPERATIVE per-axis ceiling is WIGNERF_MAX_GRID (default 4096),
+    # enforced at session creation and for auto-expand doublings
     x1: float
     x2: float
-    Nx: int = Field(ge=4, le=4096)
+    Nx: int = Field(ge=4, le=16384)
     p1: float
     p2: float
-    Np: int = Field(ge=4, le=4096)
+    Np: int = Field(ge=4, le=16384)
 
     @model_validator(mode="after")
     def _check(self):
@@ -116,6 +125,9 @@ class SessionCreate(BaseModel):
     record_dt: float = Field(default=0.05, gt=0)
     mode: Literal["interactive", "runahead"] = "interactive"
     t2: Optional[float] = None
+    # boundary watch response policy: detection always runs; when True the
+    # session auto-regrids (exact fixed-lattice move/double) at the frontier
+    auto_expand: bool = False
     delay: float = Field(default=0.0, ge=0)  # seconds injected between played-back
                                              # frames; 0 = as fast as the client renders
 
@@ -142,6 +154,7 @@ class ParamChange(BaseModel):
     hbar_eff: Optional[float] = Field(default=None, gt=0)
     tol: Optional[float] = Field(default=None, gt=0, lt=1)
     dt_sign: Optional[Literal[1, -1]] = None
+    auto_expand: Optional[bool] = None   # session-level policy, applies live
 
 
 class PlayCmd(BaseModel):
@@ -177,6 +190,17 @@ ClientMsg = Annotated[
 ]
 
 
+@dataclass(frozen=True)
+class RecordGeom:
+    """Grid geometry of one record — travels in every frame header."""
+    Nx: int
+    Np: int
+    x1: float
+    x2: float
+    p1: float
+    p2: float
+
+
 @dataclass
 class VariantFrame:
     vid: int
@@ -194,9 +218,19 @@ class VariantFrame:
     phi: numpy.ndarray     # float32/float64 (Np,), natural order
 
 
-def pack_frame(record, t, Nx, Np, variants, flags=0):
+@dataclass
+class DecodedFrame:
+    record: int
+    t: float
+    geom: RecordGeom
+    flags: int
+    variants: list
+
+
+def pack_frame(record, t, geom, variants, flags=0):
     parts = [_HDR.pack(MAGIC, VERSION, MSG_FRAME, len(variants),
-                       record, t, Nx, Np, flags, 0)]
+                       record, t, geom.Nx, geom.Np, flags, 0,
+                       geom.x1, geom.x2, geom.p1, geom.p2)]
     for v in variants:
         parts.append(_VHDR.pack(v.vid, v.wmin, v.wmax, v.E,
                                 v.x_mean, v.x_std, v.p_mean, v.p_std,
@@ -208,9 +242,9 @@ def pack_frame(record, t, Nx, Np, variants, flags=0):
 
 
 def unpack_frame(buf):
-    """Host-side decoder (tests, ws_smoke.py). Returns
-    (record, t, Nx, Np, flags, [VariantFrame...])."""
-    magic, version, msg, nv, record, t, Nx, Np, flags, _ = _HDR.unpack_from(buf, 0)
+    """Host-side decoder (tests, ws_smoke.py). Returns a DecodedFrame."""
+    (magic, version, msg, nv, record, t, Nx, Np, flags, _,
+     x1, x2, p1, p2) = _HDR.unpack_from(buf, 0)
     if magic != MAGIC:
         raise ValueError("bad magic 0x%02x" % magic)
     if version != VERSION:
@@ -232,4 +266,5 @@ def unpack_frame(buf):
                                      pur, dt, rho, phi))
     if off != len(buf):
         raise ValueError("trailing bytes: %d != %d" % (off, len(buf)))
-    return record, t, Nx, Np, flags, variants
+    return DecodedFrame(record, t, RecordGeom(Nx, Np, x1, x2, p1, p2),
+                        flags, variants)

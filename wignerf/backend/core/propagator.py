@@ -92,6 +92,16 @@ class Propagator:
             xp.broadcast_to((T(g.P) + self.U(g.X)).real.astype(xp.float64), shape))
         self.rest_energy = self.mass*self.c**2 if self.relativistic else 0.0
 
+    def set_grid(self, grid):
+        """Adopt a regridded domain (auto-expand): swap the grid, rebuild
+        the FFT plans only when the shape changed, rebuild the exponents.
+        U/dUdx callables are shape-agnostic closures — nothing to re-derive."""
+        if (grid.Nx, grid.Np) != (self.grid.Nx, self.grid.Np):
+            self._fft0, self._ifft0 = self.backend.fft_pair((grid.Nx, grid.Np), axis=0)
+            self._fft1, self._ifft1 = self.backend.fft_pair((grid.Nx, grid.Np), axis=1)
+        self.grid = grid
+        self.rebuild()
+
     def set_physics(self, *, U=None, dUdx=None, mass=None, c=None,
                     hbar_eff=None, tol=None):
         if U is not None: self.U = U

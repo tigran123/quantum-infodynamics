@@ -38,16 +38,18 @@ def main():
                      "wq": wq.flatten().tolist(),
                      "rho": rho.tolist(), "phi": phi.tolist()})
 
-    buf = protocol.pack_frame(7, 0.35, Nx, Np, variants,
+    geom = protocol.RecordGeom(Nx=Nx, Np=Np, x1=-6.0, x2=6.0, p1=-7.0, p2=7.0)
+    buf = protocol.pack_frame(7, 0.35, geom, variants,
                               flags=protocol.FLAG_REPLAY)
     # decode round-trip as a self-check
-    rec, t, nx, np_, flags, vs = protocol.unpack_frame(buf)
-    assert (rec, t, nx, np_) == (7, 0.35, Nx, Np)
+    f = protocol.unpack_frame(buf)
+    assert (f.record, f.t) == (7, 0.35) and f.geom == geom
 
     OUT.mkdir(parents=True, exist_ok=True)
     (OUT / "frame.bin").write_bytes(buf)
     (OUT / "frame.json").write_text(json.dumps({
         "record": 7, "t": 0.35, "Nx": Nx, "Np": Np,
+        "x1": geom.x1, "x2": geom.x2, "p1": geom.p1, "p2": geom.p2,
         "flags": protocol.FLAG_REPLAY, "variants": meta}, indent=1))
     print("wrote", OUT / "frame.bin", len(buf), "bytes")
 

@@ -3,7 +3,7 @@ import { computed, ref, watch } from 'vue'
 import type { Frame } from '../lib/protocol'
 import type { GridCfg } from '../lib/config'
 import { VARIANT_META, type VariantKey } from '../lib/variants'
-import { createViewWindow } from '../lib/viewWindow'
+import { createViewWindow, remapView } from '../lib/viewWindow'
 import WignerPanel from './WignerPanel.vue'
 
 const props = defineProps<{
@@ -25,6 +25,14 @@ const shared = createViewWindow()
 // coupling adopts the window of the panel the user last zoomed/panned
 let lastTouched = 0
 views.forEach((v, i) => watch(v, () => { lastTouched = i }))
+
+// auto-expand regrid (the domain object is replaced per painted frame when
+// its geometry changed): keep every zoom window on the same PHYSICAL region
+watch(() => props.domain, (nd, od) => {
+  if (!od || !nd || od === nd) return
+  for (const v of views) remapView(v, od, nd)
+  remapView(shared, od, nd)
+})
 
 function toggleLink() {
   if (!linked.value) {

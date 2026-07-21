@@ -61,11 +61,22 @@ async def _handle(msg, s, ws):
         s.post_msg({"type": "pong"})
     elif msg.type == "set_params":
         cp = None
-        if msg.params.U is not None:
+        if msg.params.U is not None or msg.params.hbar_eff is not None:
+            # validate against the LIVE window (auto-expand may have moved
+            # it; unions in the pre-regrid window while a plan is pending).
+            # hbar-only changes are validated too: a larger hbar widens the
+            # Bopp range, and letting an invalid one through would surface
+            # as a fatal non-finite check when a pending regrid applies
+            # (worker rollback cannot help there — lockstep geometry must
+            # stay uniform).
             try:
                 hbar = msg.params.hbar_eff or s.cfg.hbar_eff
-                cp = await compile_for(s.cfg.grid, msg.params.U, hbar,
-                                       s.cfg.variants)
+                expr = msg.params.U if msg.params.U is not None \
+                    else s.cfg.potential
+                probe = await compile_for(s.validation_grid(), expr,
+                                          hbar, s.cfg.variants)
+                if msg.params.U is not None:
+                    cp = probe
             except Exception as e:
                 detail = getattr(e, "detail", str(e))
                 s.post_msg({"type": "error", "code": "bad_potential",
@@ -90,12 +101,13 @@ def _pack_record(s, k, live):
     rec = s.history.get(k)
     if rec is None:
         return None
-    t, variants = rec
+    t, geom, variants = rec
     flags = 0 if live else protocol.FLAG_REPLAY
     if s.cfg.mode == "runahead" and live:
         flags |= protocol.FLAG_LIVE_PREVIEW
-    return protocol.pack_frame(k, t, s.cfg.grid.Nx, s.cfg.grid.Np,
-                               variants, flags=flags)
+    # geometry comes from the RECORD, never the session's current grid —
+    # replay across a regrid boundary must decode with the old geometry
+    return protocol.pack_frame(k, t, geom, variants, flags=flags)
 
 
 async def _sender(ws, s, recv_task):

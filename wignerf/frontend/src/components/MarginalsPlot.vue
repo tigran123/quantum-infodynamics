@@ -43,8 +43,16 @@ function toggle(v: VariantKey) {
   if (chart) zoom.reapply(chart)
 }
 
-const axis = Array.from({ length: props.n },
-  (_, i) => props.a1 + (i * (props.a2 - props.a1)) / props.n)
+// The axis is a per-FRAME fact: auto-expand regrids move/double the domain
+// mid-run, and scrubbing across the regrid boundary flips it back and
+// forth. Props seed the pre-first-frame axis; the frame handler rebuilds
+// in place when the painted frame's geometry differs (no remount — that
+// would drop the zoom and blank the plot until the next frame).
+function buildAxis(a1: number, a2: number, n: number) {
+  return Array.from({ length: n }, (_, i) => a1 + (i * (a2 - a1)) / n)
+}
+let axis = buildAxis(props.a1, props.a2, props.n)
+let axisKey = `${props.a1}|${props.a2}|${props.n}`
 
 function makeChart(width: number) {
   const series: uPlot.Series[] = [
@@ -77,7 +85,7 @@ function makeChart(width: number) {
       ],
       series,
     },
-    [axis, ...props.variants.map(() => new Array(props.n).fill(null))],
+    [axis, ...props.variants.map(() => new Array(axis.length).fill(null))],
     el.value!,
   )
 }
@@ -92,6 +100,14 @@ onMounted(() => {
   // into uPlot as-is (it only indexes them) — no Array.from boxing copies
   unsub = props.frameSource((f: Frame) => {
     if (!chart) return
+    const a1 = props.which === 'rho' ? f.x1 : f.p1
+    const a2 = props.which === 'rho' ? f.x2 : f.p2
+    const n = props.which === 'rho' ? f.Nx : f.Np
+    const key = `${a1}|${a2}|${n}`
+    if (key !== axisKey) {
+      axisKey = key
+      axis = buildAxis(a1, a2, n)
+    }
     lastData = [
       axis,
       ...f.variants.map((v) => props.which === 'rho' ? v.rho : v.phi),

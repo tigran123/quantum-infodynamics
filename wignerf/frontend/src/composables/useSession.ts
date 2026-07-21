@@ -9,6 +9,7 @@
 
 import { ref, shallowRef } from 'vue'
 import { api } from '../api'
+import type { GridCfg } from '../lib/config'
 import { perfDrop, perfFrame, perfMsg, perfStage } from '../lib/perf'
 import { decodeFrame, type Frame } from '../lib/protocol'
 
@@ -18,6 +19,30 @@ export interface VariantStatus {
   device: string
   steps_per_sec: number
   steps_total: number
+}
+
+export interface BoundaryState {
+  axes: string[]
+  x_mass: number
+  p_mass: number
+}
+
+/** Server 'boundary' event: W's support entered the edge band. */
+export interface BoundaryEvent extends BoundaryState {
+  type: 'boundary'
+  record: number
+  action: 'warn' | 'capped' | 'invalid_potential'
+  message?: string
+  max_grid?: number
+}
+
+/** Server 'regrid' event: the domain moves/doubles for records >= at_record. */
+export interface RegridEvent {
+  type: 'regrid'
+  at_record: number
+  epoch: number
+  kind: Record<string, 'move' | 'double'>
+  grid: GridCfg
 }
 
 export interface SessionStatus {
@@ -33,12 +58,18 @@ export interface SessionStatus {
   t_extent: [number | null, number | null]
   cursor: number
   history_bytes: number
+  history_cap_bytes: number
   devices: string[]
   // current physics (reflects live set_params changes)
   mass: number
   c: number
   hbar_eff: number
   tol: number
+  // live grid (auto-expand regrids move it away from the setup form's)
+  grid: GridCfg
+  auto_expand: boolean
+  max_grid: number
+  boundary: BoundaryState
   per_variant: VariantStatus[]
 }
 
@@ -58,6 +89,10 @@ export function useSession() {
   const connected = ref(false)
   const errors = ref<string[]>([])
   const lastFrame = shallowRef<Frame | null>(null)
+  // latest tripped boundary event (null while clear — the server posts an
+  // empty-axes all-clear) and the latest regrid announcement
+  const boundary = ref<BoundaryEvent | null>(null)
+  const regrid = ref<RegridEvent | null>(null)
 
   let ws: WebSocket | null = null
   const handlers = new Set<FrameHandler>()
@@ -100,6 +135,9 @@ export function useSession() {
 
   async function create(cfg: unknown): Promise<SessionInfo> {
     await destroy()
+    // a fresh session starts with a clean slate: errors from the previous
+    // session (e.g. a worker OOM) would otherwise linger until page reload
+    errors.value = []
     const { data } = await api.post<SessionInfo>('/sessions', cfg)
     info.value = data
     open(data.ws_url)
@@ -144,6 +182,14 @@ export function useSession() {
         else if (d.type === 'error') errors.value.push(d.message)
         else if (d.type === 'eviction' && status.value)
           status.value.record_extent = d.new_extent
+        else if (d.type === 'boundary')
+          boundary.value = d.axes.length ? (d as BoundaryEvent) : null
+        else if (d.type === 'regrid') {
+          regrid.value = d as RegridEvent
+          // the next status echo confirms; update eagerly so the setup
+          // panel's live-domain line never lags the panels
+          if (status.value) status.value = { ...status.value, grid: d.grid }
+        }
       }
     }
   }
@@ -188,6 +234,8 @@ export function useSession() {
     connected.value = false
     queue = []
     lastFrame.value = null   // never replay a dead session's frame
+    boundary.value = null
+    regrid.value = null
     if (info.value) {
       const sid = info.value.session_id
       info.value = null
@@ -196,6 +244,6 @@ export function useSession() {
     }
   }
 
-  return { status, info, connected, errors, lastFrame, create, send,
-           onFrame, onClose, reconnect, destroy }
+  return { status, info, connected, errors, lastFrame, boundary, regrid,
+           create, send, onFrame, onClose, reconnect, destroy }
 }

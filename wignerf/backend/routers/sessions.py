@@ -48,11 +48,15 @@ async def compile_for(cfg_grid, expr, hbar_eff, variants):
 async def create_session(cfg: SessionCreate, request: Request):
     if cfg.ic.type == "mixture" and any(c.sigma_p is None for c in cfg.ic.components):
         raise HTTPException(422, "sigma_p is required for mixture components")
+    if max(cfg.grid.Nx, cfg.grid.Np) > config.MAX_GRID:
+        raise HTTPException(422, "Nx/Np may not exceed WIGNERF_MAX_GRID=%d "
+                            "on this host" % config.MAX_GRID)
     cp = await compile_for(cfg.grid, cfg.potential, cfg.hbar_eff, cfg.variants)
     s = sessions.create_session(
         cfg, cp, device=config.DEVICE,
         fft_threads=_fft_threads(len(cfg.variants)),
-        history_bytes=config.HISTORY_MB*1024*1024)
+        history_bytes=config.HISTORY_MB*1024*1024,
+        max_grid=config.MAX_GRID)
     # Prefix the WS path with the app's root_path so it inherits the nginx
     # prefix (uvicorn --root-path /wignerf, from APP_ROOT_PATH). Empty in dev.
     root_path = request.scope.get("root_path", "").rstrip("/")
@@ -93,7 +97,7 @@ def series(sid: str, start: int = 0, end: int = 1 << 62):
         rec = s.history.get(k)
         if rec is None:
             continue
-        t, variants = rec
+        t, _geom, variants = rec
         out.append({"n": k, "t": t,
                     "variants": [{"vid": v.vid, "E": v.E,
                                   "x_mean": v.x_mean, "x_std": v.x_std,
