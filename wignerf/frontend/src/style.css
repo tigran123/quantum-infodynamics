@@ -10,6 +10,14 @@ html, body, #app {
   overflow: hidden;
 }
 
+/* a setup field edited but not yet pushed to the running session (the
+   Physics fields apply on blur/Enter — an unapplied value must LOOK
+   unapplied, not silently disagree with the computation) */
+.wf-pending {
+  border-color: #f59e0b;
+  color: #fbbf24;
+}
+
 /* keycap in the help popover */
 .wf-kbd {
   padding: 0 4px;

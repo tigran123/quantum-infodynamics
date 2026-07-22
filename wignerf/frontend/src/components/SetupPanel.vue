@@ -6,10 +6,22 @@
  */
 import { computed } from 'vue'
 import PotentialEditor from './PotentialEditor.vue'
-import { resetToDefaults, type GridCfg, type SimConfig } from '../lib/config'
+import { resetToDefaults, type GridCfg, type LivePhysics,
+         type SimConfig } from '../lib/config'
 
 const props = defineProps<{ cfg: SimConfig; live: boolean; sign?: number
-                            liveGrid?: GridCfg | null; maxGrid?: number }>()
+                            liveGrid?: GridCfg | null; maxGrid?: number
+                            livePhysics?: LivePhysics | null }>()
+
+/** Physics fields apply on `@change` (blur/Enter), so a typed-but-not-yet-
+ *  committed value is otherwise invisible — mark it, and say so in the note
+ *  under the fields. */
+function pending(field: keyof LivePhysics) {
+  const lp = props.livePhysics
+  return !!lp && lp[field] !== props.cfg[field]
+}
+const pendingPhysics = computed(() =>
+  (['mass', 'c', 'hbar_eff', 'tol'] as const).some(pending))
 
 // Nx/Np choices follow the SERVER's per-axis ceiling (WIGNERF_MAX_GRID,
 // reported in status) instead of a hardcoded list; the form's current
@@ -65,6 +77,7 @@ function adoptLive() {
       v-model="props.cfg.potential"
       :grid="props.cfg.grid" :hbar-eff="props.cfg.hbar_eff"
       :live="live" :variants="props.cfg.variants"
+      :live-expr="props.livePhysics?.potential ?? null"
       @update:model-value="emit('dirty')"
       @apply-live="(expr) => emit('apply-live', { U: expr })"
       @validity="(v) => emit('potential-validity', v)"
@@ -77,24 +90,28 @@ function adoptLive() {
         <label class="flex items-center gap-1">
           <span class="w-10 text-neutral-500" title="rest mass, mₑ = 1">m</span>
           <input v-model.number="props.cfg.mass" type="number" step="any" min="0"
-                 class="wf-num" @change="emit('apply-live', { mass: props.cfg.mass })" />
+                 class="wf-num" :class="pending('mass') && 'wf-pending'"
+                 @change="emit('apply-live', { mass: props.cfg.mass })" />
         </label>
         <label class="flex items-center gap-1">
           <span class="w-10 text-neutral-500"
                 title="speed of light: 137.036 physical, 1 = old toy runs">c</span>
           <input v-model.number="props.cfg.c" type="number" step="any" min="0.1"
-                 class="wf-num" @change="emit('apply-live', { c: props.cfg.c })" />
+                 class="wf-num" :class="pending('c') && 'wf-pending'"
+                 @change="emit('apply-live', { c: props.cfg.c })" />
         </label>
         <label class="flex items-center gap-1">
           <span class="w-10 text-neutral-500"
                 title="value of ℏ in the evolution equations (a.u.: physical value 1); dial it below 1 to watch the classical limit emerge">ℏ</span>
           <input v-model.number="props.cfg.hbar_eff" type="number" step="any" min="0.001"
-                 class="wf-num" @change="emit('apply-live', { hbar_eff: props.cfg.hbar_eff })" />
+                 class="wf-num" :class="pending('hbar_eff') && 'wf-pending'"
+                 @change="emit('apply-live', { hbar_eff: props.cfg.hbar_eff })" />
         </label>
         <label class="flex items-center gap-1">
           <span class="w-10 text-neutral-500" title="adaptive-step relative tolerance">tol</span>
           <input v-model.number="props.cfg.tol" type="number" step="any" min="1e-6" max="0.5"
-                 class="wf-num" @change="emit('apply-live', { tol: props.cfg.tol })" />
+                 class="wf-num" :class="pending('tol') && 'wf-pending'"
+                 @change="emit('apply-live', { tol: props.cfg.tol })" />
         </label>
         <label class="flex items-center gap-1">
           <span class="w-10 text-neutral-500"
@@ -106,9 +123,14 @@ function adoptLive() {
           </select>
         </label>
       </div>
-      <p class="text-xs text-neutral-400">
-        m, c, ℏ, tol and auto-expand apply live at the frontier;
-        grid &amp; IC need a restart.
+      <p class="text-xs" :class="pendingPhysics ? 'text-amber-400' : 'text-neutral-400'">
+        <template v-if="pendingPhysics">
+          edited (amber): press Enter or leave the field to apply it live.
+        </template>
+        <template v-else>
+          m, c, ℏ, tol and auto-expand apply live at the frontier;
+          grid &amp; IC need a restart.
+        </template>
       </p>
     </section>
 

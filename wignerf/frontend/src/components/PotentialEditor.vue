@@ -10,6 +10,10 @@
  * disabled while the draft is invalid for the ACTIVE variant families,
  * and that validity is emitted upward — the transport Solve is gated on
  * it (an invalid form must never coexist with a running computation).
+ * "Apply live" is also inert when the draft already IS the live U: the
+ * backend drops such a no-op, and a button that looks like it did
+ * something is how a run's change log filled up with U changes that never
+ * happened.
  */
 import uPlot from 'uplot'
 import 'uplot/dist/uPlot.min.css'
@@ -24,6 +28,7 @@ const props = defineProps<{
   hbarEff: number
   live: boolean          // a session is running -> allow live apply
   variants: VariantKey[] // active selection: decides which families must be valid
+  liveExpr?: string | null   // the session's CURRENT U(x), for the no-op gate
 }>()
 
 const emit = defineEmits<{
@@ -114,6 +119,10 @@ const draftValid = computed(() => {
 // immediate: the gate starts pessimistic until the first compile lands
 watch(draftValid, (v) => emit('validity', v), { immediate: true })
 
+/** Nothing to push: the running session already evolves this expression. */
+const isLiveExpr = computed(() =>
+  props.live && props.liveExpr != null && draft.value === props.liveExpr)
+
 onMounted(() => {
   chart = new uPlot(
     {
@@ -193,10 +202,16 @@ onBeforeUnmount(() => chart?.destroy())
       >Use at restart</button>
       <button
         class="flex-1 py-1 rounded bg-pink-800 hover:bg-pink-700 text-xs disabled:opacity-40"
-        :disabled="!draftValid || !live"
+        :disabled="!draftValid || !live || isLiveExpr"
         title="push into the running session at the frontier"
         @click="emit('applyLive', draft)"
       >Apply live</button>
     </div>
+    <!-- spell out the gate instead of leaving a dead button: this one is
+         only for U(x) — m, c, ℏ and tol apply from their own fields -->
+    <p v-if="isLiveExpr" class="text-[11px] text-neutral-500">
+      already the live U(x) — edit it to enable "Apply live"
+      (m, c, ℏ, tol apply from the Physics fields).
+    </p>
   </section>
 </template>

@@ -1,19 +1,28 @@
 <script setup lang="ts">
 /**
- * mp4 export of an already-computed record range.
+ * Export: an mp4 of an already-computed record range, and the run's setup
+ * (its initial conditions) as a document that can be imported back.
  *
- * The backend renders the frames off its own history (routers/export.py) —
- * the browser only configures the job, watches its progress and downloads
- * the file. Export is PAUSED-only: a running session evicts old records
- * once the history cap is reached, and the whole point of the feature is
- * to film a range you have already played back and judged interesting.
+ * VIDEO — the backend renders the frames off its own history
+ * (routers/export.py); the browser only configures the job, watches its
+ * progress and downloads the file. Export is PAUSED-only: a running session
+ * evicts old records once the history cap is reached, and the whole point of
+ * the feature is to film a range you have already played back and judged
+ * interesting. Progress arrives as 'export' events on the session WebSocket;
+ * a 1 s REST poll runs alongside so a missed event can never leave the bar
+ * stuck.
  *
- * Progress arrives as 'export' events on the session WebSocket; a 1 s REST
- * poll runs alongside so a missed event can never leave the bar stuck.
+ * SETUP — GET /sessions/{id}/setup serves what the run STARTED from (the
+ * server rewinds its own live changes; see core/describe.setup_document).
+ * Import fills the setup form and marks the session restart-dirty — never
+ * restarts by itself — and reads either that .json or an exported .mp4,
+ * which carries the same document in its metadata (lib/mp4meta.ts).
  */
 import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue'
 import { api } from '../api'
 import type { ExportEvent, SessionStatus } from '../composables/useSession'
+import { importConfig, type SimConfig } from '../lib/config'
+import { extractWignerfDoc } from '../lib/mp4meta'
 import { fmtTime } from '../lib/units'
 import { VARIANT_META, type VariantKey } from '../lib/variants'
 
@@ -26,10 +35,14 @@ const props = defineProps<{
   /** the SPA's "grid lines on plots" setting — the video follows it, on
    *  the charts AND on the W heatmaps */
   showGrid: boolean
+  /** the setup form — an import writes into it (same in-place mutation the
+   *  SetupPanel's own fields do) */
+  cfg: SimConfig
 }>()
 
 const emit = defineEmits<{
   (e: 'command', cmd: Record<string, unknown>): void
+  (e: 'dirty'): void
 }>()
 
 const RESOLUTIONS = [
@@ -120,7 +133,8 @@ const running = computed(() => props.status?.running ?? false)
 const disabled = computed(() => !hasHistory.value || !props.sessionId)
 const disabledWhy = computed(() =>
   !hasHistory.value ? 'nothing computed yet'
-    : 'render the computed range to an mp4 video')
+    : 'render the computed range to an mp4 video, or save/load this '
+      + "simulation's setup")
 
 /** t of a record index, from the timeline's own linear mapping. */
 function tOf(k: number): string {
@@ -271,12 +285,12 @@ const pct = computed(() => {
  */
 const buttonLabel = computed(() => {
   const j = job.value
-  if (!j || open.value) return '⤓ export mp4'
+  if (!j || open.value) return '⤓ export'
   if (j.state === 'running' || j.state === 'queued')
     return `⤓ export ${pct.value}%`
   if (j.state === 'done') return '⤓ export ready'
   if (j.state === 'error') return '⤓ export failed'
-  return '⤓ export mp4'
+  return '⤓ export'
 })
 const buttonClass = computed(() => {
   const s = open.value ? null : job.value?.state
@@ -298,6 +312,54 @@ const buttonTitle = computed(() => {
   return disabledWhy.value
 })
 
+// -- setup (initial conditions) ---------------------------------------------
+
+/** The server serves the ORIGINAL config of this session, not the form:
+ *  live changes and auto-expand move the form/session apart, and what you
+ *  want to keep is the state the run started from. */
+const setupUrl = computed(() =>
+  props.sessionId ? `${api.defaults.baseURL}/sessions/${props.sessionId}/setup` : '')
+
+const fileInput = ref<HTMLInputElement | null>(null)
+const importMsg = ref('')
+const importOk = ref(false)
+
+async function onImportFile(ev: Event) {
+  const input = ev.target as HTMLInputElement
+  const file = input.files?.[0]
+  input.value = ''                 // re-importing the same file must re-fire
+  if (!file) return
+  importMsg.value = ''
+  try {
+    const mp4 = /\.mp4$/i.test(file.name) || file.type === 'video/mp4'
+    let doc: unknown
+    if (mp4) {
+      doc = await extractWignerfDoc(file)
+      if (doc == null)
+        throw new Error('this mp4 carries no wignerf metadata (not exported '
+                        + 'from here, or re-encoded since)')
+    } else {
+      const text = await file.text()
+      try {
+        doc = JSON.parse(text)
+      } catch {
+        // the raw SyntaxError ("Unexpected token '#'…") explains nothing
+        // about what this dialog wanted
+        throw new Error('not a wignerf setup file — expected the .json this '
+                        + 'panel downloads, or an mp4 exported here')
+      }
+    }
+    importConfig(props.cfg, doc)
+    emit('dirty')
+    importOk.value = true
+    importMsg.value = `imported ${file.name} — press "Restart session" `
+      + '(or Solve) to run it'
+  } catch (e: unknown) {
+    importOk.value = false
+    importMsg.value = e instanceof Error ? e.message : String(e)
+  }
+}
+
 onBeforeUnmount(() => clearInterval(poll))
 </script>
 
@@ -314,7 +376,11 @@ onBeforeUnmount(() => clearInterval(poll))
     <div v-if="open"
          class="absolute left-0 top-full mt-2 z-50 w-[26rem] rounded border border-neutral-700
                 bg-neutral-900 shadow-xl p-3 text-xs space-y-2">
-      <h4 class="font-semibold text-neutral-300">Export the computed range to mp4</h4>
+      <h4 class="font-semibold text-neutral-300">Export</h4>
+
+      <h5 class="text-neutral-500 uppercase tracking-wider text-[11px] pt-1">
+        Video (mp4) — the computed range
+      </h5>
 
       <div class="grid grid-cols-[3.5rem_1fr] gap-x-2 gap-y-1.5 items-center">
         <span class="text-neutral-500">records</span>
@@ -412,6 +478,37 @@ onBeforeUnmount(() => clearInterval(poll))
         <button v-if="job?.state === 'running' || job?.state === 'queued'"
                 class="px-2 py-1 rounded bg-neutral-800 hover:bg-neutral-700"
                 @click="cancel">Cancel</button>
+      </div>
+
+      <h5 class="text-neutral-500 uppercase tracking-wider text-[11px] pt-2
+                 border-t border-neutral-800">
+        Setup — the initial conditions
+      </h5>
+      <p class="text-neutral-400">
+        The state this run STARTED from: grid, U(x), the IC, variants,
+        m/c/ℏ/tol and the run mode. Live parameter changes and auto-expand
+        are not part of it — they belong to the run, and the video's
+        metadata block is where they are recorded.
+      </p>
+      <div class="flex items-center gap-2">
+        <a v-if="setupUrl" :href="setupUrl"
+           class="px-2 py-1 rounded bg-neutral-800 hover:bg-neutral-700"
+           title="download this simulation's initial conditions as a .json file">
+          ⤓ download setup
+        </a>
+        <button class="px-2 py-1 rounded bg-neutral-800 hover:bg-neutral-700"
+                title="load a setup from a .json file, or straight from an mp4
+                       exported here (it carries the same document)"
+                @click="fileInput?.click()">⤒ import setup…</button>
+        <input ref="fileInput" type="file" class="hidden"
+               accept=".json,.mp4,application/json,video/mp4"
+               @change="onImportFile" />
+      </div>
+      <p v-if="importMsg" :class="importOk ? 'text-emerald-400' : 'text-red-400'">
+        {{ importMsg }}
+      </p>
+
+      <div class="flex pt-1">
         <button class="ml-auto px-2 py-1 rounded bg-neutral-800 hover:bg-neutral-700"
                 @click="open = false">Close</button>
       </div>

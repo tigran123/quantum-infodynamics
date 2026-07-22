@@ -441,12 +441,38 @@ class SimSession:
 
     # called from the router/streamer coroutines
     def apply_params(self, change, cp=None):
-        if change.dt_sign is not None:
-            self.clock.set_sign(change.dt_sign)
-        cmd = {"kind": "params", "cp": cp, "mass": change.mass, "c": change.c,
-               "hbar_eff": change.hbar_eff, "tol": change.tol}
-        if cp is not None or any(v is not None for v in
-                                 (change.mass, change.c, change.hbar_eff, change.tol)):
+        """Apply the fields that actually DIFFER from what is live.
+
+        A change that changes nothing is dropped whole — no worker command,
+        no log entry, no event. The UI sends complete fields (PotentialEditor's
+        "Apply live" always carries the U(x) draft, edited or not), and a
+        param_log full of U changes that never happened makes an exported
+        video's "how to reproduce this" block a lie about its own frames.
+        """
+        new, old = {}, {}
+
+        def diff(field, value, current):
+            if value is not None and value != current:
+                new[field] = value
+                old[field] = current
+
+        diff("U", change.U, self.cfg.potential)
+        for f in ("mass", "c", "hbar_eff", "tol"):
+            diff(f, getattr(change, f), getattr(self.cfg, f))
+        diff("dt_sign", change.dt_sign, self.clock.sign)
+        diff("auto_expand", change.auto_expand, self.auto_expand)
+        if not new:
+            return
+        if "U" not in new:
+            # unchanged expression: the workers keep their callables. Even a
+            # simultaneous hbar change needs no new cp — Propagator.rebuild()
+            # re-derives the Bopp-shifted arrays from the current hbar_eff.
+            cp = None
+        cmd = {"kind": "params", "cp": cp, "mass": new.get("mass"),
+               "c": new.get("c"), "hbar_eff": new.get("hbar_eff"),
+               "tol": new.get("tol")}
+        physics = [f for f in ("U", "mass", "c", "hbar_eff", "tol") if f in new]
+        if physics:
             with self._edge_lock:
                 # U/hbar move the extended Bopp range. A plan in flight was
                 # validated under the OLD physics, and the worker-side
@@ -457,40 +483,53 @@ class SimSession:
                 # check covers plans it could see; this closes the race of
                 # a plan committing during that ~ms compile (plan commits
                 # hold this same lock, so no plan can slip in mid-check).
-                if (cp is not None or change.hbar_eff is not None) \
+                if ("U" in new or "hbar_eff" in new) \
                    and self._plan_pending() and self._prev_grid_state is not None:
                     reason = self._potential_invalid(
-                        change.U if cp is not None else self.cfg.potential,
+                        new.get("U", self.cfg.potential),
                         self._prev_grid_state.union(self.grid_state),
-                        change.hbar_eff or self.cfg.hbar_eff)
-                    if reason is not None:
-                        self.post_msg({"type": "error", "code": "bad_potential",
-                                       "message": "rejected while a domain "
-                                       "change is in flight: %s" % reason})
-                        return
-                for w in self.workers:
-                    w.cmd_q.put(cmd)
-                # Track the applied values on the session: later U compiles
-                # validate on the extended Bopp range, which depends on the
-                # CURRENT hbar_eff, and status() must report current physics.
-                # Optimistic — a worker that rejects the change rolls itself
-                # back and posts an error.
-                for f in ("mass", "c", "hbar_eff", "tol"):
-                    v = getattr(change, f)
-                    if v is not None:
-                        setattr(self.cfg, f, v)
-                if cp is not None:
-                    self.cfg.potential = change.U
-                    self.compiled_potential = cp
-                    self._invalid_posted = False   # new U: expansion may work
-        if change.auto_expand is not None:
+                        new.get("hbar_eff", self.cfg.hbar_eff))
+                else:
+                    reason = None
+                if reason is not None:
+                    self.post_msg({"type": "error", "code": "bad_potential",
+                                   "message": "rejected while a domain "
+                                   "change is in flight: %s" % reason})
+                    # only the physics is rejected; dt_sign/auto_expand in the
+                    # same message still stand (and still get logged)
+                    for f in physics:
+                        new.pop(f)
+                        old.pop(f)
+                else:
+                    for w in self.workers:
+                        w.cmd_q.put(cmd)
+                    # Track the applied values on the session: later U compiles
+                    # validate on the extended Bopp range, which depends on the
+                    # CURRENT hbar_eff, and status() must report current physics.
+                    # Optimistic — a worker that rejects the change rolls itself
+                    # back and posts an error.
+                    for f in ("mass", "c", "hbar_eff", "tol"):
+                        if f in new:
+                            setattr(self.cfg, f, new[f])
+                    if "U" in new:
+                        self.cfg.potential = new["U"]
+                        self.compiled_potential = cp
+                        self._invalid_posted = False  # new U: expansion may work
+        if not new:
+            return                      # nothing survived the rejection above
+        if "dt_sign" in new:
+            self.clock.set_sign(new["dt_sign"])
+        if "auto_expand" in new:
             # AFTER the physics commit: an immediate schedule (the key
             # "warning fired -> user enables the toggle" flow — waiting for
             # the next report_edge would compute one more old-grid record,
             # and a PAUSED session would not schedule at all until after
             # Solve) must validate against the values that just landed,
             # even when both arrive in one combined message.
-            self.auto_expand = bool(change.auto_expand)
+            # cfg too, not just the session flag: the exported metadata block
+            # and its JSON twin read cfg, and they must not report
+            # "auto-expand: off" for a run that visibly expanded
+            self.auto_expand = self.cfg.auto_expand = bool(new["auto_expand"])
             if self.auto_expand:
                 with self._edge_lock:
                     axes = list(self.boundary_state["axes"])
@@ -499,10 +538,12 @@ class SimSession:
                 if want:
                     self._schedule_regrid(self.history.latest_complete(), axes)
         self.clock.kick()
-        applied = {k: v for k, v in change.model_dump().items() if v is not None}
         at_record = self.history.latest_complete() + 1
-        self.param_log.append({"at_record": at_record, "applied": applied})
-        self.post_msg({"type": "params_applied", "applied": applied,
+        # `before` as well as `applied`: an export renders "ℏ 1 → 2" and
+        # rewinds the header physics to the first exported record (describe.py)
+        self.param_log.append({"at_record": at_record, "applied": new,
+                               "before": old})
+        self.post_msg({"type": "params_applied", "applied": new, "before": old,
                        "at_record": at_record})
 
     def status(self):
@@ -524,6 +565,9 @@ class SimSession:
             "history_bytes": self.history.nbytes(),
             "history_cap_bytes": self.history.byte_cap,
             "devices": self.devices,
+            # the LIVE expression: the setup form greys out "Apply live" when
+            # its draft already equals it (a no-op is dropped anyway)
+            "potential": self.cfg.potential,
             "mass": self.cfg.mass,
             "c": self.cfg.c,
             "hbar_eff": self.cfg.hbar_eff,

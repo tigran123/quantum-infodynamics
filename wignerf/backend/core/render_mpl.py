@@ -17,6 +17,10 @@ WignerRenderer.ts) so the video and the screen read the same:
 - the colour scale is the SYMMETRIC diverging one, W=0 at the centre of
   "bwr": vmin = -s, vmax = +s with s = max(Wmax, -Wmin) — here taken over
   the WHOLE exported range per variant, so the video does not flicker,
+- the SPATIAL axes, in contrast, follow the PER-RECORD geometry (the SPA
+  re-derives its grid from the painted frame): freezing them at the range
+  union would shrink every frame before an auto-expansion into a corner of
+  its panel. Only value scales are export-wide,
 - variant colours and dash patterns mirror frontend/src/lib/variants.ts.
 """
 
@@ -72,7 +76,8 @@ def axis_of(a1, a2, n):
 class RangeStats:
     """What the scan pass over the exported records collects (see
     videoexport.ExportJob): the series to plot, the fixed colour scales and
-    the axis limits that keep the video geometrically stable."""
+    the fixed marginal amplitudes. x1..p2 are the WIDEST window any record
+    in the range used — metadata only (the panels follow each record)."""
     t: list = field(default_factory=list)
     E: dict = field(default_factory=dict)         # key -> list
     uncert: dict = field(default_factory=dict)
@@ -175,6 +180,8 @@ class FrameFigure:
             ax.set_xlabel("x (a₀)", color=MUTED, fontsize=8)
             ax.set_ylabel("p (a.u.)", color=MUTED, fontsize=8)
             s = stats.scale.get(key, 1.0)
+            # extent/limits are placeholders: the first update() installs the
+            # first record's own window (see _apply_geom)
             im = ax.imshow(numpy.zeros((2, 2), dtype=numpy.float32),
                            origin="lower", cmap="bwr", vmin=-s, vmax=s,
                            extent=(stats.x1, stats.x2, stats.p1, stats.p2),
@@ -190,9 +197,9 @@ class FrameFigure:
         gsr = self.fig.add_gridspec(5, 1, left=0.675, right=0.965,
                                     bottom=0.235, top=0.935, hspace=0.75)
         self.rho_lines, self.phi_lines = {}, {}
-        ax_rho = self.fig.add_subplot(gsr[0])
+        ax_rho = self.ax_rho = self.fig.add_subplot(gsr[0])
         _style_axes(ax_rho, "ρ(x) = ∫W dp", grid=self.show_grid)
-        ax_phi = self.fig.add_subplot(gsr[1])
+        ax_phi = self.ax_phi = self.fig.add_subplot(gsr[1])
         _style_axes(ax_phi, "φ(p) = ∫W dx", grid=self.show_grid)
         for key in self.variants:
             _, color, dash = VARIANT_STYLE[key]
@@ -242,42 +249,72 @@ class FrameFigure:
 
         self._geom = None
         self._xax = self._pax = numpy.zeros(0)
-        # W-panel grid: matplotlib draws the axes grid UNDER the image, so
-        # these are explicit lines re-drawn after it every frame (see the
-        # blitting note below). Positions come from the tick locator, which
-        # is stable — the panel limits are the export-wide union.
-        panel_grid = []
-        if self.show_grid:
-            for ax, _im in self.images:
-                for v in ax.get_xticks():
-                    if stats.x1 <= v <= stats.x2:
-                        panel_grid.append(ax.axvline(
-                            v, color=PANEL_GRIDC, lw=0.8,
-                            alpha=(PANEL_ZERO_ALPHA if v == 0
-                                   else PANEL_GRID_ALPHA)))
-                for v in ax.get_yticks():
-                    if stats.p1 <= v <= stats.p2:
-                        panel_grid.append(ax.axhline(
-                            v, color=PANEL_GRIDC, lw=0.8,
-                            alpha=(PANEL_ZERO_ALPHA if v == 0
-                                   else PANEL_GRID_ALPHA)))
-        # Blitting: everything above is STATIC for the whole video (the
-        # series are drawn once, the metadata never changes), so a full
-        # redraw per frame would spend ~4/5 of its time on ticks, fonts and
-        # curves nobody is animating. The dynamic artists are marked
-        # animated, the static background is captured once, and each frame
-        # restores it and re-draws only the images, marginals, cursors and
-        # the two header texts.
-        # order IS draw order: the panel grid comes after the images so it
-        # stays visible over the heatmap, exactly as GridOverlay.vue sits
-        # above the WebGL canvas in the SPA
-        self._dynamic = ([im for _ax, im in self.images] + panel_grid
+        self.panel_grid = []
+        # Blitting: everything except the artists collected in _dynamic is
+        # STATIC (the series are drawn once, the metadata never changes), so
+        # a full redraw per frame would spend ~4/5 of its time on ticks,
+        # fonts and curves nobody is animating. The dynamic artists are
+        # marked animated, the static background is captured once, and each
+        # frame restores it and re-draws only the images, marginals, cursors
+        # and the two header texts. _apply_geom() re-captures the background
+        # whenever the record geometry (hence the ticks) changes.
+        self._rebuild_dynamic()
+        self.canvas.draw()      # static background, laid out once
+        self._bg = self.canvas.copy_from_bbox(self.fig.bbox)
+
+    # ------------------------------------------------------------------
+    def _rebuild_dynamic(self):
+        """order IS draw order: the panel grid comes after the images so it
+        stays visible over the heatmap, exactly as GridOverlay.vue sits above
+        the WebGL canvas in the SPA."""
+        self._dynamic = ([im for _ax, im in self.images] + self.panel_grid
                          + list(self.rho_lines.values())
                          + list(self.phi_lines.values())
                          + self.cursors + [self.time_text, self.geom_text])
         for a in self._dynamic:
             a.set_animated(True)
-        self.canvas.draw()      # static background, laid out once
+
+    def _apply_geom(self, geom):
+        """Adopt one record's window: the domain is a PER-RECORD fact
+        (auto-expand regrids) and the video follows it exactly as the SPA
+        does — a frame from before an expansion must still fill its panel.
+
+        Axis limits live in the blit BACKGROUND (ticks, labels, spines), so
+        this costs one full redraw + re-capture. That happens once per
+        regrid, a handful of times per export."""
+        self._geom = geom
+        self._xax = axis_of(geom.x1, geom.x2, geom.Nx)
+        self._pax = axis_of(geom.p1, geom.p2, geom.Np)
+        for ax, im in self.images:
+            im.set_extent((geom.x1, geom.x2, geom.p1, geom.p2))
+            ax.set_xlim(geom.x1, geom.x2)
+            ax.set_ylim(geom.p1, geom.p2)
+        # only the abscissae move: the ρ/φ amplitude scale stays export-wide
+        # (a per-frame y would make curve heights incomparable), like the
+        # per-variant colour scale
+        self.ax_rho.set_xlim(geom.x1, geom.x2)
+        self.ax_phi.set_xlim(geom.p1, geom.p2)
+        for ln in self.panel_grid:
+            ln.remove()
+        self.panel_grid = []
+        self.canvas.draw()      # lays out the new ticks (read back below)
+        if self.show_grid:
+            # W-panel grid: matplotlib draws the axes grid UNDER the image,
+            # so these are explicit lines re-drawn over it every frame
+            for ax, _im in self.images:
+                for v in ax.get_xticks():
+                    if geom.x1 <= v <= geom.x2:
+                        self.panel_grid.append(ax.axvline(
+                            v, color=PANEL_GRIDC, lw=0.8,
+                            alpha=(PANEL_ZERO_ALPHA if v == 0
+                                   else PANEL_GRID_ALPHA)))
+                for v in ax.get_yticks():
+                    if geom.p1 <= v <= geom.p2:
+                        self.panel_grid.append(ax.axhline(
+                            v, color=PANEL_GRIDC, lw=0.8,
+                            alpha=(PANEL_ZERO_ALPHA if v == 0
+                                   else PANEL_GRID_ALPHA)))
+        self._rebuild_dynamic()   # animated: absent from the capture below
         self._bg = self.canvas.copy_from_bbox(self.fig.bbox)
 
     # ------------------------------------------------------------------
@@ -290,20 +327,12 @@ class FrameFigure:
                                 "x ∈ [%.4g, %.4g]  p ∈ [%.4g, %.4g]"
                                 % (k, k0, k1, geom.Nx, geom.Np,
                                    geom.x1, geom.x2, geom.p1, geom.p2))
-        new_geom = geom != self._geom
-        if new_geom:
-            # the domain is a PER-RECORD fact (auto-expand regrids); the axes
-            # limits stay at the range union, only the images and the
-            # marginal abscissae move
-            self._geom = geom
-            self._xax = axis_of(geom.x1, geom.x2, geom.Nx)
-            self._pax = axis_of(geom.p1, geom.p2, geom.Np)
+        if geom != self._geom:      # first record, or an auto-expand regrid
+            self._apply_geom(geom)
         for i, key in enumerate(self.variants):
             vf = vframes[i]
             _ax, im = self.images[i]
             im.set_data(dequantize_natural(vf))
-            if new_geom:
-                im.set_extent((geom.x1, geom.x2, geom.p1, geom.p2))
             self.rho_lines[key].set_data(self._xax, vf.rho)
             self.phi_lines[key].set_data(self._pax, vf.phi)
         for c in self.cursors:
@@ -324,21 +353,29 @@ def meta_columns(cfg, geom, stats, variants, k0, k1, n_frames, fps,
                  param_log=()):
     """The two text columns of the metadata block (left: what this video is;
     right: the physics + IC expression, wrapped). `geom` is the geometry of
-    the FIRST exported record; auto-expand may move it later, hence the
-    per-record header line and the union window quoted here."""
+    the FIRST exported record; auto-expand may move it later — the plots
+    follow each record, so the widest window is quoted separately."""
     from . import describe
-    left = _wrap([
+    lines = [
         "variants: %s" % ", ".join(k.upper() for k in variants),
         "records %d … %d  →  %d frames @ %g fps  (%.1f s)"
         % (k0, k1, n_frames, fps, n_frames/float(fps)),
-        "grid at record %d: %d×%d;  axes span x ∈ [%.6g, %.6g], "
-        "p ∈ [%.6g, %.6g]"
-        % (k0, geom.Nx, geom.Np, stats.x1, stats.x2, stats.p1, stats.p2),
-        "units: Hartree atomic (ℏ = mₑ = e = 1);  1 a.u. of time = %g fs"
-        % AU_TIME_FS,
-    ], 62)
+        "grid at record %d: %d×%d;  x ∈ [%.6g, %.6g], p ∈ [%.6g, %.6g]"
+        % (k0, geom.Nx, geom.Np, geom.x1, geom.x2, geom.p1, geom.p2),
+    ]
+    if (stats.x1, stats.x2, stats.p1, stats.p2) != (geom.x1, geom.x2,
+                                                    geom.p1, geom.p2):
+        lines.append("axes follow each record (auto-expand); widest: "
+                     "x ∈ [%.6g, %.6g], p ∈ [%.6g, %.6g]"
+                     % (stats.x1, stats.x2, stats.p1, stats.p2))
+    lines.append("units: Hartree atomic (ℏ = mₑ = e = 1);  "
+                 "1 a.u. of time = %g fs" % AU_TIME_FS)
+    left = _wrap(lines, 62)
+    # the IC was built at session creation: its σp (derived for cat states)
+    # follows the ORIGINAL ℏ, not whatever a live change left behind
+    hbar0 = describe.state_at(cfg, param_log, -1).get("hbar_eff", cfg.hbar_eff)
     right = _wrap(describe.param_lines(cfg, param_log, k0, k1)
-                  + describe.ic_expression(cfg.ic, cfg.hbar_eff), 150)
+                  + describe.ic_expression(cfg.ic, hbar0), 150)
     return left, right
 
 

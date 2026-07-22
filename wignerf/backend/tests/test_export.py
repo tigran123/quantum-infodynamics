@@ -66,6 +66,28 @@ def test_param_lines_report_live_changes_in_range():
     assert blob["export"]["frames"] == 3
 
 
+def test_param_block_describes_the_first_exported_record():
+    """The physics line must describe the frames it sits on, not the values
+    the session happened to END with: a run whose ℏ went 1 → 2 → 100 and is
+    exported from record 0 says ℏ = 1, and the changes read "before → after"."""
+    cfg = protocol.SessionCreate(grid=GRID, potential="x^2/2", ic=IC,
+                                 variants=["qn"], hbar_eff=100.0, mass=2.0)
+    log = [{"at_record": 10, "applied": {"mass": 2.0}, "before": {"mass": 1.0}},
+           {"at_record": 20, "applied": {"hbar_eff": 2.0},
+            "before": {"hbar_eff": 1.0}},
+           {"at_record": 40, "applied": {"hbar_eff": 100.0},
+            "before": {"hbar_eff": 2.0}}]
+    text = " ".join(describe.param_lines(cfg, log, 0, 50))
+    assert "m = 1" in text and "ℏ = 1 " in text
+    assert "ℏ 1 → 2" in text and "ℏ 2 → 100" in text and "m 1 → 2" in text
+    # exporting from the middle: ℏ was already 2 there
+    text = " ".join(describe.param_lines(cfg, log, 30, 50))
+    assert "ℏ = 2" in text and "m = 2" in text
+    assert "record 20" not in text
+    blob = json.loads(describe.config_json(cfg, log, at_record=0))
+    assert blob["config"]["hbar_eff"] == 1.0 and blob["config"]["mass"] == 1.0
+
+
 # ---------------------------------------------------------------------------
 # render_mpl.py — the figure
 # ---------------------------------------------------------------------------
@@ -148,15 +170,57 @@ def test_show_grid_covers_charts_and_w_panels():
             panel_ax = fig.images[0][0]
             chart_ax = [a for a in fig.fig.axes
                         if a.get_title(loc="right") == "E(t)"][0]
+            # the panel grid is built per record geometry, so it exists only
+            # after the first update() (see FrameFigure._apply_geom)
+            frame = bytes(fig.update(0, 0.0, geom, [_vframe(1)], 0, 2))
             out[flag] = (len(panel_ax.lines),
                          any(g.get_visible() for g in chart_ax.get_xgridlines()),
-                         bytes(fig.update(0, 0.0, geom, [_vframe(1)], 0, 2)))
+                         frame)
         finally:
             fig.close()
     on, off = out[True], out[False]
     assert on[0] > 0 and off[0] == 0, "W panel grid lines ignored the toggle"
     assert on[1] and not off[1], "chart grid ignored the toggle"
     assert on[2] != off[2], "the rendered frames are identical"
+
+
+def test_axes_follow_the_record_geometry():
+    """Auto-expand makes the domain a PER-RECORD fact, and the video follows
+    it exactly as the SPA does: freezing the axes at the range union rendered
+    every pre-expansion frame as a postage stamp in the corner of its panel.
+    Only the VALUE scales (colour, marginal amplitude) are export-wide."""
+    cfg = protocol.SessionCreate(grid=GRID, potential="x^2/2", ic=IC,
+                                 variants=["qn"])
+    small = protocol.RecordGeom(32, 32, -6.0, 6.0, -7.0, 7.0)
+    big = protocol.RecordGeom(64, 64, -12.0, 12.0, -14.0, 14.0)
+    stats = _stats(2)
+    stats.x1, stats.x2, stats.p1, stats.p2 = -12.0, 12.0, -14.0, 14.0  # union
+    fig = FrameFigure(["qn"], stats,
+                      meta_columns(cfg, small, stats, ["qn"], 0, 1, 2, 30),
+                      width=640, height=360)
+    try:
+        panel = fig.images[0][0]
+        clim = fig.images[0][1].get_clim()
+        rho_ylim = fig.ax_rho.get_ylim()
+        fig.update(0, 0.0, small, [_vframe(1)], 0, 1)
+        assert panel.get_xlim() == (small.x1, small.x2)
+        assert panel.get_ylim() == (small.p1, small.p2)
+        assert fig.ax_rho.get_xlim() == (small.x1, small.x2)
+        assert fig.ax_phi.get_xlim() == (small.p1, small.p2)
+        fig.update(1, 0.05, big, [_vframe(2, 64, 64)], 0, 1)
+        assert panel.get_xlim() == (big.x1, big.x2)
+        assert panel.get_ylim() == (big.p1, big.p2)
+        assert fig.ax_rho.get_xlim() == (big.x1, big.x2)
+        # value scales are export-wide: no brightness or height pumping
+        assert fig.images[0][1].get_clim() == clim
+        assert fig.ax_rho.get_ylim() == rho_ylim
+    finally:
+        fig.close()
+    # the metadata quotes the first record's window AND the widest one
+    left, _right = meta_columns(cfg, small, stats, ["qn"], 0, 1, 2, 30)
+    text = " ".join(left)
+    assert "grid at record 0: 32×32" in text and "[-6, 6]" in text
+    assert "widest" in text and "[-12, 12]" in text
 
 
 def test_frame_figure_renders_distinct_frames():
@@ -204,6 +268,37 @@ def _solve_a_few(client, ws, sid, n=6):
     ws.send_text(_json.dumps({"type": "pause"}))
     time.sleep(0.3)                     # let in-flight records land
     return client.get("/api/sessions/%s" % sid).json()["record_extent"]
+
+
+def test_setup_document_is_what_the_run_started_from():
+    """The exchangeable "initial conditions": whatever a run did to itself
+    (live ℏ/U changes, an auto-expand toggle), the document must still be the
+    config POST /api/sessions was given — and must be re-postable."""
+    from core.protocol import ParamChange, SessionCreate
+    from core.session import SESSIONS
+    with TestClient(app) as client:
+        info = _mk(client, potential="x^2/2", hbar_eff=1.0)
+        sid = info["session_id"]
+        s = SESSIONS[sid]
+        s.apply_params(ParamChange(hbar_eff=0.25, U="x^4/4", mass=3.0,
+                                   auto_expand=True))
+        assert s.cfg.hbar_eff == 0.25 and s.cfg.potential == "x^4/4"
+
+        doc = client.get("/api/sessions/%s/setup" % sid).json()
+        assert doc["format"] == "wignerf-setup" and doc["version"] == 1
+        cfg = doc["config"]
+        assert cfg["hbar_eff"] == 1.0 and cfg["potential"] == "x^2/2"
+        assert cfg["mass"] == 1.0 and cfg["auto_expand"] is False
+        # the document IS a session request
+        SessionCreate.model_validate(cfg)
+        r = client.post("/api/sessions", json=cfg)
+        assert r.status_code == 200, r.text
+        client.delete("/api/sessions/%s" % r.json()["session_id"])
+
+        r = client.get("/api/sessions/%s/setup" % sid)
+        assert 'filename="wignerf-setup-QN-CN-' in r.headers["content-disposition"]
+        client.delete("/api/sessions/%s" % sid)
+        assert client.get("/api/sessions/%s/setup" % sid).status_code == 404
 
 
 @needs_ffmpeg

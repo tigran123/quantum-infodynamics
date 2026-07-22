@@ -4,12 +4,15 @@ solver workers), inspect, delete, and the scalar time-series backfill.
 """
 
 import os
+import time
 from functools import partial
 
 from anyio import to_thread
 from fastapi import APIRouter, HTTPException, Request
+from fastapi.responses import JSONResponse
 
 import config
+from core import describe
 from core import session as sessions
 from core.potential import PotentialError, compile_potential
 from core.protocol import VARIANTS, SessionCreate
@@ -71,6 +74,24 @@ def get_session(sid: str):
     if s is None:
         raise HTTPException(404, "no such session")
     return s.status()
+
+
+@router.get("/sessions/{sid}/setup")
+def get_setup(sid: str):
+    """The session's ORIGINAL config as a downloadable document — what the
+    run started from, which the SPA can import back into the setup form (the
+    same blob rides in every exported mp4's `comment` tag). Descriptive
+    filename, like the video export."""
+    s = sessions.get_session(sid)
+    if s is None:
+        raise HTTPException(404, "no such session")
+    doc = describe.setup_document(s.cfg, s.param_log)
+    g = doc["config"]["grid"]
+    name = "wignerf-setup-%s-%dx%d-%s.json" % (
+        "-".join(v.upper() for v in doc["config"]["variants"]),
+        g["Nx"], g["Np"], time.strftime("%Y%m%d-%H%M"))
+    return JSONResponse(doc, headers={
+        "Content-Disposition": 'attachment; filename="%s"' % name})
 
 
 @router.delete("/sessions/{sid}")

@@ -13,6 +13,7 @@ is unit-tested as such.
 """
 
 import json
+import time
 
 
 def _num(v):
@@ -84,38 +85,110 @@ def ic_expression(ic, hbar_eff):
             "    " + "  +  ".join(terms)]
 
 
+# wire field -> the label the Setup panel puts on it
+FIELD_LABEL = {"U": "U(x)", "mass": "m", "c": "c", "hbar_eff": "ℏ",
+               "tol": "tol", "dt_sign": "t dir", "auto_expand": "auto-expand"}
+# wire field -> SessionCreate attribute (dt_sign has none: it is not config)
+FIELD_ATTR = {"U": "potential", "mass": "mass", "c": "c",
+              "hbar_eff": "hbar_eff", "tol": "tol",
+              "auto_expand": "auto_expand"}
+
+
+def _value(field, v):
+    if field == "auto_expand":
+        return "on" if v else "off"
+    if field == "dt_sign":
+        return "backward" if v < 0 else "forward"
+    if field == "U":
+        return str(v)
+    return _num(v)
+
+
+def state_at(cfg, param_log=(), k0=None):
+    """The physics as of record `k0`, rewound from the session's CURRENT
+    values through the log's `before` entries. Without this the block on a
+    frame computed at ℏ = 1 would carry the ℏ = 100 the run happened to end
+    with. Returns {attr: value} overrides for the cfg fields."""
+    out = {}
+    if k0 is None:
+        return out
+    for e in reversed(list(param_log)):
+        if e["at_record"] <= k0:
+            break
+        for field, v in (e.get("before") or {}).items():
+            if field in FIELD_ATTR:
+                out[FIELD_ATTR[field]] = v
+    return out
+
+
 def param_lines(cfg, param_log=(), k0=None, k1=None):
-    """The physics/setup block. `param_log` entries inside [k0, k1] are
-    listed: a live U/mass/ℏ change mid-range would otherwise make the block
-    a lie about the frames that follow it."""
+    """The physics/setup block, describing the state at record `k0` (not the
+    session's latest). `param_log` entries inside [k0, k1] are listed: a live
+    U/mass/ℏ change mid-range would otherwise make the block a lie about the
+    frames that follow it."""
+    st = state_at(cfg, param_log, k0)
+    at = lambda f: st.get(f, getattr(cfg, f))
     # label the fields exactly as the UI does: ℏ (not hbar_eff — the Physics
     # panel calls it ℏ) and "run-ahead" (the mode select's label, not the
     # wire value "runahead")
     lines = [
-        "U(x) = %s" % cfg.potential,
+        "U(x) = %s" % at("potential"),
         "m = %s   c = %s   ℏ = %s   tol = %s"
-        % (_num(cfg.mass), _num(cfg.c), _num(cfg.hbar_eff), _num(cfg.tol)),
+        % (_num(at("mass")), _num(at("c")), _num(at("hbar_eff")),
+           _num(at("tol"))),
         "t₁ = %s   record_dt = %s   mode = %s%s   auto-expand: %s"
         % (_num(cfg.t1), _num(cfg.record_dt),
            "run-ahead" if cfg.mode == "runahead" else cfg.mode,
            ("  t₂ = %s" % _num(cfg.t2)) if cfg.t2 is not None else "",
-           "on" if cfg.auto_expand else "off"),
+           "on" if at("auto_expand") else "off"),
     ]
     changes = [e for e in param_log
                if (k0 is None or e["at_record"] >= k0)
                and (k1 is None or e["at_record"] <= k1)]
     for e in changes:
+        before = e.get("before") or {}
+        parts = []
+        for field, v in e["applied"].items():
+            label = FIELD_LABEL.get(field, field)
+            if field in before:
+                parts.append("%s %s → %s" % (label, _value(field, before[field]),
+                                             _value(field, v)))
+            else:
+                parts.append("%s = %s" % (label, _value(field, v)))
         lines.append("live change at record %d: %s"
-                     % (e["at_record"],
-                        ", ".join("%s = %s" % (k, v)
-                                  for k, v in e["applied"].items())))
+                     % (e["at_record"], ", ".join(parts)))
     return lines
 
 
-def config_json(cfg, param_log=(), **extra):
-    """Machine-readable twin of the visible block (mp4 `comment` tag)."""
-    d = {"generator": "wignerf",
-         "config": json.loads(cfg.model_dump_json()),
-         "param_log": list(param_log)}
+SETUP_FORMAT = "wignerf-setup"
+SETUP_VERSION = 1
+
+
+def setup_document(cfg, param_log=()):
+    """The exchangeable "initial conditions" of a run: exactly the config the
+    session was CREATED with, whatever happened to it since.
+
+    Live changes mutate session.cfg and auto-expand moves the grid, so the
+    log's `before` values are rewound at k0 = -1 (i.e. every entry) to get
+    back what POST /api/sessions was given. Live changes are deliberately NOT
+    part of this — a mid-run ℏ change is not a starting state; the exported
+    video's metadata block is where they are recorded."""
+    conf = json.loads(cfg.model_dump_json())
+    conf.update(state_at(cfg, param_log, -1))
+    return {"format": SETUP_FORMAT, "version": SETUP_VERSION,
+            "generator": "wignerf",
+            "created": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            "config": conf}
+
+
+def config_json(cfg, param_log=(), at_record=None, **extra):
+    """Machine-readable twin of the visible block (mp4 `comment` tag).
+
+    `at_record` rewinds the physics to that record (see state_at), so the
+    JSON says what the visible block says — the log's before/after entries
+    carry the rest."""
+    conf = json.loads(cfg.model_dump_json())
+    conf.update(state_at(cfg, param_log, at_record))
+    d = {"generator": "wignerf", "config": conf, "param_log": list(param_log)}
     d.update(extra)
     return json.dumps(d, separators=(",", ":"), ensure_ascii=False)

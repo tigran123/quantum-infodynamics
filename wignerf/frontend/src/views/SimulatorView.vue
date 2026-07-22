@@ -99,6 +99,46 @@ async function restart() {
   }
 }
 
+/**
+ * An mp4 render dies if the session it reads from moves on: restarting
+ * deletes the session (and with it the job and its partial file), and
+ * computing new records evicts the old ones out from under the renderer.
+ * Both used to happen silently — so ask first, and on "yes" cancel the job
+ * outright instead of leaving it to fail somewhere mid-file.
+ */
+const exportRunning = computed(() => {
+  const e = session.exportEvent.value
+  return e && (e.state === 'running' || e.state === 'queued') ? e : null
+})
+
+async function mayDiscardExport(what: string): Promise<boolean> {
+  const e = exportRunning.value
+  if (!e) return true
+  const pct = e.total ? Math.round((100*e.done)/e.total) : 0
+  if (!confirm(`An mp4 export is rendering (${pct}% — ${e.done}/${e.total} `
+               + `frames).\n\n${what} cancels it and discards the partial `
+               + 'file.\n\nContinue?'))
+    return false
+  try { await api.delete(`/exports/${e.job_id}`) } catch { /* already gone */ }
+  return true
+}
+
+/** The user-initiated restart (the automatic ones — first mount, backend
+ *  recovery — must never prompt). */
+async function requestRestart() {
+  if (await mayDiscardExport('Restarting the session')) await restart()
+}
+
+/** Transport commands, gated the same way: only a command that will COMPUTE
+ *  threatens the render (playback adds no records, so it cannot evict). */
+async function sendCommand(cmd: Record<string, unknown>) {
+  if (cmd.type === 'play'
+      && transportAction(session.status.value,
+                         session.lastFrame.value?.record ?? null) === 'solve'
+      && !(await mayDiscardExport('Computing new records'))) return
+  session.send(cmd)
+}
+
 function toggleVariant(v: VariantKey) {
   const i = cfg.variants.indexOf(v)
   if (i >= 0) {
@@ -117,6 +157,16 @@ function toggleVariant(v: VariantKey) {
 function applyLive(params: Record<string, unknown>) {
   session.send({ type: 'set_params', params })
 }
+
+// What the SESSION is actually evolving (status echoes every live change):
+// the setup form marks fields that differ from it as edited-but-unapplied,
+// and greys out an "Apply live" that would be a no-op.
+const livePhysics = computed(() => {
+  const st = session.status.value
+  if (!st || !session.connected.value) return null
+  return { potential: st.potential, mass: st.mass, c: st.c,
+           hbar_eff: st.hbar_eff, tol: st.tol }
+})
 
 // Boundary watch surfacing: a dismissible amber warning while W sits in
 // the edge band (the server posts an all-clear that removes it), and a
@@ -138,6 +188,31 @@ const boundaryText = computed(() => {
 watch(() => session.status.value?.auto_expand, (v) => {
   if (typeof v === 'boolean' && v !== cfg.auto_expand) cfg.auto_expand = v
 })
+// Live parameter changes: the Physics fields apply on change (blur/Enter)
+// with no other confirmation anywhere, which reads as "nothing happened" —
+// so echo what the server actually took. Labels mirror describe.FIELD_LABEL.
+const PARAM_LABEL: Record<string, string> = {
+  U: 'U(x)', mass: 'm', c: 'c', hbar_eff: 'ℏ', tol: 'tol',
+  dt_sign: 't dir', auto_expand: 'auto-expand',
+}
+const paramFlash = ref('')
+let paramTimer = 0
+watch(session.paramsApplied, (p) => {
+  if (!p) return
+  const fmt = (k: string, v: string | number | boolean) =>
+    k === 'auto_expand' ? (v ? 'on' : 'off')
+    : k === 'dt_sign' ? (Number(v) < 0 ? 'backward' : 'forward')
+    : String(v)
+  const parts = Object.entries(p.applied).map(([k, v]) => {
+    const label = PARAM_LABEL[k] ?? k
+    return k in p.before ? `${label} ${fmt(k, p.before[k])} → ${fmt(k, v)}`
+                         : `${label} = ${fmt(k, v)}`
+  })
+  paramFlash.value = `applied ${parts.join(', ')} at record ${p.at_record}`
+  clearTimeout(paramTimer)
+  paramTimer = window.setTimeout(() => { paramFlash.value = '' }, 6000)
+})
+
 const regridFlash = ref('')
 let regridTimer = 0
 watch(session.regrid, (r) => {
@@ -207,7 +282,8 @@ function onKey(ev: KeyboardEvent) {
     const act = transportAction(session.status.value,
                                 session.lastFrame.value?.record ?? null)
     if (act === 'solve' && !setupValid.value) return
-    session.send({ type: act === 'pause' ? 'pause' : 'play' })
+    // sendCommand: same export-in-flight guard as the transport button
+    void sendCommand({ type: act === 'pause' ? 'pause' : 'play' })
   } else if (ev.code === 'KeyR') {
     const sign = session.status.value?.sign ?? 1
     session.send({ type: 'set_params', params: { dt_sign: sign > 0 ? -1 : 1 } })
@@ -274,7 +350,8 @@ onBeforeUnmount(() => {
       <ExportPanel :status="session.status.value" :session-id="sessionId"
                    :event="session.exportEvent.value" :variants="activeVariants"
                    :current-record="currentRecord" :show-grid="showGrid"
-                   @command="session.send" />
+                   :cfg="cfg"
+                   @command="session.send" @dirty="restartNeeded = true" />
 
       <div class="relative">
         <button class="px-2 py-0.5 rounded bg-neutral-800 hover:bg-neutral-700 text-xs"
@@ -312,13 +389,14 @@ onBeforeUnmount(() => {
 
       <span v-if="restartNeeded" class="text-amber-400 text-xs">
         setup changed —
-        <button class="underline" @click="restart">restart</button> to apply
+        <button class="underline" @click="requestRestart">restart</button> to apply
       </span>
       <span v-if="boundaryText" class="text-amber-400 text-xs">
         ⚠ {{ boundaryText }}
         <button class="underline" title="dismiss (reappears if the boundary state changes)"
                 @click="session.boundary.value = null">×</button>
       </span>
+      <span v-if="paramFlash" class="text-emerald-400 text-xs">✓ {{ paramFlash }}</span>
       <span v-if="regridFlash" class="text-sky-400 text-xs">⤢ {{ regridFlash }}</span>
       <span v-if="reconnecting" class="ml-auto text-amber-400">
         backend disconnected — reconnecting…
@@ -333,8 +411,9 @@ onBeforeUnmount(() => {
       <aside v-if="showSetup" class="w-80 shrink-0 overflow-y-auto space-y-4 pr-1 text-sm">
         <SetupPanel :cfg="cfg" :live="session.connected.value" :sign="session.status.value?.sign ?? 1"
                     :live-grid="session.status.value?.grid ?? null"
+                    :live-physics="livePhysics"
                     :max-grid="session.status.value?.max_grid ?? 4096" v-model:show-grid="showGrid"
-                    @dirty="restartNeeded = true" @restart="restart"
+                    @dirty="restartNeeded = true" @restart="requestRestart"
                     @apply-live="applyLive"
                     @potential-validity="(v: boolean) => potentialValid = v" />
         <ICEditor :ic="cfg.ic" :grid="cfg.grid" :hbar-eff="cfg.hbar_eff"
@@ -362,8 +441,9 @@ onBeforeUnmount(() => {
         <div class="overflow-y-auto min-h-0 pr-1">
           <SetupPanel :cfg="cfg" :live="session.connected.value" :sign="session.status.value?.sign ?? 1"
                     :live-grid="session.status.value?.grid ?? null"
+                    :live-physics="livePhysics"
                     :max-grid="session.status.value?.max_grid ?? 4096" v-model:show-grid="showGrid"
-                      @dirty="restartNeeded = true" @restart="restart"
+                      @dirty="restartNeeded = true" @restart="requestRestart"
                       @apply-live="applyLive"
                       @potential-validity="(v: boolean) => potentialValid = v" />
         </div>
@@ -403,7 +483,7 @@ onBeforeUnmount(() => {
       :status="session.status.value"
       :last-frame="session.lastFrame.value"
       :setup-valid="setupValid"
-      @command="session.send"
+      @command="sendCommand"
     />
   </div>
 </template>

@@ -45,6 +45,15 @@ export interface RegridEvent {
   grid: GridCfg
 }
 
+/** Server 'params_applied' event: the fields that ACTUALLY changed at the
+ *  frontier (the backend drops no-ops), with the values they replaced. */
+export interface ParamsAppliedEvent {
+  type: 'params_applied'
+  at_record: number
+  applied: Record<string, string | number | boolean>
+  before: Record<string, string | number | boolean>
+}
+
 export interface SessionStatus {
   type: 'status'
   session_id: string
@@ -61,6 +70,7 @@ export interface SessionStatus {
   history_cap_bytes: number
   devices: string[]
   // current physics (reflects live set_params changes)
+  potential: string
   mass: number
   c: number
   hbar_eff: number
@@ -108,6 +118,9 @@ export function useSession() {
   // empty-axes all-clear) and the latest regrid announcement
   const boundary = ref<BoundaryEvent | null>(null)
   const regrid = ref<RegridEvent | null>(null)
+  // newest live parameter change: the Setup panel's fields apply on change
+  // with no other visible confirmation, so the header flashes this
+  const paramsApplied = ref<ParamsAppliedEvent | null>(null)
   // newest mp4-export progress event (the panel also polls REST, so a
   // missed event never leaves the progress bar stuck)
   const exportEvent = ref<ExportEvent | null>(null)
@@ -203,6 +216,8 @@ export function useSession() {
         else if (d.type === 'export') exportEvent.value = d as ExportEvent
         else if (d.type === 'boundary')
           boundary.value = d.axes.length ? (d as BoundaryEvent) : null
+        else if (d.type === 'params_applied')
+          paramsApplied.value = d as ParamsAppliedEvent
         else if (d.type === 'regrid') {
           regrid.value = d as RegridEvent
           // the next status echo confirms; update eagerly so the setup
@@ -255,6 +270,7 @@ export function useSession() {
     lastFrame.value = null   // never replay a dead session's frame
     boundary.value = null
     regrid.value = null
+    paramsApplied.value = null
     exportEvent.value = null
     if (info.value) {
       const sid = info.value.session_id
@@ -265,5 +281,6 @@ export function useSession() {
   }
 
   return { status, info, connected, errors, lastFrame, boundary, regrid,
-           exportEvent, create, send, onFrame, onClose, reconnect, destroy }
+           paramsApplied, exportEvent, create, send, onFrame, onClose,
+           reconnect, destroy }
 }

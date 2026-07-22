@@ -287,6 +287,42 @@ def test_set_params_live_and_rejected():
         client.delete("/api/sessions/%s" % info["session_id"])
 
 
+def test_no_op_params_are_dropped():
+    """A change that changes nothing must leave no trace. The UI sends whole
+    fields — PotentialEditor's "Apply live" always carries the U(x) draft,
+    edited or not — and a param_log full of U changes that never happened
+    makes an exported video's "how to reproduce this" block a lie."""
+    from core.session import SESSIONS
+    with TestClient(app) as client:
+        info = _mk(client)
+        s = SESSIONS[info["session_id"]]
+        with client.websocket_connect(info["ws_url"]) as ws:
+            ws.send_text(json.dumps({"type": "play"}))
+            _recv_frames(ws, 2)
+            ws.send_text(json.dumps({"type": "pause"}))
+            # every field identical to what is live
+            ws.send_text(json.dumps({"type": "set_params", "params": {
+                "U": s.cfg.potential, "mass": s.cfg.mass, "c": s.cfg.c,
+                "hbar_eff": s.cfg.hbar_eff, "tol": s.cfg.tol,
+                "dt_sign": s.clock.sign, "auto_expand": s.auto_expand}}))
+            # ...then one real change, whose arrival proves the first was seen
+            ws.send_text(json.dumps({"type": "set_params",
+                                     "params": {"U": s.cfg.potential,
+                                                "hbar_eff": 0.5}}))
+            for _ in range(400):
+                m = ws.receive()
+                if m.get("text"):
+                    d = json.loads(m["text"])
+                    if d["type"] == "params_applied":
+                        break
+            else:
+                raise AssertionError("params_applied never arrived")
+            assert d["applied"] == {"hbar_eff": 0.5}     # U dropped: unchanged
+            assert d["before"] == {"hbar_eff": 1.0}
+            assert [e["applied"] for e in s.param_log] == [{"hbar_eff": 0.5}]
+        client.delete("/api/sessions/%s" % info["session_id"])
+
+
 def test_hbar_change_revalidates_potential():
     """Raising hbar_eff widens the extended Bopp range; the CURRENT U must
     stay valid there or the change is rejected up front — worker-side

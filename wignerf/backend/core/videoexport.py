@@ -11,9 +11,12 @@ reading behind the frontier would lose them mid-file.
 
 Two passes over the range:
   1. scan  — collects the E/ΔX·ΔP/γ series, the per-variant fixed colour
-             scale and the axis union (all cheap scalars already stored in
-             the records), and proves every record is still retained BEFORE
-             ffmpeg is spawned;
+             scale, the fixed marginal amplitudes and the widest window any
+             record used (all cheap scalars already stored in the records),
+             and proves every record is still retained BEFORE ffmpeg is
+             spawned. Only VALUE scales are export-wide: the spatial axes
+             follow each record's own geometry (render_mpl._apply_geom), so
+             a frame from before an auto-expansion still fills its panel;
   2. render — one figure update + one stdin write per frame.
 
 This module must not import core.session (the session imports it back for
@@ -178,7 +181,8 @@ class ExportJob(threading.Thread):
         return [by_key[k] for k in self.variants]
 
     def _scan(self):
-        """Pass 1: series + fixed colour scales + the axis union."""
+        """Pass 1: series + fixed colour scales + the widest window (quoted
+        in the metadata block; the plots follow each record)."""
         st = render_mpl.RangeStats()
         for key in self.variants:
             st.E[key], st.uncert[key], st.purity[key] = [], [], []
@@ -217,7 +221,7 @@ class ExportJob(threading.Thread):
     def _spawn_ffmpeg(self):
         cfg = self.session.cfg
         comment = describe.config_json(
-            cfg, self.session.param_log,
+            cfg, self.session.param_log, at_record=self.k0,
             export={"records": [self.k0, self.k1], "stride": self.spec.stride,
                     "fps": self.spec.fps, "frames": self.total,
                     "variants": self.variants})

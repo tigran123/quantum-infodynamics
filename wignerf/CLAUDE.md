@@ -105,6 +105,26 @@ then `uv pip compile requirements[-x].in -o requirements[-x].txt` and
   zoom windows remap to the same physical region) — so scrubbing across a
   regrid boundary just works. Each doubling ≈ 4× step cost and 4×
   bytes/record (the history cap then holds ¼ the records).
+- **Export panel** (header button "⤓ export") carries two things: the mp4
+  below, and the run's SETUP — `GET /sessions/{id}/setup` serves
+  `describe.setup_document`, the config the session was CREATED with
+  (`state_at(cfg, log, -1)` rewinds every live change; live changes are
+  deliberately not part of a starting state — the video's metadata block is
+  where they are recorded). Import fills the setup form and marks the
+  session restart-dirty, never restarts by itself (`lib/config.importConfig`,
+  in-place merge on the reactive cfg), and accepts that .json OR an exported
+  .mp4: `lib/mp4meta.ts` scans the file's head for the same document in the
+  `comment` tag (faststart keeps it there — byte ~3.5k), so a kept video is
+  self-restoring.
+  A render is destroyed by anything that moves the session on — Restart
+  deletes the session (`close` → `videoexport.close_session`, file unlinked
+  mid-write) and computing new records evicts the ones behind the renderer
+  (`record N is no longer retained`). Both used to happen SILENTLY, so
+  `SimulatorView.mayDiscardExport` confirms first (Restart, and a transport
+  command whose action is `solve` — playback adds no records and is never
+  gated) and cancels the job outright on "yes", instead of leaving it to die
+  mid-file. The automatic restarts (first mount, backend recovery) never
+  prompt.
 - **mp4 export** (`core/videoexport.py` + `core/render_mpl.py` +
   `routers/export.py`): renders an ALREADY-COMPUTED record range on the
   BACKEND — matplotlib/Agg frames piped as raw RGBA into
@@ -112,8 +132,14 @@ then `uv pip compile requirements[-x].in -o requirements[-x].txt` and
   while running): a running session evicts old records, and the feature is
   for filming a range you already played back. Two passes: a scan collects
   the E/ΔX·ΔP/γ series, the per-variant FIXED colour scale (no brightness
-  flicker) and the axis union, and proves every record is still retained
-  before ffmpeg starts; then one figure update per frame. The figure is
+  flicker), the fixed marginal amplitudes and the widest window any record
+  used, and proves every record is still retained before ffmpeg starts; then
+  one figure update per frame. Only VALUE scales are export-wide — the
+  SPATIAL axes follow each record's own geometry (`_apply_geom`, which also
+  re-captures the blit background since ticks are static art), exactly as
+  the SPA follows the painted frame; freezing them at the union rendered
+  every frame before an auto-expansion as a stamp in the corner of its
+  panel, and the union now only labels the metadata block. The figure is
   built ONCE and BLITTED (static background + ~15 animated artists): 465 →
   ~17-80 ms/frame measured at FHD (~320 ms at 4K, 4 variants), the
   difference between minutes and half an hour for a 1000-frame export.
@@ -164,6 +190,19 @@ then `uv pip compile requirements[-x].in -o requirements[-x].txt` and
   apply live at the frontier; grid/IC/variant-set changes require a session
   restart (auto-expand moves the LIVE grid; the Setup panel shows it and
   offers "adopt" to copy it into the form).
+  `apply_params` compares against what is LIVE and drops the fields that
+  did not change — no worker command, no `param_log` entry, no
+  `params_applied`, and nothing at all if the whole message is a no-op (the
+  UI sends complete fields; "Apply live" always carries the U(x) draft, so
+  the log used to fill with U changes that never happened and an export's
+  "how to reproduce this" block lied about its own frames). Entries carry
+  `before` as well as `applied`, so the block renders "ℏ 1 → 2" and
+  `describe.state_at` rewinds the header physics to the FIRST exported
+  record instead of quoting the values the run ended with. Live changes are
+  visible in the UI: the header flashes "✓ applied …", a Physics field
+  whose form value differs from `status` renders amber (they apply on
+  blur/Enter), and "Apply live" is greyed with an inline reason when the
+  draft already IS the live U.
   The setup form gates the transport: while the potential draft is invalid
   for the active variant families or the IC preview errors, Solve (button
   AND Space) is disabled and "Use at restart"/"Apply live" are greyed —
