@@ -21,6 +21,9 @@ const props = defineProps<{
   variants: VariantKey[]
   which: 'E' | 'uncertainty' | 'purity'
   showGrid?: boolean
+  /** physical time of the PAINTED frame — the time cursor rides on it
+   *  (null before the first frame) */
+  cursorT?: number | null
 }>()
 
 interface SeriesRec {
@@ -125,6 +128,47 @@ function toggle(v: VariantKey) {
   if (chart) zoom.reapply(chart)
 }
 
+/**
+ * Time cursor: the vertical line at the PAINTED frame's t, exactly as the
+ * mp4 export draws it (same #f472b6). It is a DOM element inside uPlot's
+ * `over` layer, not a canvas artist — the frame rate is the display's, and
+ * a full u.redraw() per frame to move one line would re-path every series.
+ * `over` is the plot rect with overflow hidden, so a cursor outside a
+ * zoomed window clips itself away.
+ */
+let cursorEl: HTMLDivElement | null = null
+
+function placeCursor() {
+  const u = chart
+  if (!u || !cursorEl) return
+  const t = props.cursorT
+  const sx = u.scales.x
+  if (t == null || !Number.isFinite(t) || sx?.min == null || sx?.max == null) {
+    cursorEl.style.display = 'none'
+    return
+  }
+  // valToPos in CSS mode is measured from the PLOT AREA origin (the canvas
+  // offset is only added in canvas-pixel mode), which is exactly where
+  // `over` starts — so the position goes in as-is
+  const w = u.over.clientWidth
+  const x = u.valToPos(t, 'x')
+  // uPlot clips `.u-under` but NOT `.u-over`, so an element parked outside
+  // the plot rect widens the scroll width of the plots column — whose
+  // overflow-y:auto promotes overflow-x to auto, and a horizontal scrollbar
+  // blinks in and out. It is out there routinely: the series poll runs
+  // every 2 s, so during computation the painted frame is ahead of the
+  // plotted data. Clamp INSIDE the rect (the frontier reads as "at the
+  // right edge"), except when the user has zoomed to a window that excludes
+  // this time — then an edge line would claim something false, so hide it.
+  if (zoom.zoomed && (x < 0 || x > w)) {
+    cursorEl.style.display = 'none'
+    return
+  }
+  cursorEl.style.display = ''
+  cursorEl.style.transform =
+    `translateX(${Math.max(0, Math.min(x, w - 1))}px)`
+}
+
 function makeChart(width: number): uPlot {
   const grid = { show: props.showGrid ?? true, stroke: '#3f3f46', width: 1 }
   return new uPlot(
@@ -133,7 +177,11 @@ function makeChart(width: number): uPlot {
       height: 130,
       title: TITLES[props.which],
       legend: { show: false },
-      plugins: [zoom.plugin], // owns the cursor config (drag/wheel/dblclick)
+      // zoom owns the cursor config (drag/wheel/dblclick); the second
+      // plugin re-places the time cursor whenever the chart re-lays out
+      // (new data, zoom, resize) — its pixel position moves even when t
+      // does not
+      plugins: [zoom.plugin, { hooks: { draw: [() => placeCursor()] } }],
       scales: {
         x: { time: false },
         // Tight adaptive y-range. uPlot's default expands flat data to a
@@ -182,6 +230,14 @@ function makeChart(width: number): uPlot {
   )
 }
 
+function addCursorEl(u: uPlot) {
+  cursorEl = document.createElement('div')
+  cursorEl.className = 'wf-tcursor'
+  cursorEl.style.display = 'none'
+  u.over.appendChild(cursorEl)
+  placeCursor()
+}
+
 function setChartData() {
   // zoom-preserving: the 2 s poll appends must not move a pinned window
   if (chart) zoom.setData(chart, [ts, ...props.variants.map((k) => cols.get(k) ?? [])])
@@ -189,16 +245,20 @@ function setChartData() {
 
 onMounted(() => {
   chart = makeChart(el.value!.clientWidth || 360)
+  addCursorEl(chart)
   const ro = new ResizeObserver(() => {
     if (chart && el.value) chart.setSize({ width: el.value.clientWidth, height: 130 })
   })
   ro.observe(el.value!)
   timer = setInterval(poll, 2000)
   watch(() => props.sessionId, reset)
+  // per PAINTED frame: one style write, no chart redraw
+  watch(() => props.cursorT, placeCursor)
   // grid-lines toggle: rebuild in place, keeping accumulated data
   watch(() => props.showGrid, () => {
     chart?.destroy()
     chart = makeChart(el.value?.clientWidth || 360)
+    addCursorEl(chart)          // the old element died with the old chart
     setChartData()
   })
   onBeforeUnmount(() => ro.disconnect())

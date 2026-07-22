@@ -4,7 +4,7 @@ import type { Frame } from '../lib/protocol'
 import type { SessionStatus } from '../composables/useSession'
 import { displayInterval } from '../lib/perf'
 import { transportAction } from '../lib/transport'
-import { fmtEnergy, fmtTime } from '../lib/units'
+import { AU_ENERGY_EV, AU_TIME_FS } from '../lib/units'
 
 const props = defineProps<{
   status: SessionStatus | null
@@ -94,7 +94,15 @@ function setDelay(ev: Event) {
                     seconds: Math.max(dialToDelay(v), displayInterval()) })
 }
 
-const t = computed(() => props.lastFrame ? fmtTime(props.lastFrame.t) : '—')
+// The readout box has a fixed width, but its CONTENT must hold still too.
+// toPrecision(4) printed a DIFFERENT number of decimals as the value grew
+// (0.02419 → 0.2419 → 2.419 fs), so the text kept changing length and the
+// "(… fs)" part slid about; fixed decimals plus a right-aligned
+// fixed-width field pin every glyph to its column. The exported frames
+// have the same rule (core/render_mpl.py).
+const tAu = computed(() => props.lastFrame ? props.lastFrame.t.toFixed(3) : '—')
+const tFs = computed(() =>
+  props.lastFrame ? (props.lastFrame.t*AU_TIME_FS).toFixed(3) : '—')
 
 /**
  * Direct t entry: whenever the session is paused and history exists, the t
@@ -133,9 +141,13 @@ function commitT() {
   const k = Math.min(Math.max(k0 + Math.round((tv - t0) / step), k0), k1)
   emit('command', { type: 'seek', record: k })
 }
-const E = computed(() => {
+const eHa = computed(() => {
   const v = props.lastFrame?.variants[0]
-  return v ? fmtEnergy(v.E) : '—'
+  return v ? v.E.toPrecision(6) : '—'
+})
+const eEv = computed(() => {
+  const v = props.lastFrame?.variants[0]
+  return v ? (v.E*AU_ENERGY_EV).toFixed(3) : '—'
 })
 const uncert = computed(() => {
   const v = props.lastFrame?.variants[0]
@@ -184,7 +196,7 @@ const stepInfo = computed(() => {
       <span class="tabular-nums w-24 truncate">{{ delayLabel }}</span>
     </label>
 
-    <div class="tabular-nums w-60 truncate shrink-0">
+    <div class="tabular-nums w-64 truncate shrink-0">
       <span class="text-neutral-400">t =</span>
       <input v-if="editingT" ref="tInput" v-model="tDraft"
              class="w-28 bg-neutral-800 border border-sky-600 rounded px-1 tabular-nums"
@@ -192,10 +204,13 @@ const stepInfo = computed(() => {
              @blur="commitT" />
       <span v-else
             :class="canEditT ? 'cursor-pointer underline decoration-dotted decoration-neutral-600' : ''"
-            :title="canEditT ? 'click to type t directly (seeks to the nearest record); ←/→ step ±10%, Home/End jump to start/end' : ''"
-            @click="startEditT">{{ t }}</span>
+            :title="canEditT ? 'click to type t directly (seeks to the nearest record); ←/→ step ±10%, ↓/↑ one record, Home/End jump to start/end' : ''"
+            @click="startEditT"><span class="wf-fixnum w-[7ch]">{{ tAu }}</span>
+        a.u. (<span class="wf-fixnum w-[7ch]">{{ tFs }}</span> fs)</span>
     </div>
-    <div class="tabular-nums w-64 truncate shrink-0"><span class="text-neutral-400">E =</span> {{ E }}</div>
+    <div class="tabular-nums w-64 truncate shrink-0"><span class="text-neutral-400">E =</span>
+      <span class="wf-fixnum w-[9ch]">{{ eHa }}</span>
+      Ha (<span class="wf-fixnum w-[8ch]">{{ eEv }}</span> eV)</div>
     <div class="tabular-nums w-36 truncate shrink-0"><span class="text-neutral-400">ΔX·ΔP =</span> {{ uncert }}</div>
     <div class="tabular-nums w-36 truncate shrink-0"
          :title="'purity of the first active variant'"><span class="text-neutral-400">γ =</span> {{ purity }}</div>

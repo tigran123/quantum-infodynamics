@@ -18,6 +18,27 @@ html, body, #app {
   color: #fbbf24;
 }
 
+/* a live numeric readout: fixed-width, right-aligned, tabular digits — the
+   value changes every frame and must not move the text around it */
+.wf-fixnum {
+  display: inline-block;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* time cursor on the series plots: the painted frame's t, same colour as
+   the one the mp4 export draws (core/render_mpl.py) */
+.wf-tcursor {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: #f472b6;
+  opacity: 0.9;
+  pointer-events: none;
+  will-change: transform;
+}
+
 /* keycap in the help popover */
 .wf-kbd {
   padding: 0 4px;

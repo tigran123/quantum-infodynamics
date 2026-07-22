@@ -27,11 +27,16 @@ defineProps<{
     <MarginalsPlot :key="'p' + plotsKey" :frame-source="frameSource"
                    :variants="variants" which="phi" :show-grid="showGrid"
                    :a1="grid.p1" :a2="grid.p2" :n="grid.Np" />
+    <!-- cursor-t: the painted frame's time, so the series carry the same
+         moving marker the exported video does -->
     <SeriesPlot :key="'e' + plotsKey" :session-id="sessionId"
-                :variants="variants" which="E" :show-grid="showGrid" />
+                :variants="variants" which="E" :show-grid="showGrid"
+                :cursor-t="lastFrame?.t ?? null" />
     <SeriesPlot :key="'u' + plotsKey" :session-id="sessionId"
-                :variants="variants" which="uncertainty" :show-grid="showGrid" />
+                :variants="variants" which="uncertainty" :show-grid="showGrid"
+                :cursor-t="lastFrame?.t ?? null" />
     <SeriesPlot :key="'g' + plotsKey" :session-id="sessionId"
-                :variants="variants" which="purity" :show-grid="showGrid" />
+                :variants="variants" which="purity" :show-grid="showGrid"
+                :cursor-t="lastFrame?.t ?? null" />
   </div>
 </template>

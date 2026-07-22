@@ -91,6 +91,13 @@ class RangeStats:
     p2: float = 0.0
 
 
+def _num_width(values, decimals=3):
+    """Width of the widest "%.<decimals>f" in `values` — the field width that
+    keeps a per-frame readout from changing length (see FrameFigure)."""
+    return max((len("%.*f" % (decimals, v)) for v in values),
+               default=decimals + 2)
+
+
 def _style_axes(ax, title=None, title_loc="center", grid=True):
     ax.set_facecolor(AXBG)
     for s in ax.spines.values():
@@ -158,12 +165,23 @@ class FrameFigure:
 
         self.fig.text(0.012, 0.972, "wignerf — W(x, p, t)", color=FG,
                       fontsize=13, weight="bold", va="center")
+        # The two header readouts change every frame, so they must not
+        # WOBBLE. "%.4g" printed a different number of decimals as the value
+        # grew (0.02419 → 0.2419 → 2.419 fs: the trailing digits just
+        # vanish), so the text changed length and the "(… fs)" part slid
+        # about. Fixed decimals + fields padded to the widest value this
+        # export will show + a monospace family (a proportional font pads
+        # with narrow spaces) pin every glyph to its own pixel column.
+        self._tw = _num_width(stats.t)
+        self._fw = _num_width([v*AU_TIME_FS for v in stats.t])
         self.time_text = self.fig.text(0.30, 0.972, "", color="#38bdf8",
-                                       fontsize=13, va="center")
+                                       fontsize=13, va="center",
+                                       family="DejaVu Sans Mono")
         # right-anchored: the per-record geometry line is long and would run
         # off the canvas at 720p
         self.geom_text = self.fig.text(0.988, 0.972, "", color=MUTED,
-                                       fontsize=9, va="center", ha="right")
+                                       fontsize=9, va="center", ha="right",
+                                       family="DejaVu Sans Mono")
 
         # ---- W panels (left block) + one colorbar each: the scales are
         # per-variant and fixed for the whole video, so a shared bar would
@@ -321,11 +339,12 @@ class FrameFigure:
     def update(self, k, t, geom, vframes, k0, k1):
         """Paint one record; returns its RGBA bytes (a view of the Agg
         buffer — write it to the encoder before the next update)."""
-        self.time_text.set_text("t = %.4f a.u.  (%.4g fs)"
-                                % (t, t*AU_TIME_FS))
-        self.geom_text.set_text("record %d ∈ [%d, %d]   %d×%d   "
+        # 3 decimals on BOTH numbers, as the control bar shows them
+        self.time_text.set_text("t = %*.3f a.u.  (%*.3f fs)"
+                                % (self._tw, t, self._fw, t*AU_TIME_FS))
+        self.geom_text.set_text("record %*d ∈ [%d, %d]   %d×%d   "
                                 "x ∈ [%.4g, %.4g]  p ∈ [%.4g, %.4g]"
-                                % (k, k0, k1, geom.Nx, geom.Np,
+                                % (len(str(k1)), k, k0, k1, geom.Nx, geom.Np,
                                    geom.x1, geom.x2, geom.p1, geom.p2))
         if geom != self._geom:      # first record, or an auto-expand regrid
             self._apply_geom(geom)

@@ -288,6 +288,7 @@ function onKey(ev: KeyboardEvent) {
     const sign = session.status.value?.sign ?? 1
     session.send({ type: 'set_params', params: { dt_sign: sign > 0 ? -1 : 1 } })
   } else if (ev.code === 'ArrowLeft' || ev.code === 'ArrowRight'
+             || ev.code === 'ArrowUp' || ev.code === 'ArrowDown'
              || ev.code === 'Home' || ev.code === 'End') {
     const st = session.status.value
     const [k0, k1] = st?.record_extent ?? [0, -1]
@@ -301,12 +302,17 @@ function onKey(ev: KeyboardEvent) {
     // No optimistic cursor state on purpose: a held key recomputes from
     // the last painted frame, so stepping is paced by frame delivery
     // instead of flying through the whole timeline between paints.
+    // ←/→ jump 10% of the computed history; ↑/↓ are the neighbouring keys
+    // for the fine version — one record per press. Both increase to the
+    // right/up, so →/↑ move forward in time.
     const step = Math.max(1, Math.round((k1 - k0) / 10))
     const cur = Math.round(session.lastFrame.value?.record ?? st.cursor)
     const k = ev.code === 'Home' ? 0
             : ev.code === 'End'  ? Number.MAX_SAFE_INTEGER
             : ev.code === 'ArrowLeft' ? Math.max(0, cur - step)
-            :                           cur + step
+            : ev.code === 'ArrowRight' ? cur + step
+            : ev.code === 'ArrowDown' ? Math.max(0, cur - 1)
+            :                           cur + 1
     if (k !== cur) session.send({ type: 'seek', record: k })
   }
 }
@@ -369,6 +375,8 @@ onBeforeUnmount(() => {
             <span>reverse time direction (applies at the frontier)</span>
             <span><kbd class="wf-kbd">←</kbd> <kbd class="wf-kbd">→</kbd></span>
             <span>while paused: step the time position by 10% of the computed history</span>
+            <span><kbd class="wf-kbd">↓</kbd> <kbd class="wf-kbd">↑</kbd></span>
+            <span>while paused: step ONE record back / forward</span>
             <span><kbd class="wf-kbd">Home</kbd> <kbd class="wf-kbd">End</kbd></span>
             <span>while paused: jump to the first record / the frontier</span>
             <span>click <span class="text-neutral-400">t =</span></span>

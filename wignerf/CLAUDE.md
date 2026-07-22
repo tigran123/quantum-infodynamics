@@ -153,7 +153,12 @@ then `uv pip compile requirements[-x].in -o requirements[-x].txt` and
   while one is being downloaded. Frame content mirrors the SPA (panels +
   marginals + series with a time cursor, variant colours/dashes from
   `lib/variants.ts`, the shader's symmetric bwr scale) plus a metadata
-  block. The video must READ like the screen: plot titles are copied
+  block. The SPA carries the same cursor at the PAINTED frame's t
+  (`SeriesPlot.vue`, `.wf-tcursor`): a DOM element in uPlot's `over` layer,
+  moved by one transform write per frame — a canvas artist would cost a full
+  `u.redraw()` (re-pathing every series) at display rate, and `over` clips
+  it when a zoom scrolls it out of view.
+  The video must READ like the screen: plot titles are copied
   verbatim from `SeriesPlot.vue`/`MarginalsPlot.vue` (γ keeps the UI's
   "purity γ(t) = 2πℏ∬W²dxdp", never an equivalent like Tr ρ²), field labels
   match the Setup panel (ℏ, "run-ahead"), and the series y-window +
@@ -332,6 +337,13 @@ grids) and the measured refresh interval.
   it expired (old code/comments elsewhere in the repo may keep theirs).
 - Nx, Np must be even (shader unshift + fftshift symmetry); powers of 2
   for FFT speed. Grid warns, API schema enforces evenness.
+- **Live numeric readouts get FIXED decimals in a FIXED-width field** — the
+  control bar's t/E (`.wf-fixnum`, tabular-nums) and the exported frames'
+  header (`%*.3f` + a monospace family, widths from the export's own t
+  range; a.u. and fs both at 3 decimals, same as the screen).
+  `toPrecision`/`%g` print a different number of decimals as a
+  value grows (0.02419 → 0.2419 → 2.419 fs), so the text changes length and
+  everything after it slides sideways on every frame.
 - Physics invariants in `tests/test_propagator.py` are the correctness
   anchor — harmonic quantum ≡ classical (Moyal terms vanish for quadratic
   H) is the strongest single check; run them after touching propagator,
