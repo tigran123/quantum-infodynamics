@@ -29,7 +29,7 @@ import uuid
 from collections import deque
 from dataclasses import dataclass, replace
 
-from . import boundary
+from . import boundary, videoexport
 from .grid import GridState
 from .history import FrameHistory
 from .potential import PotentialError, compile_potential
@@ -209,6 +209,16 @@ class SessionClock:
                     # frontier or the transport would offer "Play" over a
                     # few phantom records the user never rewound to.
                     self.cursor = float(max(self.cursor, latest_complete))
+                    # A run-ahead that reached t2 is FINISHED: its workers
+                    # already idle (next_target returns None), so leaving
+                    # `running` set would freeze the transport on "Pause"
+                    # forever and lock out every paused-only action (mp4
+                    # export). Delivery-aware like the playback stop above:
+                    # never end the run over records nobody has seen.
+                    if self.running and self.mode == "runahead" \
+                       and self._runahead_done(latest_complete) \
+                       and delivered >= latest_complete:
+                        self.running = False
                 self._cond.notify_all()
             return self.cursor
 
@@ -251,6 +261,10 @@ class SimSession:
         self._invalid_posted = False
         self.frame_evt = asyncio.Event()
         self.msgs = deque(maxlen=64)     # server->client JSON side channel
+        # live parameter changes, in record order: an mp4 export prints the
+        # ones inside its range, or its "how to reproduce this" block would
+        # be a lie about the frames after the change
+        self.param_log = []
         self.ws_attached = False
         self.last_seen = time.monotonic()
         self.closed = False
@@ -486,8 +500,10 @@ class SimSession:
                     self._schedule_regrid(self.history.latest_complete(), axes)
         self.clock.kick()
         applied = {k: v for k, v in change.model_dump().items() if v is not None}
+        at_record = self.history.latest_complete() + 1
+        self.param_log.append({"at_record": at_record, "applied": applied})
         self.post_msg({"type": "params_applied", "applied": applied,
-                       "at_record": self.history.latest_complete() + 1})
+                       "at_record": at_record})
 
     def status(self):
         first, last = self.history.extent()
@@ -528,6 +544,7 @@ class SimSession:
         if self.closed:
             return
         self.closed = True
+        videoexport.close_session(self.id)   # cancel exports, unlink files
         for w in self.workers:
             w.stop()
         for w in self.workers:
@@ -561,6 +578,7 @@ async def ttl_sweeper():
     while True:
         await asyncio.sleep(15.0)
         now = time.monotonic()
+        videoexport.sweep(now)     # unlink exported files past their TTL
         for s in list(SESSIONS.values()):
             if not s.ws_attached and now - s.last_seen > WS_IDLE_TTL:
                 log.info("session %s idle > %.0fs, closing", s.id, WS_IDLE_TTL)

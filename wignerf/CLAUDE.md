@@ -105,6 +105,61 @@ then `uv pip compile requirements[-x].in -o requirements[-x].txt` and
   zoom windows remap to the same physical region) — so scrubbing across a
   regrid boundary just works. Each doubling ≈ 4× step cost and 4×
   bytes/record (the history cap then holds ¼ the records).
+- **mp4 export** (`core/videoexport.py` + `core/render_mpl.py` +
+  `routers/export.py`): renders an ALREADY-COMPUTED record range on the
+  BACKEND — matplotlib/Agg frames piped as raw RGBA into
+  `ffmpeg -c:v libx264` (system ffmpeg, absence ⇒ 503). PAUSED-only (409
+  while running): a running session evicts old records, and the feature is
+  for filming a range you already played back. Two passes: a scan collects
+  the E/ΔX·ΔP/γ series, the per-variant FIXED colour scale (no brightness
+  flicker) and the axis union, and proves every record is still retained
+  before ffmpeg starts; then one figure update per frame. The figure is
+  built ONCE and BLITTED (static background + ~15 animated artists): 465 →
+  ~17-80 ms/frame measured at FHD (~320 ms at 4K, 4 variants), the
+  difference between minutes and half an hour for a 1000-frame export.
+  Sizes offered: FHD / QHD / 4K UHD. The figure is always 19.2×10.8 in and
+  the RESOLUTION RIDES ON THE DPI (`FrameFigure.REF_WIDTH`) — font sizes
+  are in points, so a fixed dpi would render every label at half its
+  relative size at 4K. The downloaded name is descriptive
+  (`wignerf-QN-QR-CN-CR-41rec-3840x2160-20260722-0107.mp4`, via
+  `Content-Disposition`) while the on-disk path keeps session+job ids: two
+  exports of the same range in one minute must not collide, least of all
+  while one is being downloaded. Frame content mirrors the SPA (panels +
+  marginals + series with a time cursor, variant colours/dashes from
+  `lib/variants.ts`, the shader's symmetric bwr scale) plus a metadata
+  block. The video must READ like the screen: plot titles are copied
+  verbatim from `SeriesPlot.vue`/`MarginalsPlot.vue` (γ keeps the UI's
+  "purity γ(t) = 2πℏ∬W²dxdp", never an equivalent like Tr ρ²), field labels
+  match the Setup panel (ℏ, "run-ahead"), and the series y-window +
+  tick decimals reproduce that component's `scales.y.range` rule
+  (`render_mpl.series_ylim`); the "grid lines on plots" toggle rides along
+  in `ExportSpec.show_grid` and governs EVERY plot in the frame — charts
+  get uPlot's `#3f3f46`, the W panels get `GridOverlay.vue`'s
+  rgba(120,120,120,.28/.55-at-zero) drawn AFTER the image (matplotlib puts
+  the axes grid under it, which is why the heatmaps first had none; the
+  lines are animated artists ordered behind the images in `_dynamic`) — matplotlib's own autoscale renders a 2e-5
+  purity drift as a dramatic dive with a "×10⁻⁵+1" offset where the UI
+  shows a flat line at 1.000000, from byte-identical data. Mirror any
+  change to those rules on both sides. The block carries
+  U(x), parameters, the IC as an analytic expression
+  (`core/describe.py`; cat states print ψ(x,0), the compact complete form),
+  and any live parameter change inside the range (`session.param_log`) —
+  so one frame documents the whole run; the same facts go into the mp4
+  `comment` tag as JSON. Progress: `export` events on the session WS plus a
+  REST poll; the file lives in `WIGNERF_EXPORT_DIR` until downloaded, TTL
+  (30 min), session close or shutdown. The header button stays ENABLED
+  while computing (a disabled button explained only by a tooltip is how
+  this feature first read as broken): the panel states the gate and
+  "Pause & render" pauses, waits for the server to confirm and re-seeds an
+  untouched range before posting. Rendering continues while the popover is
+  CLOSED (the poll and the WS events keep updating), so the button IS the
+  notification — "⤓ export 42%" while running, emerald "⤓ export ready"
+  (red "failed") when finished, and reopening it collects the file; a
+  finished job survives reopening and is dropped only by a new render or a
+  session change (a restart deletes the old session's files). The panel re-reads the extent from
+  `GET /sessions/{id}` when it opens — the streamed status lags a frame
+  burst by up to seconds after a pause, and seeding the range from it
+  silently exported half the history.
 - **Parameter policy**: U(x), c, mass, hbar_eff, tol, dt_sign, auto_expand
   apply live at the frontier; grid/IC/variant-set changes require a session
   restart (auto-expand moves the LIVE grid; the Setup panel shows it and
@@ -119,6 +174,11 @@ then `uv pip compile requirements[-x].in -o requirements[-x].txt` and
   running. Playback-only runs (play pressed behind the frontier, or after a
   finished run-ahead) auto-pause AT the frontier — they never roll into
   computation; only an explicit Solve does (`SessionClock.stop_at_frontier`).
+  A run-ahead that REACHES t2 ends the run too (`advance_cursor`, same
+  delivery-aware condition): its workers already idle there, and leaving
+  `running` set froze the transport on "Pause" forever and locked out
+  every paused-only action (pinned by `test_runahead_starts_paused_and_
+  stops_at_t2`).
   Setup persists in browser localStorage; "↺ defaults" (IC editor) and
   "Reset setup to defaults" (Setup panel) restore defaults in the form and
   mark the session restart-dirty.
@@ -169,6 +229,7 @@ running is pool recycling, not a leak).
 | `WIGNERF_PORT` | `8010` | Backend port (8000 belongs to urantia-library). Used by start.sh; `uvicorn --port` otherwise. |
 | `WIGNERF_HISTORY_MB` | `32768` | In-RAM frame-history cap per session (scrub/replay window). 32 GiB ≈ 4000 four-variant records at 1024², ≈ 64000 at 256². On the VPS (32 GB RAM shared with urantia-library, Open WebUI, …) set `16384`. |
 | `WIGNERF_FFT_THREADS` | `0` | Threads per CPU FFT; `0` = auto (ncores/(2·n_variants), capped at 4). Irrelevant on GPU. |
+| `WIGNERF_EXPORT_DIR` | `<tempdir>/wignerf-exports` | Where mp4 exports are written before download. Under systemd (`PrivateTmp=yes`) the default is a private tmpfs — i.e. RAM, wiped on restart; point it at a disk path for long 1440p exports. Files are removed after download, on session close, at shutdown, or 30 min after finishing. |
 | `WIGNERF_MAX_GRID` | `4096` | Per-axis Nx/Np ceiling — enforced at session creation AND for auto-expand doublings; tunable BOTH ways (schema sanity rail: 16384). The UI's Nx/Np selects follow it (status carries `max_grid`). Lower it on VRAM-constrained hosts: a 4096² working set is ~1.3 GiB per variant worker. At the cap the session warns and keeps computing (moves still allowed). |
 
 ## Commands
@@ -186,6 +247,9 @@ cd backend && .venv/bin/pytest
 
 # frontend: decoder golden test + typecheck + build
 cd frontend && npm run test && npm run build
+
+# mp4 export needs the system ffmpeg (libx264); its tests skip without it
+ffmpeg -version
 
 # dev loop: uvicorn (above) + `npm run dev`, open http://localhost:5173
 # prod-style: ../start.sh, open http://localhost:8010
@@ -218,8 +282,10 @@ grids) and the measured refresh interval.
 3. ~~Multi-GPU~~ — DONE 2026-07-19: variant workers spread across the
    `WIGNERF_DEVICE` pool (see GPU section); measured +41% (4 variants)
    and +39% (2 variants) at 1024² on the 3090 + 2080 Ti pair.
-4. mp4 export. Later: Lindblad dissipation (the propagator's exponent
-   construction is deliberately modular for it), multi-D.
+4. ~~mp4 export~~ — DONE 2026-07-21: backend-rendered export of any
+   computed range (see the mp4 export bullet above). Later: Lindblad
+   dissipation (the propagator's exponent construction is deliberately
+   modular for it), multi-D.
 
 ## Conventions / gotchas
 

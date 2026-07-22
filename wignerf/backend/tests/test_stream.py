@@ -370,10 +370,14 @@ def test_runahead_starts_paused_and_stops_at_t2():
             else:
                 raise AssertionError("run-ahead never reached t2")
             assert saw_preview
-            # ... and STOPS at t2: the frontier must not advance past it
+            # ... and STOPS at t2: the frontier must not advance past it,
+            # and the RUN must end — the workers idle from here on, so a
+            # still-"running" clock would freeze the transport button on
+            # "Pause" forever and lock out every paused-only action
             _time.sleep(0.5)
             r = client.get("/api/sessions/%s" % info["session_id"]).json()
             assert r["record_extent"][1] == 10, "computed past t2"
+            assert not r["running"], "finished run-ahead still reports running"
             # the whole timeline is scrubbable immediately
             ws.send_text(json.dumps({"type": "seek", "record": 4}))
             for _ in range(200):

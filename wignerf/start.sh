@@ -16,6 +16,10 @@
 #                       sessions spread variant workers across the pool)
 #   WIGNERF_HISTORY_MB  frame-history cap per session (default 32768 = 32 GiB;
 #                       set lower on RAM-constrained hosts like the VPS)
+#   WIGNERF_EXPORT_DIR  where mp4 exports are written before download
+#                       (default <tempdir>/wignerf-exports; under systemd's
+#                       PrivateTmp that is a RAM tmpfs — point it at a disk
+#                       path for long high-resolution exports)
 set -e
 cd "$(dirname "$0")"
 

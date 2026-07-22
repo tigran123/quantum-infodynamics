@@ -147,6 +147,35 @@ class SessionCreate(BaseModel):
         return self
 
 
+class ExportSpec(BaseModel):
+    """mp4 export of an already-computed record range (routers/export.py).
+    k0/k1 default to the whole retained history; the range is clamped to it
+    server-side. Even width/height: libx264 with yuv420p requires it."""
+    k0: Optional[int] = Field(default=None, ge=0)
+    k1: Optional[int] = Field(default=None, ge=0)
+    stride: int = Field(default=1, ge=1, le=1000)
+    fps: int = Field(default=30, ge=1, le=120)
+    width: int = Field(default=1920, ge=320, le=3840)
+    height: int = Field(default=1080, ge=240, le=2160)
+    variants: Optional[list[Literal["qn", "qr", "cn", "cr"]]] = \
+        Field(default=None, min_length=1, max_length=4)
+    # mirrors the SPA's "grid lines on plots" toggle (localStorage
+    # wignerf.grid, default on) — one setting for every plot in the frame,
+    # W heatmaps included
+    show_grid: bool = True
+
+    @model_validator(mode="after")
+    def _check(self):
+        if self.width % 2 or self.height % 2:
+            raise ValueError("width and height must be even (yuv420p)")
+        if self.k0 is not None and self.k1 is not None and self.k1 < self.k0:
+            raise ValueError("require k1 >= k0")
+        if self.variants is not None and \
+           len(set(self.variants)) != len(self.variants):
+            raise ValueError("duplicate variants")
+        return self
+
+
 class ParamChange(BaseModel):
     U: Optional[str] = None
     c: Optional[float] = Field(default=None, gt=0)

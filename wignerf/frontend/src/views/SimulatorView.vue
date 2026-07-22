@@ -12,6 +12,7 @@
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { api } from '../api'
 import ControlBar from '../components/ControlBar.vue'
+import ExportPanel from '../components/ExportPanel.vue'
 import ICEditor from '../components/ICEditor.vue'
 import PanelGrid from '../components/PanelGrid.vue'
 import PlotsColumn from '../components/PlotsColumn.vue'
@@ -269,6 +270,11 @@ onBeforeUnmount(() => {
               @click="layout = layout === 'landscape' ? 'portrait' : 'landscape'">
         {{ layout === 'landscape' ? '⬒ portrait' : '⬓ landscape' }}
       </button>
+
+      <ExportPanel :status="session.status.value" :session-id="sessionId"
+                   :event="session.exportEvent.value" :variants="activeVariants"
+                   :current-record="currentRecord" :show-grid="showGrid"
+                   @command="session.send" />
 
       <div class="relative">
         <button class="px-2 py-0.5 rounded bg-neutral-800 hover:bg-neutral-700 text-xs"

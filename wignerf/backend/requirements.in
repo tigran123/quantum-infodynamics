@@ -7,3 +7,6 @@ numpy
 scipy
 sympy
 pyfftw
+# mp4 export: renders the video frames (Agg) off the already-computed
+# history; the encoding itself is piped to the system ffmpeg
+matplotlib

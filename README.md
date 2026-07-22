@@ -44,6 +44,16 @@ space, evolved by the spectral split-operator method. A FastAPI backend (Python
 app; the backend serves the *built* SPA statically, so a running deployment is a
 single process listening on port 8010.
 
+Any computed range can be exported to an **mp4 video** (the `⤓ export mp4`
+button in the header, enabled while the session is paused): the backend renders
+the frames off its own record history — the W(x,p,t) panels, the ρ(x)/φ(p)
+marginals, the E(t), ΔX·ΔP(t) and γ(t) series with a moving time cursor, and a
+block giving U(x), every parameter and the initial condition as an analytic
+expression, so a single frame documents the whole run — and pipes them into
+ffmpeg (H.264). **ffmpeg must be installed on the server host** for the button
+to work; the file is written to `WIGNERF_EXPORT_DIR` (default: a temporary
+directory) and deleted after it has been downloaded or 30 minutes have passed.
+
 `wignerf/start.sh` only **runs** the server — it does not install or build
 anything. Create the backend venv and build the frontend once after cloning, and
 rebuild them after pulling, as below. (This keeps the systemd service, which

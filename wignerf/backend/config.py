@@ -18,12 +18,19 @@ WIGNERF_MAX_GRID     per-axis Nx/Np ceiling for auto-expand doublings
                      (default 4096 — the schema maximum; lower it on
                      VRAM-constrained hosts: a 4096x4096 complex working
                      set is ~1.3 GiB per variant worker)
+WIGNERF_EXPORT_DIR   where mp4 exports are written before being downloaded
+                     (default <tempdir>/wignerf-exports; files are deleted
+                     after the download TTL, on session close and at exit)
 """
 
 import os
+import tempfile
 
 DEVICE = os.environ.get("WIGNERF_DEVICE", "auto")
 PORT = int(os.environ.get("WIGNERF_PORT", "8010"))
 HISTORY_MB = int(os.environ.get("WIGNERF_HISTORY_MB", "32768"))
 FFT_THREADS = int(os.environ.get("WIGNERF_FFT_THREADS", "0"))
 MAX_GRID = int(os.environ.get("WIGNERF_MAX_GRID", "4096"))
+EXPORT_DIR = os.environ.get(
+    "WIGNERF_EXPORT_DIR",
+    os.path.join(tempfile.gettempdir(), "wignerf-exports"))

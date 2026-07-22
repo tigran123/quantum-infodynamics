@@ -73,6 +73,21 @@ export interface SessionStatus {
   per_variant: VariantStatus[]
 }
 
+/** Server 'export' event: mp4 render job progress (routers/export.py). */
+export interface ExportEvent {
+  type: 'export'
+  job_id: string
+  session_id: string
+  state: 'queued' | 'running' | 'done' | 'error' | 'cancelled'
+  done: number
+  total: number
+  bytes: number
+  error: string | null
+  filename: string
+  fps: number
+  duration_s: number
+}
+
 export interface SessionInfo {
   session_id: string
   ws_url: string
@@ -93,6 +108,9 @@ export function useSession() {
   // empty-axes all-clear) and the latest regrid announcement
   const boundary = ref<BoundaryEvent | null>(null)
   const regrid = ref<RegridEvent | null>(null)
+  // newest mp4-export progress event (the panel also polls REST, so a
+  // missed event never leaves the progress bar stuck)
+  const exportEvent = ref<ExportEvent | null>(null)
 
   let ws: WebSocket | null = null
   const handlers = new Set<FrameHandler>()
@@ -182,6 +200,7 @@ export function useSession() {
         else if (d.type === 'error') errors.value.push(d.message)
         else if (d.type === 'eviction' && status.value)
           status.value.record_extent = d.new_extent
+        else if (d.type === 'export') exportEvent.value = d as ExportEvent
         else if (d.type === 'boundary')
           boundary.value = d.axes.length ? (d as BoundaryEvent) : null
         else if (d.type === 'regrid') {
@@ -236,6 +255,7 @@ export function useSession() {
     lastFrame.value = null   // never replay a dead session's frame
     boundary.value = null
     regrid.value = null
+    exportEvent.value = null
     if (info.value) {
       const sid = info.value.session_id
       info.value = null
@@ -245,5 +265,5 @@ export function useSession() {
   }
 
   return { status, info, connected, errors, lastFrame, boundary, regrid,
-           create, send, onFrame, onClose, reconnect, destroy }
+           exportEvent, create, send, onFrame, onClose, reconnect, destroy }
 }
